@@ -1,0 +1,66 @@
+{
+  "@@locale": "de",
+
+  "helloWorld": "Hallo Welt!",
+
+  "appTitle": "Template App",
+
+  "page1Title": "Seite 1",
+  "page2Title": "Seite 2",
+  "page3Title": "Seite 3",
+  "page4Title": "Seite 4",
+  "page5Title": "Seite 5",
+  "page6Title": "Seite 6",
+
+  "settingsTitle": "Einstellungen",
+  "aboutTitle": "Ueber",
+  "detailTitle": "Details",
+
+  "searchLabel": "Suchen",
+
+  "back": "Zurueck",
+  "next": "Weiter",
+  "finish": "Fertig",
+
+  "onboardingIntroBody": "Dies ist eine Skeleton-App, die Architektur und UI-Shell beibehält.",
+  "onboardingIntroHint": "Ersetze \"Page 1..Page 6\" durch deine eigenen Features.",
+  "onboardingPreferencesTitle": "Einstellungen",
+  "themeLabel": "Theme",
+  "languageLabel": "Sprache",
+  "languageSystem": "System",
+  "languageEnglish": "Englisch",
+  "languageGerman": "Deutsch",
+  "accessibilityLabel": "Barrierefreiheit",
+  "useSystemTextScaling": "System-Textskalierung verwenden",
+  "navigationLabel": "Navigation",
+  "navigationOrderHint": "Menuepunkte per Drag-and-drop neu anordnen.",
+  "navigationVisibilityLabel": "In der Navigation anzeigen",
+  "navigationSettingsAlwaysVisibleHint": "Seite 6 bleibt sichtbar, damit Einstellungen erreichbar bleiben.",
+
+  "walletPlaceholderBody": "Platzhalter fuer eine Wallet-aehnliche Funktion.",
+  "primaryAction": "Primaere Aktion",
+  "secondaryAction": "Sekundaere Aktion",
+  "primaryActionSnack": "Ersetze das durch deine echte Aktion",
+  "secondaryActionSnack": "Noch eine Platzhalter-Aktion",
+
+  "menuSettingsSubtitle": "Einstellungen der Template-App",
+  "menuAboutSubtitle": "Ueber dieses Template",
+  "aboutBody": "Dieses Repository ist ein Mobile-App-Skeleton.\n\nErsetze die Platzhalter-Seiten (Page 1..Page 6) durch deine eigenen Features und behalte dabei die Architektur (Datasources, Repositories, Usecases, Entities, Pages) bei.",
+
+  "serverFailureMessage": "Serverdaten konnten nicht geladen werden.",
+  "generalFailureMessage": "Ein Fehler ist aufgetreten.",
+  "errorMessage": "Fehler.",
+  "unexpectedError": "Ein unerwarteter Fehler ist aufgetreten...",
+  "invalid2FATokenFailureMessage": "Dein Einmalcode (TOTP) is ungültig. Bitte versuche es erneut!",
+  "invalidLoginIDAndPasswordFailureMessage": "Die Anmeldedaten sind ungültig!",
+  "welcome": "Willkommen!",
+  "login_prompt": "Bitte melde dich mit deinem Benutzernamen und deinem Passwort an.",
+  "username": "Benutzername",
+  "password": "Passwort",
+  "login": "Anmelden",
+  "empty_input_field": "Bitte gib deine Anmeldedaten ein!",
+  "login_error": "Ungültige Eingabe!",
+  "login_success": "Erfolgreich angemeldet!",
+  "login_already": "Du bist bereits angemeldet.",
+  "enter_totp": "Bitte gib deinen Einmalcode (TOTP) ein."
+}

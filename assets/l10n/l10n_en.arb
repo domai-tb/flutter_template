@@ -1,0 +1,66 @@
+{
+  "@@locale": "en",
+  
+  "helloWorld": "Hello World!",
+
+  "appTitle": "Template App",
+
+  "page1Title": "Page 1",
+  "page2Title": "Page 2",
+  "page3Title": "Page 3",
+  "page4Title": "Page 4",
+  "page5Title": "Page 5",
+  "page6Title": "Page 6",
+
+  "settingsTitle": "Settings",
+  "aboutTitle": "About",
+  "detailTitle": "Detail",
+
+  "searchLabel": "Search",
+
+  "back": "Back",
+  "next": "Next",
+  "finish": "Finish",
+
+  "onboardingIntroBody": "This is a skeleton app that preserves the architecture and UI shell.",
+  "onboardingIntroHint": "Replace \"Page 1..Page 6\" with your own features.",
+  "onboardingPreferencesTitle": "Preferences",
+  "themeLabel": "Theme",
+  "languageLabel": "Language",
+  "languageSystem": "System",
+  "languageEnglish": "English",
+  "languageGerman": "German",
+  "accessibilityLabel": "Accessibility",
+  "useSystemTextScaling": "Use system text scaling",
+  "navigationLabel": "Navigation",
+  "navigationOrderHint": "Drag to reorder menu items.",
+  "navigationVisibilityLabel": "Show in navigation",
+  "navigationSettingsAlwaysVisibleHint": "Page 6 stays visible so settings remain reachable.",
+
+  "walletPlaceholderBody": "Placeholder for a wallet-style feature.",
+  "primaryAction": "Primary Action",
+  "secondaryAction": "Secondary Action",
+  "primaryActionSnack": "Replace this with your real action",
+  "secondaryActionSnack": "Another placeholder action",
+
+  "menuSettingsSubtitle": "Template app settings",
+  "menuAboutSubtitle": "About this template",
+  "aboutBody": "This repository is a mobile app skeleton.\n\nReplace the placeholder pages (Page 1..Page 6) with your own features while keeping the architecture (datasources, repositories, usecases, entities, pages).",
+  
+  "serverFailureMessage": "Could not load server data.",
+  "generalFailureMessage": "An error has occurred.",
+  "errorMessage": "Error.",
+  "unexpectedError": "An unexpected error occured...",
+  "invalid2FATokenFailureMessage": "Your TOTP is incorrect. Please try again!",
+  "invalidLoginIDAndPasswordFailureMessage": "The credentials are invalid!",
+  "welcome": "Welcome!",
+  "login_prompt": "Please login with your username and password.",
+  "username": "Username",
+  "password": "Password",
+  "login": "Login",
+  "empty_input_field": "Please enter your credentials!",
+  "login_error": "Invalid input!",
+  "login_success": "Successfully logged in!",
+  "login_already": "Allready logged in.",
+  "enter_totp": "Please enter your TOTP."
+}
