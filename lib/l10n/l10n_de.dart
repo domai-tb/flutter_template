@@ -101,6 +101,201 @@ class AppLocalizationsDe extends AppLocalizations {
       'Seite 6 bleibt sichtbar, damit Einstellungen erreichbar bleiben.';
 
   @override
+  String get currentPageLabel => 'Aktuelle Seite';
+
+  @override
+  String get shellPlaceholderTab => 'Platzhalter';
+
+  @override
+  String get shellPlaceholderBody =>
+      'Dieser Tab ist ein neutraler Inhaltsbereich. Registriere einen View-Builder, um App-Inhalte bereitzustellen.';
+
+  @override
+  String get inspectorEmpty => 'Es ist kein Inspector-Inhalt registriert.';
+
+  @override
+  String get loading => 'Wird geladen';
+
+  @override
+  String get retry => 'Erneut versuchen';
+
+  @override
+  String get shellMissingRoute => 'Dieses Ziel ist nicht verfügbar.';
+
+  @override
+  String get shellNoDestinations => 'Es sind keine Ziele registriert.';
+
+  @override
+  String shellContentError(String details) {
+    return 'Dieser Inhalt konnte nicht angezeigt werden: $details';
+  }
+
+  @override
+  String get shellMissingView => 'Diese Ansicht ist nicht verfügbar.';
+
+  @override
+  String get openSettings => 'Einstellungen öffnen';
+
+  @override
+  String get openInspector => 'Inspector öffnen';
+
+  @override
+  String get closeInspector => 'Inspector schließen';
+
+  @override
+  String get restoreLayout => 'Standardlayout wiederherstellen';
+
+  @override
+  String get openSplitView => 'Geteilte Ansicht öffnen';
+
+  @override
+  String get closeSplitView => 'Geteilte Ansicht schließen';
+
+  @override
+  String get toggleAppearance => 'Helles oder dunkles Design wechseln';
+
+  @override
+  String get addPlaceholderTab => 'Platzhalter-Tab hinzufügen';
+
+  @override
+  String openView(String view) {
+    return 'Ansicht öffnen: $view';
+  }
+
+  @override
+  String navigateTo(String destination) {
+    return 'Zu $destination wechseln';
+  }
+
+  @override
+  String get selectContext => 'Kontext auswählen';
+
+  @override
+  String get selectModule => 'Modul auswählen';
+
+  @override
+  String switchContext(String context) {
+    return 'Kontext wechseln: $context';
+  }
+
+  @override
+  String switchModule(String module) {
+    return 'Modul wechseln: $module';
+  }
+
+  @override
+  String get commandPalette => 'Befehlspalette';
+
+  @override
+  String get commandPaletteHint => 'Shell-Befehle suchen';
+
+  @override
+  String get switchView => 'Ansicht wechseln';
+
+  @override
+  String get moreActions => 'Weitere Aktionen';
+
+  @override
+  String get reorderTab => 'Zum Neuordnen ziehen';
+
+  @override
+  String get tabActions => 'Tab-Aktionen';
+
+  @override
+  String get moveLeft => 'Tab nach links verschieben';
+
+  @override
+  String get moveRight => 'Tab nach rechts verschieben';
+
+  @override
+  String get closeTab => 'Tab schließen';
+
+  @override
+  String get inspector => 'Inspector';
+
+  @override
+  String get resizeInspector => 'Inspector-Größe ändern';
+
+  @override
+  String get resizeSplitPane => 'Geteilten Bereich skalieren';
+
+  @override
+  String get splitPanePlaceholder =>
+      'Dies ist ein neutraler zweiter Inhaltsbereich.';
+
+  @override
+  String get shellReady => 'Bereit';
+
+  @override
+  String get phoneLayout => 'Telefon';
+
+  @override
+  String get desktopLayout => 'Desktop';
+
+  @override
+  String get accentLabel => 'Akzentfarbe';
+
+  @override
+  String get resetAppearance => 'Darstellung zurücksetzen';
+
+  @override
+  String get densityLabel => 'Abstände';
+
+  @override
+  String get compactDensity => 'Kompakt';
+
+  @override
+  String get comfortableDensity => 'Komfortabel';
+
+  @override
+  String get localStorageNote =>
+      'Einstellungen werden nur auf diesem Gerät oder in diesem Browser gespeichert.';
+
+  @override
+  String get resetLayout => 'Layout zurücksetzen';
+
+  @override
+  String get resetAllPreferences => 'Alle Einstellungen zurücksetzen';
+
+  @override
+  String get resetAllConfirmation =>
+      'Alle lokalen Template-Einstellungen zurücksetzen? Dies kann nicht rückgängig gemacht werden.';
+
+  @override
+  String get cancel => 'Abbrechen';
+
+  @override
+  String get confirmReset => 'Zurücksetzen';
+
+  @override
+  String get moveUp => 'Nach oben';
+
+  @override
+  String get moveDown => 'Nach unten';
+
+  @override
+  String get keyboardLabel => 'Tastatur';
+
+  @override
+  String get shortcutReference => 'Tastenkürzel';
+
+  @override
+  String get aboutShell => 'Über diese Shell';
+
+  @override
+  String get textScalingHint =>
+      'Die System-Textskalierung wird immer berücksichtigt.';
+
+  @override
+  String get themeDark => 'Dunkel';
+
+  @override
+  String get themeLight => 'Hell';
+
+  @override
+  String get themeSystem => 'System';
+
+  @override
   String get walletPlaceholderBody =>
       'Platzhalter fuer eine Wallet-aehnliche Funktion.';
 

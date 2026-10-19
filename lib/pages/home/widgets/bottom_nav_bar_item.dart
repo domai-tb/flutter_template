@@ -52,8 +52,6 @@ class _BottomNavBarItemState extends State<BottomNavBarItem> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isLight = theme.brightness == Brightness.light;
-
     return Padding(
       padding: EdgeInsets.only(left: widget.iconPaddingLeft, right: widget.iconPaddingRight),
       child: AnimatedPadding(
@@ -67,16 +65,11 @@ class _BottomNavBarItemState extends State<BottomNavBarItem> {
             CustomButton(
               tapHandler: () => widget.onTap(),
               child: Padding(
-                padding: EdgeInsets.only(
-                  top: widget.iconVerticalPadding,
-                  bottom: widget.iconVerticalPadding,
-                ),
+                padding: EdgeInsets.only(top: widget.iconVerticalPadding, bottom: widget.iconVerticalPadding),
                 child: Icon(
                   widget.isActive ? widget.activeIcon : widget.inactiveIcon,
                   size: iconHeight,
-                  color: widget.isActive
-                      ? theme.colorScheme.secondary
-                      : (isLight ? Colors.black : const Color.fromRGBO(184, 186, 191, 1)),
+                  color: widget.isActive ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
                 ),
               ),
             ),
@@ -88,10 +81,7 @@ class _BottomNavBarItemState extends State<BottomNavBarItem> {
               child: AnimatedOpacity(
                 opacity: widget.isActive ? 1 : 0,
                 duration: animationDuration,
-                child: Text(
-                  widget.title,
-                  style: theme.textTheme.labelSmall,
-                ),
+                child: Text(widget.title, style: theme.textTheme.labelSmall),
               ),
             ),
           ],

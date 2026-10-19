@@ -272,6 +272,366 @@ abstract class AppLocalizations {
   /// **'Page 6 stays visible so settings remain reachable.'**
   String get navigationSettingsAlwaysVisibleHint;
 
+  /// No description provided for @currentPageLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Current page'**
+  String get currentPageLabel;
+
+  /// No description provided for @shellPlaceholderTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Placeholder'**
+  String get shellPlaceholderTab;
+
+  /// No description provided for @shellPlaceholderBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This tab is a neutral content slot. Register a view builder to supply app content.'**
+  String get shellPlaceholderBody;
+
+  /// No description provided for @inspectorEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No inspector content is registered.'**
+  String get inspectorEmpty;
+
+  /// No description provided for @loading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading'**
+  String get loading;
+
+  /// No description provided for @retry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get retry;
+
+  /// No description provided for @shellMissingRoute.
+  ///
+  /// In en, this message translates to:
+  /// **'This destination is unavailable.'**
+  String get shellMissingRoute;
+
+  /// No description provided for @shellNoDestinations.
+  ///
+  /// In en, this message translates to:
+  /// **'No destinations are registered.'**
+  String get shellNoDestinations;
+
+  /// No description provided for @shellContentError.
+  ///
+  /// In en, this message translates to:
+  /// **'This content could not be shown: {details}'**
+  String shellContentError(String details);
+
+  /// No description provided for @shellMissingView.
+  ///
+  /// In en, this message translates to:
+  /// **'This view is unavailable.'**
+  String get shellMissingView;
+
+  /// No description provided for @openSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Settings'**
+  String get openSettings;
+
+  /// No description provided for @openInspector.
+  ///
+  /// In en, this message translates to:
+  /// **'Open inspector'**
+  String get openInspector;
+
+  /// No description provided for @closeInspector.
+  ///
+  /// In en, this message translates to:
+  /// **'Close inspector'**
+  String get closeInspector;
+
+  /// No description provided for @restoreLayout.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore default layout'**
+  String get restoreLayout;
+
+  /// No description provided for @openSplitView.
+  ///
+  /// In en, this message translates to:
+  /// **'Open split view'**
+  String get openSplitView;
+
+  /// No description provided for @closeSplitView.
+  ///
+  /// In en, this message translates to:
+  /// **'Close split view'**
+  String get closeSplitView;
+
+  /// No description provided for @toggleAppearance.
+  ///
+  /// In en, this message translates to:
+  /// **'Toggle light or dark appearance'**
+  String get toggleAppearance;
+
+  /// No description provided for @addPlaceholderTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Add placeholder tab'**
+  String get addPlaceholderTab;
+
+  /// No description provided for @openView.
+  ///
+  /// In en, this message translates to:
+  /// **'Open view: {view}'**
+  String openView(String view);
+
+  /// No description provided for @navigateTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Navigate to {destination}'**
+  String navigateTo(String destination);
+
+  /// No description provided for @selectContext.
+  ///
+  /// In en, this message translates to:
+  /// **'Select context'**
+  String get selectContext;
+
+  /// No description provided for @selectModule.
+  ///
+  /// In en, this message translates to:
+  /// **'Select module'**
+  String get selectModule;
+
+  /// No description provided for @switchContext.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch context: {context}'**
+  String switchContext(String context);
+
+  /// No description provided for @switchModule.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch module: {module}'**
+  String switchModule(String module);
+
+  /// No description provided for @commandPalette.
+  ///
+  /// In en, this message translates to:
+  /// **'Command palette'**
+  String get commandPalette;
+
+  /// No description provided for @commandPaletteHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search shell commands'**
+  String get commandPaletteHint;
+
+  /// No description provided for @switchView.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch view'**
+  String get switchView;
+
+  /// No description provided for @moreActions.
+  ///
+  /// In en, this message translates to:
+  /// **'More actions'**
+  String get moreActions;
+
+  /// No description provided for @reorderTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag to reorder tab'**
+  String get reorderTab;
+
+  /// No description provided for @tabActions.
+  ///
+  /// In en, this message translates to:
+  /// **'Tab actions'**
+  String get tabActions;
+
+  /// No description provided for @moveLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'Move tab left'**
+  String get moveLeft;
+
+  /// No description provided for @moveRight.
+  ///
+  /// In en, this message translates to:
+  /// **'Move tab right'**
+  String get moveRight;
+
+  /// No description provided for @closeTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Close tab'**
+  String get closeTab;
+
+  /// No description provided for @inspector.
+  ///
+  /// In en, this message translates to:
+  /// **'Inspector'**
+  String get inspector;
+
+  /// No description provided for @resizeInspector.
+  ///
+  /// In en, this message translates to:
+  /// **'Resize inspector'**
+  String get resizeInspector;
+
+  /// No description provided for @resizeSplitPane.
+  ///
+  /// In en, this message translates to:
+  /// **'Resize split pane'**
+  String get resizeSplitPane;
+
+  /// No description provided for @splitPanePlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'This is a neutral second content slot.'**
+  String get splitPanePlaceholder;
+
+  /// No description provided for @shellReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready'**
+  String get shellReady;
+
+  /// No description provided for @phoneLayout.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone'**
+  String get phoneLayout;
+
+  /// No description provided for @desktopLayout.
+  ///
+  /// In en, this message translates to:
+  /// **'Desktop'**
+  String get desktopLayout;
+
+  /// No description provided for @accentLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Accent'**
+  String get accentLabel;
+
+  /// No description provided for @resetAppearance.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset appearance'**
+  String get resetAppearance;
+
+  /// No description provided for @densityLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Spacing'**
+  String get densityLabel;
+
+  /// No description provided for @compactDensity.
+  ///
+  /// In en, this message translates to:
+  /// **'Compact'**
+  String get compactDensity;
+
+  /// No description provided for @comfortableDensity.
+  ///
+  /// In en, this message translates to:
+  /// **'Comfortable'**
+  String get comfortableDensity;
+
+  /// No description provided for @localStorageNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings are stored on this device or browser only.'**
+  String get localStorageNote;
+
+  /// No description provided for @resetLayout.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset layout'**
+  String get resetLayout;
+
+  /// No description provided for @resetAllPreferences.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset all preferences'**
+  String get resetAllPreferences;
+
+  /// No description provided for @resetAllConfirmation.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset all local template preferences? This cannot be undone.'**
+  String get resetAllConfirmation;
+
+  /// No description provided for @cancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get cancel;
+
+  /// No description provided for @confirmReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset'**
+  String get confirmReset;
+
+  /// No description provided for @moveUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Move up'**
+  String get moveUp;
+
+  /// No description provided for @moveDown.
+  ///
+  /// In en, this message translates to:
+  /// **'Move down'**
+  String get moveDown;
+
+  /// No description provided for @keyboardLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Keyboard'**
+  String get keyboardLabel;
+
+  /// No description provided for @shortcutReference.
+  ///
+  /// In en, this message translates to:
+  /// **'Shortcuts'**
+  String get shortcutReference;
+
+  /// No description provided for @aboutShell.
+  ///
+  /// In en, this message translates to:
+  /// **'About this shell'**
+  String get aboutShell;
+
+  /// No description provided for @textScalingHint.
+  ///
+  /// In en, this message translates to:
+  /// **'System text scaling is always respected.'**
+  String get textScalingHint;
+
+  /// No description provided for @themeDark.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark'**
+  String get themeDark;
+
+  /// No description provided for @themeLight.
+  ///
+  /// In en, this message translates to:
+  /// **'Light'**
+  String get themeLight;
+
+  /// No description provided for @themeSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'System'**
+  String get themeSystem;
+
   /// No description provided for @walletPlaceholderBody.
   ///
   /// In en, this message translates to:

@@ -22,7 +22,6 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
   // 0 = system, 1 = light, 2 = dark
   int _selectedTheme = 0;
-  bool _useSystemTextScaling = false;
   List<PageItem> _navBarOrder = PageItem.values.toList();
   Set<PageItem> _hiddenNavBarItems = <PageItem>{};
 
@@ -37,7 +36,6 @@ class _OnboardingPageState extends State<OnboardingPage> {
       settings.copyWith(
         useSystemDarkmode: useSystemDarkmode,
         useDarkmode: useDarkmode,
-        useSystemTextScaling: _useSystemTextScaling,
         navBarItemOrder: pageItemIds(_navBarOrder),
         hiddenNavBarItems: pageItemIds(_hiddenNavBarItems),
         didCompleteOnboarding: true,
@@ -52,13 +50,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
     final useSystemDarkmode = _selectedTheme == 0;
     final useDarkmode = _selectedTheme == 2;
 
-    settingsController.update(
-      settings.copyWith(
-        useSystemDarkmode: useSystemDarkmode,
-        useDarkmode: useDarkmode,
-        useSystemTextScaling: _useSystemTextScaling,
-      ),
-    );
+    settingsController.update(settings.copyWith(useSystemDarkmode: useSystemDarkmode, useDarkmode: useDarkmode));
   }
 
   @override
@@ -76,12 +68,10 @@ class _OnboardingPageState extends State<OnboardingPage> {
       _selectedTheme = settings.useSystemDarkmode
           ? 0
           : settings.useDarkmode
-              ? 2
-              : 1;
-      _useSystemTextScaling = settings.useSystemTextScaling;
+          ? 2
+          : 1;
       _navBarOrder = orderedPageItemsFromSettings(settings.navBarItemOrder);
-      _hiddenNavBarItems =
-          hiddenPageItemsFromSettings(settings.hiddenNavBarItems);
+      _hiddenNavBarItems = hiddenPageItemsFromSettings(settings.hiddenNavBarItems);
       _hydrated = true;
     }
 
@@ -103,20 +93,11 @@ class _OnboardingPageState extends State<OnboardingPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              context.l10n.appTitle,
-                              style: theme.textTheme.displayMedium,
-                            ),
+                            Text(context.l10n.appTitle, style: theme.textTheme.displayMedium),
                             const SizedBox(height: 10),
-                            Text(
-                              context.l10n.onboardingIntroBody,
-                              style: theme.textTheme.bodyMedium,
-                            ),
+                            Text(context.l10n.onboardingIntroBody, style: theme.textTheme.bodyMedium),
                             const SizedBox(height: 30),
-                            Text(
-                              context.l10n.onboardingIntroHint,
-                              style: theme.textTheme.labelSmall,
-                            ),
+                            Text(context.l10n.onboardingIntroHint, style: theme.textTheme.labelSmall),
                           ],
                         ),
                       ),
@@ -126,20 +107,14 @@ class _OnboardingPageState extends State<OnboardingPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                context.l10n.onboardingPreferencesTitle,
-                                style: theme.textTheme.displayMedium,
-                              ),
+                              Text(context.l10n.onboardingPreferencesTitle, style: theme.textTheme.displayMedium),
                               const SizedBox(height: 20),
-                              Text(
-                                context.l10n.themeLabel,
-                                style: theme.textTheme.headlineSmall,
-                              ),
+                              Text(context.l10n.themeLabel, style: theme.textTheme.headlineSmall),
                               const SizedBox(height: 10),
                               AppSegmentedTripleControl(
-                                leftTitle: 'System',
-                                centerTitle: 'Light',
-                                rightTitle: 'Dark',
+                                leftTitle: context.l10n.themeSystem,
+                                centerTitle: context.l10n.themeLight,
+                                rightTitle: context.l10n.themeDark,
                                 initialSelection: _selectedTheme,
                                 onChanged: (selected) {
                                   setState(() => _selectedTheme = selected);
@@ -147,20 +122,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
                                 },
                               ),
                               const SizedBox(height: 24),
-                              Text(
-                                context.l10n.accessibilityLabel,
-                                style: theme.textTheme.headlineSmall,
-                              ),
+                              Text(context.l10n.accessibilityLabel, style: theme.textTheme.headlineSmall),
                               const SizedBox(height: 10),
-                              SwitchListTile.adaptive(
-                                contentPadding: EdgeInsets.zero,
-                                title: Text(context.l10n.useSystemTextScaling),
-                                value: _useSystemTextScaling,
-                                onChanged: (val) {
-                                  setState(() => _useSystemTextScaling = val);
-                                  _applyPreviewSettings();
-                                },
-                              ),
+                              Text(context.l10n.textScalingHint, style: theme.textTheme.bodyMedium),
                               const SizedBox(height: 24),
                               NavBarPreferencesEditor(
                                 orderedItems: _navBarOrder,
@@ -187,9 +151,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
                         onPressed: _pageIndex == 0
                             ? null
                             : () => _pageController.previousPage(
-                                  duration: const Duration(milliseconds: 200),
-                                  curve: Curves.easeOut,
-                                ),
+                                duration: const Duration(milliseconds: 200),
+                                curve: Curves.easeOut,
+                              ),
                         child: Text(context.l10n.back),
                       ),
                       const Spacer(),
@@ -204,11 +168,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                           }
                           _applySettings();
                         },
-                        child: Text(
-                          _pageIndex == 0
-                              ? context.l10n.next
-                              : context.l10n.finish,
-                        ),
+                        child: Text(_pageIndex == 0 ? context.l10n.next : context.l10n.finish),
                       ),
                     ],
                   ),

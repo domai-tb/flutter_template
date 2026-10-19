@@ -1,6 +1,7 @@
 // ignore_for_file: prefer_int_literals
 
 import 'package:flutter/material.dart';
+
 import 'dart:async';
 
 /// Wrap a child with this widget in order to animate the child on build.
@@ -44,6 +45,10 @@ class AnimatedEntryState extends State<AnimatedEntry> with TickerProviderStateMi
 
   /// Can be called from outside in order to manually start the entry animation (again).
   Future<bool> startEntryAnimation() async {
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _animationController.value = 1;
+      return true;
+    }
     _animationController.reset();
     await _animationController.forward();
 
@@ -54,33 +59,33 @@ class AnimatedEntryState extends State<AnimatedEntry> with TickerProviderStateMi
   void initState() {
     super.initState();
 
-    _animationController = AnimationController(
-      vsync: this,
-      duration: widget.duration,
-    );
+    _animationController = AnimationController(vsync: this, duration: widget.duration);
 
     // Define the animations for fading in and the offset transformation
-    _fadeAnimation = Tween(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: widget.interval,
-      ),
-    );
-    _positionAnimation = Tween(begin: widget.offset, end: 0.0).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: widget.interval,
-      ),
-    );
+    _fadeAnimation = Tween(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _animationController, curve: widget.interval));
+    _positionAnimation = Tween(
+      begin: widget.offset,
+      end: 0.0,
+    ).animate(CurvedAnimation(parent: _animationController, curve: widget.interval));
 
     // Start the animation on end of the first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (MediaQuery.disableAnimationsOf(context)) {
+        _animationController.value = 1;
+        return;
+      }
       // Only animate when on tablet
-      if (MediaQuery.of(context).size.shortestSide >= 600) {
+      if (MediaQuery.sizeOf(context).width >= 600) {
         if (widget.offsetDuration == Duration.zero) {
           _animationController.forward();
         } else {
-          Timer(widget.offsetDuration, () => _animationController.forward());
+          Timer(widget.offsetDuration, () {
+            if (mounted) _animationController.forward();
+          });
         }
       } else {
         // Directly set the animation to its endpoint (show the page), when on phone
@@ -102,10 +107,7 @@ class AnimatedEntryState extends State<AnimatedEntry> with TickerProviderStateMi
       opacity: _fadeAnimation,
       child: AnimatedBuilder(
         animation: _positionAnimation,
-        builder: (_, _) => Transform.translate(
-          offset: Offset(0, _positionAnimation.value * (-1)),
-          child: widget.child,
-        ),
+        builder: (_, _) => Transform.translate(offset: Offset(0, _positionAnimation.value * (-1)), child: widget.child),
       ),
     );
   }
@@ -145,6 +147,7 @@ class AnimatedExitState extends State<AnimatedExit> with TickerProviderStateMixi
 
   /// Can be called from outside in order to manually start the exit animation (again).
   Future<bool> startExitAnimation() async {
+    if (MediaQuery.disableAnimationsOf(context)) return true;
     setState(() => _animationOpacity = 0);
     await _animationController.reverse();
 
@@ -164,18 +167,9 @@ class AnimatedExitState extends State<AnimatedExit> with TickerProviderStateMixi
   void initState() {
     super.initState();
 
-    _animationController = AnimationController(
-      vsync: this,
-      duration: widget.duration,
-      value: 1,
-      lowerBound: 0.88,
-    );
+    _animationController = AnimationController(vsync: this, duration: widget.duration, value: 1, lowerBound: 0.88);
 
-    _scaleAnimation = CurvedAnimation(
-      parent: _animationController,
-      curve: widget.curve,
-      reverseCurve: widget.curve,
-    );
+    _scaleAnimation = CurvedAnimation(parent: _animationController, curve: widget.curve, reverseCurve: widget.curve);
   }
 
   @override
@@ -191,10 +185,7 @@ class AnimatedExitState extends State<AnimatedExit> with TickerProviderStateMixi
       opacity: _animationOpacity,
       duration: widget.duration,
       curve: widget.curve,
-      child: ScaleTransition(
-        scale: _scaleAnimation,
-        child: widget.child,
-      ),
+      child: ScaleTransition(scale: _scaleAnimation, child: widget.child),
     );
   }
 }

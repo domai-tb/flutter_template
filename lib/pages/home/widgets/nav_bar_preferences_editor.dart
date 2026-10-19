@@ -21,23 +21,23 @@ class NavBarPreferencesEditor extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    void move(int index, int offset) {
+      final nextIndex = index + offset;
+      if (nextIndex < 0 || nextIndex >= orderedItems.length) return;
+      final items = List<PageItem>.from(orderedItems);
+      final item = items.removeAt(index);
+      items.insert(nextIndex, item);
+      onOrderChanged(items);
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          context.l10n.navigationLabel,
-          style: theme.textTheme.headlineSmall,
-        ),
+        Text(context.l10n.navigationLabel, style: theme.textTheme.headlineSmall),
         const SizedBox(height: 8),
-        Text(
-          context.l10n.navigationOrderHint,
-          style: theme.textTheme.bodyMedium,
-        ),
+        Text(context.l10n.navigationOrderHint, style: theme.textTheme.bodyMedium),
         const SizedBox(height: 8),
-        Text(
-          context.l10n.navigationSettingsAlwaysVisibleHint,
-          style: theme.textTheme.labelSmall,
-        ),
+        Text(context.l10n.navigationSettingsAlwaysVisibleHint, style: theme.textTheme.labelSmall),
         const SizedBox(height: 12),
         ReorderableListView.builder(
           shrinkWrap: true,
@@ -63,14 +63,8 @@ class NavBarPreferencesEditor extends StatelessWidget {
                 color: theme.cardColor,
                 borderRadius: BorderRadius.circular(16),
                 child: ListTile(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  leading: Icon(
-                    isVisible
-                        ? presentation.activeIcon
-                        : presentation.inactiveIcon,
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  leading: Icon(isVisible ? presentation.activeIcon : presentation.inactiveIcon),
                   title: Text(presentation.title),
                   subtitle: Text(
                     isLockedVisible
@@ -85,8 +79,7 @@ class NavBarPreferencesEditor extends StatelessWidget {
                         onChanged: isLockedVisible
                             ? null
                             : (value) {
-                                final nextHiddenItems =
-                                    Set<PageItem>.from(hiddenItems);
+                                final nextHiddenItems = Set<PageItem>.from(hiddenItems);
                                 if (value) {
                                   nextHiddenItems.remove(item);
                                 } else {
@@ -95,12 +88,19 @@ class NavBarPreferencesEditor extends StatelessWidget {
                                 onHiddenItemsChanged(nextHiddenItems);
                               },
                       ),
+                      IconButton(
+                        tooltip: context.l10n.moveUp,
+                        onPressed: index == 0 ? null : () => move(index, -1),
+                        icon: const Icon(Icons.arrow_upward),
+                      ),
+                      IconButton(
+                        tooltip: context.l10n.moveDown,
+                        onPressed: index == orderedItems.length - 1 ? null : () => move(index, 1),
+                        icon: const Icon(Icons.arrow_downward),
+                      ),
                       ReorderableDragStartListener(
                         index: index,
-                        child: const Padding(
-                          padding: EdgeInsets.only(left: 8),
-                          child: Icon(Icons.drag_handle),
-                        ),
+                        child: const Padding(padding: EdgeInsets.only(left: 8), child: Icon(Icons.drag_handle)),
                       ),
                     ],
                   ),

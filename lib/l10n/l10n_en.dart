@@ -100,6 +100,199 @@ class AppLocalizationsEn extends AppLocalizations {
       'Page 6 stays visible so settings remain reachable.';
 
   @override
+  String get currentPageLabel => 'Current page';
+
+  @override
+  String get shellPlaceholderTab => 'Placeholder';
+
+  @override
+  String get shellPlaceholderBody =>
+      'This tab is a neutral content slot. Register a view builder to supply app content.';
+
+  @override
+  String get inspectorEmpty => 'No inspector content is registered.';
+
+  @override
+  String get loading => 'Loading';
+
+  @override
+  String get retry => 'Retry';
+
+  @override
+  String get shellMissingRoute => 'This destination is unavailable.';
+
+  @override
+  String get shellNoDestinations => 'No destinations are registered.';
+
+  @override
+  String shellContentError(String details) {
+    return 'This content could not be shown: $details';
+  }
+
+  @override
+  String get shellMissingView => 'This view is unavailable.';
+
+  @override
+  String get openSettings => 'Open Settings';
+
+  @override
+  String get openInspector => 'Open inspector';
+
+  @override
+  String get closeInspector => 'Close inspector';
+
+  @override
+  String get restoreLayout => 'Restore default layout';
+
+  @override
+  String get openSplitView => 'Open split view';
+
+  @override
+  String get closeSplitView => 'Close split view';
+
+  @override
+  String get toggleAppearance => 'Toggle light or dark appearance';
+
+  @override
+  String get addPlaceholderTab => 'Add placeholder tab';
+
+  @override
+  String openView(String view) {
+    return 'Open view: $view';
+  }
+
+  @override
+  String navigateTo(String destination) {
+    return 'Navigate to $destination';
+  }
+
+  @override
+  String get selectContext => 'Select context';
+
+  @override
+  String get selectModule => 'Select module';
+
+  @override
+  String switchContext(String context) {
+    return 'Switch context: $context';
+  }
+
+  @override
+  String switchModule(String module) {
+    return 'Switch module: $module';
+  }
+
+  @override
+  String get commandPalette => 'Command palette';
+
+  @override
+  String get commandPaletteHint => 'Search shell commands';
+
+  @override
+  String get switchView => 'Switch view';
+
+  @override
+  String get moreActions => 'More actions';
+
+  @override
+  String get reorderTab => 'Drag to reorder tab';
+
+  @override
+  String get tabActions => 'Tab actions';
+
+  @override
+  String get moveLeft => 'Move tab left';
+
+  @override
+  String get moveRight => 'Move tab right';
+
+  @override
+  String get closeTab => 'Close tab';
+
+  @override
+  String get inspector => 'Inspector';
+
+  @override
+  String get resizeInspector => 'Resize inspector';
+
+  @override
+  String get resizeSplitPane => 'Resize split pane';
+
+  @override
+  String get splitPanePlaceholder => 'This is a neutral second content slot.';
+
+  @override
+  String get shellReady => 'Ready';
+
+  @override
+  String get phoneLayout => 'Phone';
+
+  @override
+  String get desktopLayout => 'Desktop';
+
+  @override
+  String get accentLabel => 'Accent';
+
+  @override
+  String get resetAppearance => 'Reset appearance';
+
+  @override
+  String get densityLabel => 'Spacing';
+
+  @override
+  String get compactDensity => 'Compact';
+
+  @override
+  String get comfortableDensity => 'Comfortable';
+
+  @override
+  String get localStorageNote =>
+      'Settings are stored on this device or browser only.';
+
+  @override
+  String get resetLayout => 'Reset layout';
+
+  @override
+  String get resetAllPreferences => 'Reset all preferences';
+
+  @override
+  String get resetAllConfirmation =>
+      'Reset all local template preferences? This cannot be undone.';
+
+  @override
+  String get cancel => 'Cancel';
+
+  @override
+  String get confirmReset => 'Reset';
+
+  @override
+  String get moveUp => 'Move up';
+
+  @override
+  String get moveDown => 'Move down';
+
+  @override
+  String get keyboardLabel => 'Keyboard';
+
+  @override
+  String get shortcutReference => 'Shortcuts';
+
+  @override
+  String get aboutShell => 'About this shell';
+
+  @override
+  String get textScalingHint => 'System text scaling is always respected.';
+
+  @override
+  String get themeDark => 'Dark';
+
+  @override
+  String get themeLight => 'Light';
+
+  @override
+  String get themeSystem => 'System';
+
+  @override
   String get walletPlaceholderBody => 'Placeholder for a wallet-style feature.';
 
   @override

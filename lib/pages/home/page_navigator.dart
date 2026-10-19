@@ -21,39 +21,21 @@ PageItem? pageItemFromId(String id) {
 List<PageItem> orderedPageItemsFromSettings(List<String> order) {
   final orderedItems = <PageItem>[];
   final seenItems = <PageItem>{};
-
   for (final id in order) {
     final item = pageItemFromId(id);
-    if (item != null && seenItems.add(item)) {
-      orderedItems.add(item);
-    }
+    if (item != null && seenItems.add(item)) orderedItems.add(item);
   }
-
   for (final item in PageItem.values) {
-    if (seenItems.add(item)) {
-      orderedItems.add(item);
-    }
+    if (seenItems.add(item)) orderedItems.add(item);
   }
-
   return orderedItems;
 }
 
 Set<PageItem> hiddenPageItemsFromSettings(List<String> hiddenItems) {
-  final hiddenPageItems = <PageItem>{};
-
-  for (final id in hiddenItems) {
-    final item = pageItemFromId(id);
-    if (item != null && item != PageItem.page6) {
-      hiddenPageItems.add(item);
-    }
-  }
-
-  return hiddenPageItems;
+  return hiddenItems.map(pageItemFromId).whereType<PageItem>().where((item) => item != PageItem.page6).toSet();
 }
 
-List<String> pageItemIds(Iterable<PageItem> items) {
-  return items.map((item) => item.name).toList();
-}
+List<String> pageItemIds(Iterable<PageItem> items) => items.map((item) => item.name).toList();
 
 class PageItemPresentation {
   final String title;
@@ -116,107 +98,230 @@ PageItemPresentation pageItemPresentation(BuildContext context, PageItem item) {
   }
 }
 
-class PageNavigatorRoutes {
-  /// The root-page is shown initially when this navbar-tab is the active one.
-  static const String root = '/';
+typedef ShellDestinationBuilder = Widget Function(
+  BuildContext context,
+  GlobalKey<NavigatorState> mainNavigatorKey,
+  GlobalKey<AnimatedEntryState> entryAnimationKey,
+  GlobalKey<AnimatedExitState> exitAnimationKey,
+);
 
-  /// The detail-page is pushed onto the navigator-stack of this specific tab when,
-  /// for example, a news-article is opened.
+class ShellDestination {
+  final String id;
+  final String Function(BuildContext) title;
+  final IconData icon;
+  final IconData? inactiveIcon;
+  final ShellDestinationBuilder builder;
+  final bool lockedVisible;
+
+  const ShellDestination({
+    required this.id,
+    required this.title,
+    required this.icon,
+    required this.builder,
+    this.inactiveIcon,
+    this.lockedVisible = false,
+  });
+}
+
+class ShellViewRegistration {
+  final String id;
+  final String Function(BuildContext, String instanceId) title;
+  final WidgetBuilder? builder;
+
+  const ShellViewRegistration({required this.id, required this.title, this.builder});
+}
+
+class ShellModule {
+  final String id;
+  final String Function(BuildContext) title;
+  final WidgetBuilder builder;
+
+  const ShellModule({required this.id, required this.title, required this.builder});
+}
+
+class ShellContext {
+  final String id;
+  final String Function(BuildContext) title;
+  final List<ShellModule> modules;
+
+  const ShellContext({required this.id, required this.title, required this.modules});
+}
+
+class ShellConfig {
+  final String Function(BuildContext) title;
+  final List<ShellDestination> destinations;
+  final List<ShellViewRegistration> views;
+  final List<ShellModule> modules;
+  final List<ShellContext> contexts;
+  final WidgetBuilder? inspectorBuilder;
+  final WidgetBuilder? splitPaneBuilder;
+
+  const ShellConfig({
+    required this.title,
+    required this.destinations,
+    this.views = const [],
+    this.modules = const [],
+    this.contexts = const [],
+    this.inspectorBuilder,
+    this.splitPaneBuilder,
+  });
+}
+
+enum ShellSlotState { content, empty, loading, error, unavailable }
+
+class ShellContentSlot extends StatelessWidget {
+  final ShellSlotState state;
+  final Widget? child;
+  final String? message;
+  final VoidCallback? onRetry;
+
+  const ShellContentSlot({super.key, required this.state, this.child, this.message, this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    if (state == ShellSlotState.content && child != null) return child!;
+    final text = switch (state) {
+      ShellSlotState.content || ShellSlotState.empty => message ?? context.l10n.shellPlaceholderBody,
+      ShellSlotState.loading => message ?? context.l10n.loading,
+      ShellSlotState.error => message ?? context.l10n.generalFailureMessage,
+      ShellSlotState.unavailable => message ?? context.l10n.shellMissingView,
+    };
+    return Semantics(
+      liveRegion: state == ShellSlotState.error,
+      child: Center(
+        child: state == ShellSlotState.loading
+            ? Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const CircularProgressIndicator(),
+                  if (message != null) ...[const SizedBox(height: 12), Text(text, textAlign: TextAlign.center)],
+                ],
+              )
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(text, textAlign: TextAlign.center),
+                  if (state == ShellSlotState.error && onRetry != null) ...[
+                    const SizedBox(height: 12),
+                    TextButton(onPressed: onRetry, child: Text(context.l10n.retry)),
+                  ],
+                ],
+              ),
+      ),
+    );
+  }
+}
+
+ShellConfig defaultShellConfig() => ShellConfig(
+  title: (context) => context.l10n.appTitle,
+  destinations: PageItem.values.map((item) {
+    final presentation = _pageItemIcons(item);
+    return ShellDestination(
+      id: item.name,
+      title: (context) => pageItemPresentation(context, item).title,
+      icon: presentation.activeIcon,
+      inactiveIcon: presentation.inactiveIcon,
+      lockedVisible: item == PageItem.page6,
+      builder: (context, mainKey, entryKey, exitKey) {
+        switch (item) {
+          case PageItem.page1:
+            return Page1Page(mainNavigatorKey: mainKey, pageEntryAnimationKey: entryKey, pageExitAnimationKey: exitKey);
+          case PageItem.page2:
+            return Page2Page(mainNavigatorKey: mainKey, pageEntryAnimationKey: entryKey, pageExitAnimationKey: exitKey);
+          case PageItem.page3:
+            return Page3Page(pageEntryAnimationKey: entryKey, pageExitAnimationKey: exitKey);
+          case PageItem.page4:
+            return Page4Page(mainNavigatorKey: mainKey, pageEntryAnimationKey: entryKey, pageExitAnimationKey: exitKey);
+          case PageItem.page5:
+            return Page5Page(pageEntryAnimationKey: entryKey, pageExitAnimationKey: exitKey);
+          case PageItem.page6:
+            return Page6Page(mainNavigatorKey: mainKey, pageEntryAnimationKey: entryKey, pageExitAnimationKey: exitKey);
+        }
+      },
+    );
+  }).toList(),
+  views: defaultShellViews(),
+  inspectorBuilder: (context) => Center(child: Text(context.l10n.inspectorEmpty)),
+  splitPaneBuilder: (context) =>
+      ShellContentSlot(state: ShellSlotState.empty, message: context.l10n.splitPanePlaceholder),
+);
+
+List<ShellViewRegistration> defaultShellViews() => [
+  ShellViewRegistration(id: 'route', title: (context, _) => context.l10n.currentPageLabel),
+  ShellViewRegistration(
+    id: 'placeholder',
+    title: (context, id) => '${context.l10n.shellPlaceholderTab} ${id.split('-').last}',
+    builder: (context) => const ShellContentSlot(state: ShellSlotState.empty),
+  ),
+];
+
+PageItemPresentation _pageItemIcons(PageItem item) {
+  switch (item) {
+    case PageItem.page1:
+      return const PageItemPresentation(title: '', activeIcon: Icons.home, inactiveIcon: Icons.home_outlined);
+    case PageItem.page2:
+      return const PageItemPresentation(
+        title: '',
+        activeIcon: Icons.calendar_month,
+        inactiveIcon: Icons.calendar_month_outlined,
+      );
+    case PageItem.page3:
+      return const PageItemPresentation(title: '', activeIcon: Icons.map, inactiveIcon: Icons.map_outlined);
+    case PageItem.page4:
+      return const PageItemPresentation(
+        title: '',
+        activeIcon: Icons.restaurant,
+        inactiveIcon: Icons.restaurant_outlined,
+      );
+    case PageItem.page5:
+      return const PageItemPresentation(
+        title: '',
+        activeIcon: Icons.account_balance_wallet,
+        inactiveIcon: Icons.account_balance_wallet_outlined,
+      );
+    case PageItem.page6:
+      return const PageItemPresentation(title: '', activeIcon: Icons.more_horiz, inactiveIcon: Icons.more_horiz);
+  }
+}
+
+class PageNavigatorRoutes {
+  static const String root = '/';
   static const String detail = '/detail';
 }
 
-/// Wraps the displayed page into a seperate [Navigator] in order to push new detail-pages
-/// (like opening a news-article) to a specific navigator-stack instead of the app-wide navigator-stack.
-///
-/// This also allows to constantly show the bottom navigation bar across multiple pages, even during transitions.
 class NavBarNavigator extends StatelessWidget {
   final GlobalKey<NavigatorState> mainNavigatorKey;
-
   final GlobalKey<NavigatorState> navigatorKey;
-
-  /// Determines the type of the page in order to set the navigator correctly.
-  final PageItem pageItem;
-
-  /// Passes the animation key for the entry animation to the referenced page
-  /// to control the animation from outside the page.
+  final ShellDestination destination;
   final GlobalKey<AnimatedEntryState> pageEntryAnimationKey;
-
-  /// Passes the animation key for the exit animation to the referenced page
-  /// to control the animation from outside the page.
   final GlobalKey<AnimatedExitState> pageExitAnimationKey;
 
   const NavBarNavigator({
     super.key,
     required this.mainNavigatorKey,
     required this.navigatorKey,
-    required this.pageItem,
+    required this.destination,
     required this.pageEntryAnimationKey,
     required this.pageExitAnimationKey,
   });
 
-  /// Creates a map of the root and detail page of the specific page.
-  Map<String, WidgetBuilder> _routeBuilders(BuildContext context) {
-    Widget rootPage;
-    switch (pageItem) {
-      case PageItem.page1:
-        rootPage = Page1Page(
-          mainNavigatorKey: mainNavigatorKey,
-          pageEntryAnimationKey: pageEntryAnimationKey,
-          pageExitAnimationKey: pageExitAnimationKey,
-        );
-        break;
-      case PageItem.page2:
-        rootPage = Page2Page(
-          mainNavigatorKey: mainNavigatorKey,
-          pageEntryAnimationKey: pageEntryAnimationKey,
-          pageExitAnimationKey: pageExitAnimationKey,
-        );
-        break;
-      case PageItem.page4:
-        rootPage = Page4Page(
-          mainNavigatorKey: mainNavigatorKey,
-          pageEntryAnimationKey: pageEntryAnimationKey,
-          pageExitAnimationKey: pageExitAnimationKey,
-        );
-        break;
-      case PageItem.page3:
-        rootPage = Page3Page(
-          pageEntryAnimationKey: pageEntryAnimationKey,
-          pageExitAnimationKey: pageExitAnimationKey,
-        );
-        break;
-      case PageItem.page5:
-        rootPage = Page5Page(
-          pageEntryAnimationKey: pageEntryAnimationKey,
-          pageExitAnimationKey: pageExitAnimationKey,
-        );
-        break;
-      case PageItem.page6:
-        rootPage = Page6Page(
-          mainNavigatorKey: mainNavigatorKey,
-          pageEntryAnimationKey: pageEntryAnimationKey,
-          pageExitAnimationKey: pageExitAnimationKey,
-        );
-        break;
-    }
-    return {
-      PageNavigatorRoutes.root: (context) => rootPage,
-      //TabNavigatorRoutes.detail: (context) => ,
-    };
-  }
-
   @override
   Widget build(BuildContext context) {
-    final Map<String, WidgetBuilder> routeBuilders = _routeBuilders(context);
-
     return Navigator(
       key: navigatorKey,
       initialRoute: PageNavigatorRoutes.root,
-      onGenerateRoute: (routeSettings) {
-        return MaterialPageRoute(
-          builder: (context) => routeBuilders[routeSettings.name]!(context),
-        );
-      },
+      onGenerateRoute: (routeSettings) => MaterialPageRoute<void>(
+        builder: (context) {
+          if (routeSettings.name != PageNavigatorRoutes.root) {
+            return Center(child: Text(context.l10n.shellMissingRoute));
+          }
+          try {
+            return destination.builder(context, mainNavigatorKey, pageEntryAnimationKey, pageExitAnimationKey);
+          } catch (error) {
+            return ShellContentSlot(state: ShellSlotState.error, message: context.l10n.shellContentError('$error'));
+          }
+        },
+      ),
     );
   }
 }

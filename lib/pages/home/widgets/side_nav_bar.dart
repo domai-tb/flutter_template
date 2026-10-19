@@ -1,52 +1,59 @@
 import 'package:flutter/material.dart';
 
+import 'package:flutter_template/core/themes.dart';
 import 'package:flutter_template/pages/home/page_navigator.dart';
-import 'package:flutter_template/pages/home/widgets/side_nav_bar_item.dart';
 
-class SideNavBar extends StatefulWidget {
-  /// Needs the currently active page in order to highlight it
-  final PageItem currentPage;
-  final List<PageItem> pages;
+class SideNavBar extends StatelessWidget {
+  final String currentId;
+  final List<ShellDestination> destinations;
+  final ValueChanged<String> onSelected;
 
-  /// Calls this function when an item of the navigation bar is selected.
-  final Function(PageItem) onSelectedPage;
+  const SideNavBar({super.key, required this.currentId, required this.destinations, required this.onSelected});
 
-  const SideNavBar({
-    super.key,
-    required this.currentPage,
-    required this.pages,
-    required this.onSelectedPage,
-  });
-
-  @override
-  State<SideNavBar> createState() => _SideNavBarState();
-}
-
-class _SideNavBarState extends State<SideNavBar> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isLight = theme.brightness == Brightness.light;
+    final tokens = theme.extension<AppShellTokens>();
+    final spacingScale = tokens?.spacingScale ?? 1;
 
     return Container(
-      width: 80,
-      padding: const EdgeInsets.only(top: 40, bottom: 10, left: 15, right: 15),
+      width: 72 * spacingScale,
       decoration: BoxDecoration(
-        color:
-            isLight ? const Color.fromRGBO(245, 246, 250, 1) : theme.cardColor,
+        color: tokens?.canvas ?? theme.colorScheme.surface,
+        border: Border(right: BorderSide(color: theme.dividerColor)),
       ),
       child: Column(
-        children: widget.pages.map((page) {
-          final presentation = pageItemPresentation(context, page);
-
-          return SideNavBarItem(
-            title: presentation.title,
-            activeIcon: presentation.activeIcon,
-            inactiveIcon: presentation.inactiveIcon,
-            onTap: () => widget.onSelectedPage(page),
-            isActive: widget.currentPage == page,
-          );
-        }).toList(),
+        children: [
+          const SizedBox(height: 12),
+          for (final destination in destinations)
+            Tooltip(
+              message: destination.title(context),
+              child: Semantics(
+                button: true,
+                selected: currentId == destination.id,
+                label: destination.title(context),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 3),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                    child: IconButton(
+                      tooltip: destination.title(context),
+                      onPressed: () => onSelected(destination.id),
+                      style: IconButton.styleFrom(
+                        foregroundColor: currentId == destination.id
+                            ? theme.colorScheme.primary
+                            : tokens?.textSecondary,
+                        backgroundColor: currentId == destination.id
+                            ? theme.colorScheme.primaryContainer
+                            : Colors.transparent,
+                      ),
+                      icon: Icon(destination.icon, size: 22),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

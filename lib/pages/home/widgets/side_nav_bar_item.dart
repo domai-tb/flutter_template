@@ -43,40 +43,36 @@ class _SideNavBarItemState extends State<SideNavBarItem> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isLight = theme.brightness == Brightness.light;
-
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child:
           // Icon-button
           CustomButton(
-        tapHandler: () => widget.onTap(),
-        child: Padding(
-          padding: EdgeInsets.symmetric(vertical: widget.verticalPadding),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: EdgeInsets.only(left: 14, right: 14, bottom: widget.bottomIconPadding),
-                child: Icon(
-                  widget.isActive ? widget.activeIcon : widget.inactiveIcon,
-                  size: widget.iconHeight,
-                  color: widget.isActive
-                      ? theme.colorScheme.secondary
-                      : (isLight ? Colors.black : const Color.fromRGBO(184, 186, 191, 1)),
-                ),
+            tapHandler: () => widget.onTap(),
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: widget.verticalPadding),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: EdgeInsets.only(left: 14, right: 14, bottom: widget.bottomIconPadding),
+                    child: Icon(
+                      widget.isActive ? widget.activeIcon : widget.inactiveIcon,
+                      size: widget.iconHeight,
+                      color: widget.isActive ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  // Text
+                  Text(
+                    widget.title,
+                    style: widget.isActive
+                        ? theme.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w700)
+                        : theme.textTheme.labelSmall,
+                  ),
+                ],
               ),
-              // Text
-              Text(
-                widget.title,
-                style: widget.isActive
-                    ? theme.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w700)
-                    : theme.textTheme.labelSmall,
-              ),
-            ],
+            ),
           ),
-        ),
-      ),
     );
   }
 }

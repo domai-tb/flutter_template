@@ -21,13 +21,7 @@ Future<void> main() async {
   final settings = ic.sl<SettingsController>();
   final services = ic.sl<AppServices>();
 
-  runApp(
-    AppScope(
-      settings: settings,
-      services: services,
-      child: const SkeletonApp(),
-    ),
-  );
+  runApp(AppScope(settings: settings, services: services, child: const SkeletonApp()));
 }
 
 class SkeletonApp extends StatefulWidget {
@@ -38,8 +32,7 @@ class SkeletonApp extends StatefulWidget {
 }
 
 class _SkeletonAppState extends State<SkeletonApp> {
-  final GlobalKey<NavigatorState> _mainNavigatorKey =
-      GlobalKey<NavigatorState>();
+  final GlobalKey<NavigatorState> _mainNavigatorKey = GlobalKey<NavigatorState>();
 
   @override
   Widget build(BuildContext context) {
@@ -52,30 +45,17 @@ class _SkeletonAppState extends State<SkeletonApp> {
         final themeMode = settings.useSystemDarkmode
             ? ThemeMode.system
             : (settings.useDarkmode ? ThemeMode.dark : ThemeMode.light);
-        final locale =
-            settings.localeCode == null ? null : Locale(settings.localeCode!);
+        final locale = settings.localeCode == null ? null : Locale(settings.localeCode!);
 
         return MaterialApp(
           debugShowCheckedModeBanner: false,
           onGenerateTitle: (context) => context.l10n.appTitle,
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          theme: AppTheme.light,
-          darkTheme: AppTheme.dark,
+          theme: AppTheme.light(accentPreset: settings.accentPreset, comfortable: settings.density == 'comfortable'),
+          darkTheme: AppTheme.dark(accentPreset: settings.accentPreset, comfortable: settings.density == 'comfortable'),
           themeMode: themeMode,
           locale: locale,
-          builder: (context, child) {
-            if (child == null) return const SizedBox.shrink();
-            final mq = MediaQuery.of(context);
-            return MediaQuery(
-              data: mq.copyWith(
-                textScaler: settings.useSystemTextScaling
-                    ? mq.textScaler
-                    : TextScaler.noScaling,
-              ),
-              child: child,
-            );
-          },
           home: settings.didCompleteOnboarding
               ? HomePage(mainNavigatorKey: _mainNavigatorKey)
               : OnboardingPage(mainNavigatorKey: _mainNavigatorKey),
