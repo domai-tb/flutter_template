@@ -455,4 +455,12 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get enter_totp => 'Bitte gib deinen Einmalcode (TOTP) ein.';
+
+  @override
+  String get closeUnsavedTabTitle => 'Geänderte Ansicht schließen?';
+
+  @override
+  String closeUnsavedTabMessage(String title) {
+    return '$title schließen und ungespeicherte Änderungen verwerfen?';
+  }
 }

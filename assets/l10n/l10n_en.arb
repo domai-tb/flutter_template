@@ -154,5 +154,14 @@
   "login_error": "Invalid input!",
   "login_success": "Successfully logged in!",
   "login_already": "Allready logged in.",
-  "enter_totp": "Please enter your TOTP."
+  "enter_totp": "Please enter your TOTP.",
+  "closeUnsavedTabTitle": "Close modified view?",
+  "closeUnsavedTabMessage": "Close {title} and discard its unsaved changes?",
+  "@closeUnsavedTabMessage": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  }
 }

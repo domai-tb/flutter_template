@@ -1,4 +1,8 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_template/core/settings.dart';
 
 import 'package:flutter_template/l10n/l10n_x.dart';
 import 'package:flutter_template/pages/home/widgets/page_navigation_animation.dart';
@@ -98,12 +102,51 @@ PageItemPresentation pageItemPresentation(BuildContext context, PageItem item) {
   }
 }
 
+enum ShellViewReusePolicy { never, byRegistration }
+
+enum ShellTabLifecycle { restored, opened, activated, deactivated, closing, closed }
+
+typedef ShellViewBuilder = Widget Function(BuildContext context, ShellViewContext view);
 typedef ShellDestinationBuilder = Widget Function(
   BuildContext context,
   GlobalKey<NavigatorState> mainNavigatorKey,
   GlobalKey<AnimatedEntryState> entryAnimationKey,
   GlobalKey<AnimatedExitState> exitAnimationKey,
 );
+typedef ShellTabCloseGuard = FutureOr<bool> Function(BuildContext context, ShellTabPreference tab);
+typedef ShellViewActionsBuilder = List<ShellViewAction> Function(BuildContext context, ShellViewContext view);
+typedef ShellDestinationAction = FutureOr<void> Function(BuildContext context);
+typedef ShellCommandAction = FutureOr<void> Function(BuildContext context);
+
+class ShellViewContext {
+  final ShellTabPreference tab;
+  final bool isRestored;
+  final ValueListenable<ShellTabLifecycle> lifecycle;
+  final GlobalKey<NavigatorState> mainNavigatorKey;
+  final GlobalKey<AnimatedEntryState> entryAnimationKey;
+  final GlobalKey<AnimatedExitState> exitAnimationKey;
+
+  const ShellViewContext({
+    required this.tab,
+    required this.isRestored,
+    required this.lifecycle,
+    required this.mainNavigatorKey,
+    required this.entryAnimationKey,
+    required this.exitAnimationKey,
+  });
+
+  String get instanceId => tab.instanceId ?? tab.id;
+  Map<String, dynamic> get parameters => tab.parameters;
+}
+
+class ShellViewAction {
+  final String id;
+  final String label;
+  final IconData? icon;
+  final VoidCallback onPressed;
+
+  const ShellViewAction({required this.id, required this.label, required this.onPressed, this.icon});
+}
 
 enum ShellStatusSeverity { normal, success, warning, error }
 
@@ -140,47 +183,73 @@ class ShellDestination {
   final String Function(BuildContext) title;
   final IconData icon;
   final IconData? inactiveIcon;
-  final ShellDestinationBuilder builder;
   final bool lockedVisible;
+  @Deprecated('Move view content to ShellViewRegistration.')
+  final ShellDestinationBuilder? builder;
+  final String? openViewId;
+  final String? commandId;
+  final WidgetBuilder? panelBuilder;
+  final ShellDestinationAction? onSelected;
 
   const ShellDestination({
     required this.id,
     required this.title,
     required this.icon,
-    required this.builder,
     this.inactiveIcon,
     this.lockedVisible = false,
+    @Deprecated('Move view content to ShellViewRegistration.') this.builder,
+    this.openViewId,
+    this.commandId,
+    this.panelBuilder,
+    this.onSelected,
   });
 }
 
 class ShellViewRegistration {
   final String id;
   final String Function(BuildContext, String instanceId) title;
+  @Deprecated('Use viewBuilder for tab-aware view content.')
   final WidgetBuilder? builder;
+  final ShellViewBuilder? viewBuilder;
   final String? destinationId;
   final String? contextId;
   final String? moduleId;
   final IconData? icon;
+  final String? routePath;
+  final ShellViewReusePolicy reusePolicy;
+  @Deprecated('Views are independent of destinations.')
   final bool isRoot;
   final bool closeable;
-  final WidgetBuilder? inspectorBuilder;
-  final WidgetBuilder? splitPaneBuilder;
+  final ShellTabCloseGuard? onCloseRequested;
+  final ShellViewActionsBuilder? toolbarActionsBuilder;
+  final ShellViewBuilder? inspectorBuilder;
+  final ShellViewBuilder? splitPaneBuilder;
   final ShellStatusProviderFactory? statusProviderFactory;
 
   const ShellViewRegistration({
     required this.id,
     required this.title,
-    this.builder,
+    @Deprecated('Use viewBuilder for tab-aware view content.') this.builder,
+    this.viewBuilder,
     this.destinationId,
     this.contextId,
     this.moduleId,
     this.icon,
-    this.isRoot = false,
+    this.routePath,
+    this.reusePolicy = ShellViewReusePolicy.never,
+    @Deprecated('Views are independent of destinations.') this.isRoot = false,
     this.closeable = true,
+    this.onCloseRequested,
+    this.toolbarActionsBuilder,
     this.inspectorBuilder,
     this.splitPaneBuilder,
     this.statusProviderFactory,
   });
+
+  bool get hasBuilder => builder != null || viewBuilder != null;
+
+  Widget buildContent(BuildContext context, ShellViewContext view) =>
+      viewBuilder?.call(context, view) ?? builder?.call(context) ?? const SizedBox.shrink();
 }
 
 class ShellModule {
@@ -189,6 +258,14 @@ class ShellModule {
   final WidgetBuilder builder;
 
   const ShellModule({required this.id, required this.title, required this.builder});
+}
+
+class ShellCommandRegistration {
+  final String id;
+  final String Function(BuildContext) title;
+  final ShellCommandAction run;
+
+  const ShellCommandRegistration({required this.id, required this.title, required this.run});
 }
 
 class ShellContext {
@@ -205,6 +282,7 @@ class ShellConfig {
   final List<ShellViewRegistration> views;
   final List<ShellModule> modules;
   final List<ShellContext> contexts;
+  final List<ShellCommandRegistration> commands;
   final WidgetBuilder? inspectorBuilder;
   final WidgetBuilder? splitPaneBuilder;
 
@@ -214,6 +292,7 @@ class ShellConfig {
     this.views = const [],
     this.modules = const [],
     this.contexts = const [],
+    this.commands = const [],
     this.inspectorBuilder,
     this.splitPaneBuilder,
   });
@@ -274,28 +353,55 @@ ShellConfig defaultShellConfig() => ShellConfig(
       icon: presentation.activeIcon,
       inactiveIcon: presentation.inactiveIcon,
       lockedVisible: item == PageItem.page6,
-      builder: (context, mainKey, entryKey, exitKey) {
-        switch (item) {
-          case PageItem.page1:
-            return Page1Page(mainNavigatorKey: mainKey, pageEntryAnimationKey: entryKey, pageExitAnimationKey: exitKey);
-          case PageItem.page2:
-            return Page2Page(mainNavigatorKey: mainKey, pageEntryAnimationKey: entryKey, pageExitAnimationKey: exitKey);
-          case PageItem.page3:
-            return Page3Page(pageEntryAnimationKey: entryKey, pageExitAnimationKey: exitKey);
-          case PageItem.page4:
-            return Page4Page(mainNavigatorKey: mainKey, pageEntryAnimationKey: entryKey, pageExitAnimationKey: exitKey);
-          case PageItem.page5:
-            return Page5Page(pageEntryAnimationKey: entryKey, pageExitAnimationKey: exitKey);
-          case PageItem.page6:
-            return Page6Page(mainNavigatorKey: mainKey, pageEntryAnimationKey: entryKey, pageExitAnimationKey: exitKey);
-        }
-      },
     );
   }).toList(),
   views: defaultShellViews(),
 );
 
-List<ShellViewRegistration> defaultShellViews() => const [];
+List<ShellViewRegistration> defaultShellViews() => PageItem.values.map((item) {
+  final presentation = _pageItemIcons(item);
+  return ShellViewRegistration(
+    id: item.name,
+    title: (context, _) => pageItemPresentation(context, item).title,
+    icon: presentation.activeIcon,
+    routePath: '/${item.name}',
+    reusePolicy: ShellViewReusePolicy.byRegistration,
+    viewBuilder: (context, view) => _buildPageItem(context, view, item),
+  );
+}).toList();
+
+Widget _buildPageItem(BuildContext context, ShellViewContext view, PageItem item) {
+  return switch (item) {
+    PageItem.page1 => Page1Page(
+      mainNavigatorKey: view.mainNavigatorKey,
+      pageEntryAnimationKey: view.entryAnimationKey,
+      pageExitAnimationKey: view.exitAnimationKey,
+    ),
+    PageItem.page2 => Page2Page(
+      mainNavigatorKey: view.mainNavigatorKey,
+      pageEntryAnimationKey: view.entryAnimationKey,
+      pageExitAnimationKey: view.exitAnimationKey,
+    ),
+    PageItem.page3 => Page3Page(
+      pageEntryAnimationKey: view.entryAnimationKey,
+      pageExitAnimationKey: view.exitAnimationKey,
+    ),
+    PageItem.page4 => Page4Page(
+      mainNavigatorKey: view.mainNavigatorKey,
+      pageEntryAnimationKey: view.entryAnimationKey,
+      pageExitAnimationKey: view.exitAnimationKey,
+    ),
+    PageItem.page5 => Page5Page(
+      pageEntryAnimationKey: view.entryAnimationKey,
+      pageExitAnimationKey: view.exitAnimationKey,
+    ),
+    PageItem.page6 => Page6Page(
+      mainNavigatorKey: view.mainNavigatorKey,
+      pageEntryAnimationKey: view.entryAnimationKey,
+      pageExitAnimationKey: view.exitAnimationKey,
+    ),
+  };
+}
 
 PageItemPresentation _pageItemIcons(PageItem item) {
   switch (item) {
@@ -329,41 +435,4 @@ PageItemPresentation _pageItemIcons(PageItem item) {
 class PageNavigatorRoutes {
   static const String root = '/';
   static const String detail = '/detail';
-}
-
-class NavBarNavigator extends StatelessWidget {
-  final GlobalKey<NavigatorState> mainNavigatorKey;
-  final GlobalKey<NavigatorState> navigatorKey;
-  final ShellDestination destination;
-  final GlobalKey<AnimatedEntryState> pageEntryAnimationKey;
-  final GlobalKey<AnimatedExitState> pageExitAnimationKey;
-
-  const NavBarNavigator({
-    super.key,
-    required this.mainNavigatorKey,
-    required this.navigatorKey,
-    required this.destination,
-    required this.pageEntryAnimationKey,
-    required this.pageExitAnimationKey,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Navigator(
-      key: navigatorKey,
-      initialRoute: PageNavigatorRoutes.root,
-      onGenerateRoute: (routeSettings) => MaterialPageRoute<void>(
-        builder: (context) {
-          if (routeSettings.name != PageNavigatorRoutes.root) {
-            return Center(child: Text(context.l10n.shellMissingRoute));
-          }
-          try {
-            return destination.builder(context, mainNavigatorKey, pageEntryAnimationKey, pageExitAnimationKey);
-          } catch (error) {
-            return ShellContentSlot(state: ShellSlotState.error, message: context.l10n.shellContentError('$error'));
-          }
-        },
-      ),
-    );
-  }
 }

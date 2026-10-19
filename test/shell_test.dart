@@ -85,7 +85,7 @@ void main() {
     expect(service.unreadCount, ShellNotificationService.capacity);
   });
 
-  testWidgets('deep links activate destinations missing from saved tabs', (tester) async {
+  testWidgets('deep links open registered tabs without changing the selected activity', (tester) async {
     final settings = ic.sl<SettingsController>();
     settings.update(
       settings.settings.copyWith(
@@ -97,8 +97,9 @@ void main() {
     await tester.pumpWidget(_app(null, routeInformation: RouteInformation(uri: Uri.parse('/page2'))));
     await tester.pumpAndSettle();
 
-    expect(tester.state<HomePageState>(find.byType(HomePage)).currentDestinationId, 'page2');
-    expect(settings.settings.selectedShellTabId, 'page2');
+    expect(tester.state<HomePageState>(find.byType(HomePage)).currentDestinationId, 'page1');
+    expect(settings.settings.selectedShellTabId, 'page2-1');
+    expect(settings.settings.shellTabs.map((tab) => tab.registrationId), ['page1', 'page2']);
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
   testWidgets('desktop footer stays visible and pinned with empty status providers', (tester) async {
@@ -358,7 +359,7 @@ void main() {
     expect(tester.takeException(), isNull);
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
-  testWidgets('registered destinations use the shared shell layout', (tester) async {
+  testWidgets('registered views open independently from activities and contribute tab status', (tester) async {
     final providers = <String, _TestStatusProvider>{};
     final config = _testConfig(providers: providers);
     tester.view.physicalSize = const Size(1440, 900);
@@ -367,32 +368,28 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     final settings = ic.sl<SettingsController>();
-    settings.update(
-      settings.settings.copyWith(
-        shellTabs: const [
-          ShellTabPreference(id: 'route', registrationId: 'route'),
-          ShellTabPreference(id: 'placeholder-1', registrationId: 'placeholder'),
-        ],
-        selectedShellTabId: 'route',
-      ),
-    );
-
     await tester.pumpWidget(_app(config));
     await tester.pumpAndSettle();
 
     final footer = find.byKey(const ValueKey('shell-status-bar'));
     expect(footer, findsOneWidget);
     expect(tester.getRect(footer).bottom, 900);
-    expect(find.text('Registered page'), findsOneWidget);
-    expect(find.text('Registered destination'), findsWidgets);
+    expect(find.text('No views are open.'), findsOneWidget);
     expect(find.text('Ready'), findsNothing);
-    expect(settings.settings.shellTabs.map((tab) => tab.id), ['test']);
 
     final home = tester.state<HomePageState>(find.byType(HomePage));
+    final activityId = home.currentDestinationId;
+    final testTabId = home.openView('test');
+    await tester.pumpAndSettle();
+    expect(testTabId, 'test-1');
+    expect(find.text('Registered page'), findsOneWidget);
+    expect(home.currentDestinationId, activityId);
+
     await home.selectedPage('test');
     await home.selectedPage('test');
     await tester.pumpAndSettle();
-    expect(settings.settings.shellTabs.map((tab) => tab.id), ['test']);
+    expect(settings.settings.selectedShellTabId, testTabId);
+    expect(settings.settings.shellTabs.map((tab) => tab.id), ['test-1']);
 
     await tester.tap(find.byTooltip('Open view'));
     await tester.pumpAndSettle();
@@ -411,7 +408,7 @@ void main() {
     await home.selectedPage('test');
     await tester.pumpAndSettle();
     expect(footer, findsOneWidget);
-    expect(find.text('Status registered-view-1'), findsNothing);
+    expect(find.text('Status registered-view-1'), findsOneWidget);
     await tester.tap(find.byTooltip('Open view'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Registered view').last);
@@ -420,12 +417,12 @@ void main() {
     await tester.tap(find.text('Registered view 1'));
     await tester.pumpAndSettle();
     expect(find.text('Status registered-view-1'), findsOneWidget);
-    expect(settings.settings.shellTabs.map((tab) => tab.id), ['test', 'registered-view-1', 'registered-view-2']);
+    expect(settings.settings.shellTabs.map((tab) => tab.id), ['test-1', 'registered-view-1', 'registered-view-2']);
 
     await tester.tap(find.byTooltip('Close').last);
     await tester.pumpAndSettle();
     expect(providers['registered-view-1']!.disposed, isTrue);
-    expect(settings.settings.shellTabs.map((tab) => tab.id), ['test', 'registered-view-2']);
+    expect(settings.settings.shellTabs.map((tab) => tab.id), ['test-1', 'registered-view-2']);
     expect(find.text('Status registered-view-1'), findsNothing);
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
@@ -503,6 +500,8 @@ void main() {
       tester.view.physicalSize = size;
       await tester.pumpWidget(_app(config));
       await tester.pumpAndSettle();
+      tester.state<HomePageState>(find.byType(HomePage)).openView('test');
+      await tester.pumpAndSettle();
       final reason = 'size ${size.width} × ${size.height}';
       expect(tester.takeException(), isNull, reason: reason);
       expect(find.text('Registered page'), findsOneWidget, reason: reason);
@@ -532,18 +531,19 @@ void main() {
       _app(
         ShellConfig(
           title: (_) => 'Error test',
-          destinations: [
-            ShellDestination(
+          destinations: const [],
+          views: [
+            ShellViewRegistration(
               id: 'broken',
-              title: (_) => 'Broken',
-              icon: Icons.error_outline,
-              lockedVisible: true,
-              builder: (_, _, _, _) => throw StateError('intentional'),
+              title: (_, _) => 'Broken',
+              viewBuilder: (_, _) => throw StateError('intentional'),
             ),
           ],
         ),
       ),
     );
+    tester.state<HomePageState>(find.byType(HomePage)).openView('broken');
+    await tester.pumpAndSettle();
     expect(find.textContaining('intentional'), findsOneWidget);
     expect(find.byTooltip('More actions'), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -583,12 +583,13 @@ void main() {
     final config = ShellConfig(
       title: (_) => 'Context shell',
       destinations: [
-        ShellDestination(
-          id: 'test',
-          title: (_) => 'Test',
-          icon: Icons.dashboard_outlined,
-          lockedVisible: true,
-          builder: (_, _, _, _) => const Scaffold(body: Text('Route content')),
+        ShellDestination(id: 'test', title: (_) => 'Test', icon: Icons.dashboard_outlined, lockedVisible: true),
+      ],
+      views: [
+        ShellViewRegistration(
+          id: 'start',
+          title: (_, _) => 'Start view',
+          viewBuilder: (_, _) => const Scaffold(body: Text('Route content')),
         ),
       ],
       contexts: [
@@ -630,8 +631,11 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
+    ic.sl<SettingsController>().update(ic.sl<SettingsController>().settings.copyWith(selectedContextId: 'context-a'));
 
     await tester.pumpWidget(_app(config));
+    await tester.pumpAndSettle();
+    tester.state<HomePageState>(find.byType(HomePage)).openView('start');
     await tester.pumpAndSettle();
     expect(find.text('Route content'), findsOneWidget);
     await tester.tap(find.byTooltip('Select module'));
@@ -651,6 +655,13 @@ void main() {
     await tester.tap(find.byTooltip('Select context'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Context B').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Module A2 content'), findsOneWidget);
+    expect(ic.sl<SettingsController>().settings.selectedModuleId, isNull);
+    await tester.tap(find.byTooltip('Select module'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Module B1'));
     await tester.pumpAndSettle();
 
     final settings = ic.sl<SettingsController>().settings;
@@ -723,16 +734,20 @@ ShellConfig _testConfig({Map<String, _TestStatusProvider>? providers}) => ShellC
   views: [
     ShellViewRegistration(id: 'route', title: (_, _) => 'Current page'),
     ShellViewRegistration(
+      id: 'start',
+      title: (_, _) => 'Start view',
+      viewBuilder: (_, _) => const Scaffold(body: Text('Route content')),
+    ),
+    ShellViewRegistration(
       id: 'test',
       title: (_, _) => 'Registered destination',
-      destinationId: 'test',
-      isRoot: true,
+      viewBuilder: (_, _) => const Scaffold(body: Center(child: Text('Registered page'))),
       statusProviderFactory: (_) => _EmptyStatusProvider(),
     ),
     ShellViewRegistration(
       id: 'registered-view',
       title: (_, id) => id == 'registered-view' ? 'Registered view' : 'Registered view ${id.split('-').last}',
-      builder: (_) => const Center(child: Text('Registered view content')),
+      viewBuilder: (_, _) => const Center(child: Text('Registered view content')),
       statusProviderFactory: (id) {
         final provider = _TestStatusProvider(id);
         providers?[id] = provider;

@@ -44,6 +44,10 @@ class ShellTabPreference {
 
   final String id;
   final String registrationId;
+  final String? instanceId;
+  final Map<String, dynamic> parameters;
+  final String? title;
+  final bool isDirty;
   final String? destinationId;
   final String? contextId;
   final String? moduleId;
@@ -53,6 +57,10 @@ class ShellTabPreference {
   const ShellTabPreference({
     required this.id,
     required this.registrationId,
+    this.instanceId,
+    this.parameters = const {},
+    this.title,
+    this.isDirty = false,
     this.destinationId,
     this.contextId,
     this.moduleId,
@@ -61,6 +69,10 @@ class ShellTabPreference {
   });
 
   ShellTabPreference copyWith({
+    String? instanceId,
+    Map<String, dynamic>? parameters,
+    Object? title = _noChange,
+    bool? isDirty,
     Object? destinationId = _noChange,
     Object? contextId = _noChange,
     Object? moduleId = _noChange,
@@ -70,6 +82,10 @@ class ShellTabPreference {
     return ShellTabPreference(
       id: id,
       registrationId: registrationId,
+      instanceId: instanceId ?? this.instanceId,
+      parameters: parameters ?? this.parameters,
+      title: identical(title, _noChange) ? this.title : title as String?,
+      isDirty: isDirty ?? this.isDirty,
       destinationId: identical(destinationId, _noChange) ? this.destinationId : destinationId as String?,
       contextId: identical(contextId, _noChange) ? this.contextId : contextId as String?,
       moduleId: identical(moduleId, _noChange) ? this.moduleId : moduleId as String?,
@@ -82,6 +98,10 @@ class ShellTabPreference {
     return ShellTabPreference(
       id: json['id'] as String,
       registrationId: json['registrationId'] as String,
+      instanceId: json['instanceId'] is String ? json['instanceId'] as String : null,
+      parameters: json['parameters'] is Map ? Map<String, dynamic>.from(json['parameters'] as Map) : const {},
+      title: json['title'] is String ? json['title'] as String : null,
+      isDirty: json['isDirty'] == true,
       destinationId: json['destinationId'] is String ? json['destinationId'] as String : null,
       contextId: json['contextId'] is String ? json['contextId'] as String : null,
       moduleId: json['moduleId'] is String ? json['moduleId'] as String : null,
@@ -93,6 +113,10 @@ class ShellTabPreference {
   Map<String, dynamic> toJson() => {
     'id': id,
     'registrationId': registrationId,
+    if (instanceId != null) 'instanceId': instanceId,
+    if (parameters.isNotEmpty) 'parameters': parameters,
+    if (title != null) 'title': title,
+    if (isDirty) 'isDirty': true,
     if (destinationId != null) 'destinationId': destinationId,
     if (contextId != null) 'contextId': contextId,
     if (moduleId != null) 'moduleId': moduleId,
@@ -104,9 +128,7 @@ class ShellTabPreference {
 class Settings {
   static const Object _noChange = Object();
   static const List<String> _defaultNavBarOrder = ['page1', 'page2', 'page3', 'page4', 'page5', 'page6'];
-  static const List<ShellTabPreference> _defaultTabs = [
-    ShellTabPreference(id: 'page1', registrationId: 'page1', destinationId: 'page1'),
-  ];
+  static const List<ShellTabPreference> _defaultTabs = [];
 
   final bool useSystemDarkmode;
   final bool useDarkmode;
@@ -124,6 +146,7 @@ class Settings {
   final bool splitOpen;
   final List<ShellTabPreference> shellTabs;
   final String selectedShellTabId;
+  final String? selectedActivityId;
   final String? selectedContextId;
   final String? selectedModuleId;
   final Map<String, dynamic> extraSettings;
@@ -143,7 +166,8 @@ class Settings {
     this.splitRatio = 0.5,
     this.splitOpen = false,
     this.shellTabs = _defaultTabs,
-    this.selectedShellTabId = 'page1',
+    this.selectedShellTabId = '',
+    this.selectedActivityId,
     this.selectedContextId,
     this.selectedModuleId,
     this.extraSettings = const {},
@@ -165,6 +189,7 @@ class Settings {
     bool? splitOpen,
     List<ShellTabPreference>? shellTabs,
     String? selectedShellTabId,
+    Object? selectedActivityId = _noChange,
     Object? selectedContextId = _noChange,
     Object? selectedModuleId = _noChange,
     Map<String, dynamic>? extraSettings,
@@ -185,6 +210,9 @@ class Settings {
       splitOpen: splitOpen ?? this.splitOpen,
       shellTabs: shellTabs ?? this.shellTabs,
       selectedShellTabId: selectedShellTabId ?? this.selectedShellTabId,
+      selectedActivityId: identical(selectedActivityId, _noChange)
+          ? this.selectedActivityId
+          : selectedActivityId as String?,
       selectedContextId: identical(selectedContextId, _noChange)
           ? this.selectedContextId
           : selectedContextId as String?,
@@ -211,6 +239,7 @@ class Settings {
       'splitOpen',
       'shellTabs',
       'selectedShellTabId',
+      'selectedActivityId',
       'selectedContextId',
       'selectedModuleId',
     };
@@ -222,11 +251,10 @@ class Settings {
                 final id = item['id'];
                 final registrationId = item['registrationId'];
                 if (id is! String || registrationId is! String) return null;
-                if (!RegExp(r'^[a-zA-Z0-9._-]{1,80}$').hasMatch(id) ||
-                    !RegExp(r'^[a-zA-Z0-9._-]{1,80}$').hasMatch(registrationId)) {
+                if (!_isStableId(id, maxLength: 256) || !_isStableId(registrationId, maxLength: 128)) {
                   return null;
                 }
-                return ShellTabPreference(id: id, registrationId: registrationId);
+                return ShellTabPreference.fromJson(Map<String, dynamic>.from(item));
               })
               .whereType<ShellTabPreference>()
               .toList()
@@ -260,12 +288,19 @@ class Settings {
       splitRatio: ratio is num && ratio.isFinite ? ratio.toDouble().clamp(0.3, 0.7) : 0.5,
       splitOpen: readBool('splitOpen', fallback: false),
       shellTabs: tabs,
-      selectedShellTabId: json['selectedShellTabId'] is String ? json['selectedShellTabId'] as String : 'page1',
+      selectedShellTabId: json['selectedShellTabId'] is String ? json['selectedShellTabId'] as String : '',
+      selectedActivityId: json['selectedActivityId'] is String ? json['selectedActivityId'] as String : null,
       selectedContextId: json['selectedContextId'] is String ? json['selectedContextId'] as String : null,
       selectedModuleId: json['selectedModuleId'] is String ? json['selectedModuleId'] as String : null,
       extraSettings: Map.fromEntries(json.entries.where((entry) => !knownKeys.contains(entry.key))),
     );
   }
+
+  static bool _isStableId(String value, {required int maxLength}) =>
+      value.isNotEmpty &&
+      value.length <= maxLength &&
+      value.trim() == value &&
+      !RegExp(r'[\u0000-\u001F]').hasMatch(value);
 
   Map<String, dynamic> toJson() {
     return {
@@ -286,6 +321,7 @@ class Settings {
       'splitOpen': splitOpen,
       'shellTabs': shellTabs.map((tab) => tab.toJson()).toList(),
       'selectedShellTabId': selectedShellTabId,
+      'selectedActivityId': selectedActivityId,
       'selectedContextId': selectedContextId,
       'selectedModuleId': selectedModuleId,
     };

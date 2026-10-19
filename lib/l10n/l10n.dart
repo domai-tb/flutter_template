@@ -937,6 +937,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Please enter your TOTP.'**
   String get enter_totp;
+
+  /// No description provided for @closeUnsavedTabTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Close modified view?'**
+  String get closeUnsavedTabTitle;
+
+  /// No description provided for @closeUnsavedTabMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Close {title} and discard its unsaved changes?'**
+  String closeUnsavedTabMessage(String title);
 }
 
 class _AppLocalizationsDelegate

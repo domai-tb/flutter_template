@@ -448,4 +448,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get enter_totp => 'Please enter your TOTP.';
+
+  @override
+  String get closeUnsavedTabTitle => 'Close modified view?';
+
+  @override
+  String closeUnsavedTabMessage(String title) {
+    return 'Close $title and discard its unsaved changes?';
+  }
 }
