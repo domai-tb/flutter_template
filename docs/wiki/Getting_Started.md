@@ -1,102 +1,40 @@
-This pages will explain how to setup your development environment and first steps to start contributing to our project.
+# Getting Started
 
----
+## Toolchain
 
-## Install Flutter
+This checkout pins Flutter 3.47.2 in `.fvmrc`. Install FVM and the prerequisites for your host platform, then run:
 
-First you need to install Flutter. The [official flutter documentation](https://docs.flutter.dev/get-started/install) provides a handy tutorial about Flutter installation.
+```sh
+fvm install
+fvm flutter pub get
+fvm flutter devices
+```
 
----
+## Run the app
 
-## Setup an editor and emulator
+```sh
+fvm flutter run -d linux
+fvm flutter run -d chrome
+fvm flutter run
+```
 
-To write code you need an editor or IDE (obvously :D ). Wer would recommend to follow
-the official steps for VS Code by the [official flutter documentation](https://docs.flutter.dev/get-started/editor?tab=vscode).
+The first command runs the Linux desktop app, the second runs Flutter Web in Chrome, and the third selects an available device. Android requires Android SDK tooling; iOS and macOS builds require macOS and Xcode; Windows builds require Windows desktop tooling.
 
-In addition of the VS Code setup you need a running phone emulator. The best case, for non-MAC-users, is to install Android Studio Code and the included Virtual Device Manager.
-The [android developer documentation](https://developer.android.com/studio/run/managing-avds) provide a useful tutorial about AVD creation and management. We would recommend to create a phone with the newest Android API Level or at least API level 30 (Android 11.0). Google Play support is optional.
+The shell uses bottom destination navigation on phones and side navigation with tabs on wider layouts. A destination activity panel can appear at widths of 800 px and above. At 1200 px and above the right sidebar can dock beside the workspace; on narrower layouts it opens as a drawer. These are responsive layout thresholds, not device restrictions.
 
----
+## Verify changes
 
-## Clone repository
+```sh
+fvm dart format --line-length=120 lib test
+fvm flutter gen-l10n
+fvm flutter analyze
+fvm flutter test test/shell_test.dart test/shell_workspace_test.dart test/shell_public_extension_test.dart test/shell_auth_navigation_test.dart
+```
 
-If you work the first time with git, check out this [cheat sheet](https://training.github.com/downloads/github-git-cheat-sheet/).
+Run `fvm flutter gen-l10n` after changing an ARB file in `assets/l10n/`. During the UI redesign, golden image generation and comparison are not required verification. Use focused functional tests for navigation, tabs, persistence, shortcuts, notifications, and pointer behavior. Capture runtime screenshots at the viewport sizes in the UI/UX specification for visual inspection; they are diagnostic images, not golden baselines.
 
-Clone your fork (or this repository) with `git clone <your-repo-url>`. Git will create a new folder for you inside your current directory.
+## Extend the shell
 
-Now you can open VS Code with `code ./<repo-folder>` and start development.
+Pass a `ShellConfig` to `HomePage`. Register stable navigation entries with `ShellDestination` and tab content with `ShellViewRegistration`. `ShellViewContext` exposes page-level controllers for hierarchical breadcrumbs, tab navigation, right-sidebar sections, status items, toolbar actions, and split panes. Page 1 demonstrates the breadcrumb and sidebar APIs. See [Architecture](Architecture.md), [Pages](Pages.md), and the root [README](../../README.md) for more detail.
 
----
-
-## Start development
-
-After opening VS Code you should open a terminal and update all flutter dependencies. For this, run the following command: `flutter pub get`.
-
-Meanwhile you can start your emulator created privously. For that you can run: `flutter emulator --launch <emulator_name>`.
-
-In the end execute `flutter run` to start the app. Now, evertime you updated the source you can use the key `r` or `R` to update the running app.
-You can quite quit `q`.
-
-Happy coding. :)
-
----
-
-## Flutter Cheat Sheet
-
-Last but not least we will provide a small cheat sheet about all Flutter commands you will need to develop.
-
-### Flutter help
-
-`flutter -h`
-
-### Flutter Version
-
-`flutter --version`
-
-### Check out Flutter channel / branch:​
-
-`flutter channel`
-
-### Check your Development Environment
-
-`flutter doctor`
-
-### Start App
-
-`flutter run`
-​
-
-### Update Dependencies
-
-`flutter pub get` // Download dependencies
-`flutter pub upgrade` // Update dependencies
-
-### Upgrade Flutter Version
-
-`flutter upgrade`
-
-### Downgrade Flutter Version
-
-`flutter downgrade <version>`
-
-### Create a new Flutter app
-
-`flutter create <app name>`
-​
-
-### List virtual devices
-
-`flutter emulator`
-​
-
-### Start an Emulator
-
-`flutter emulator --launch <emulator_name>`
-
-### Create Mocks
-
-`flutter packages run build_runner build --delete-conflicting-outputs`
-
-### Generate language files
-
-`flutter gen-l10n`
+Keep IDs stable when labels change so saved destination, tab, and breadcrumb state can be restored. Add a `settings` destination to a custom configuration if it should provide the built-in Settings action.

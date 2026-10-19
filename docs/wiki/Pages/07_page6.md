@@ -5,11 +5,12 @@ Demonstrates:
 - A simple menu list
 - Navigation to Settings and About sub-pages
 
-The Settings screen also demonstrates:
+The shell also registers Settings as a dedicated utility destination. Its settings screen demonstrates:
 
-- Theme selection
-- Language selection (English/German/System)
-- A persisted onboarding flag
+- Theme, accent, and density preferences
+- Language and text-scaling preferences
+- Navigation visibility and ordering
+- Persisted onboarding state
 
 Files:
 

@@ -1,26 +1,12 @@
 # Settings (Persistent)
 
-The template keeps UI state in memory but persists user settings to local storage.
+`SettingsController` in `lib/core/settings.dart` loads settings at startup and writes updates to SharedPreferences as JSON under `app_settings_json_v1`.
 
-## Where It Lives
+The current schema is version 6. It stores:
 
-- `lib/core/settings.dart`
+- Theme mode, accent, density, text scaling, locale, and onboarding completion.
+- Navigation item order and visibility.
+- Open tabs, selected destinations, contexts, and modules.
+- Right-sidebar visibility and width, plus split-pane visibility and ratio.
 
-`SettingsController` loads its initial state once at startup and persists updates via `shared_preferences`.
-
-## What Is Stored
-
-The `Settings` model is serialized to JSON and includes (at minimum):
-
-- Theme mode flags
-- Text scaling preference
-- Onboarding completion flag (`didCompleteOnboarding`)
-- Selected language (`localeCode`) or `null` for system language
-
-## Why JSON
-
-JSON keeps the migration story simple for a template:
-
-- Add a new field with a default in `Settings.fromJson(...)`
-- Old installs continue to load
-
+The right-sidebar width preference is currently serialized under the historical `inspectorWidth` key. Treat the settings model as the persistence contract: add defaults when adding fields and preserve compatibility with saved JSON. See [Architecture](../Architecture.md) for the shell and settings overview.

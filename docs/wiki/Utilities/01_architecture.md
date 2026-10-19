@@ -33,4 +33,8 @@ Pages access services via:
 
 - `AppScope.of(context).services.pageN`
 
-For the full architecture description, see [Architecture](Architecture).
+For the full architecture description, see [Architecture](../Architecture.md).
+
+## App shell
+
+`lib/pages/home/` provides the adaptive app shell and its public extension APIs. `ShellConfig` registers destinations, workspace views, modules, commands, status providers, a right sidebar, and optional split-pane content. Each view receives a `ShellViewContext` with tab-scoped breadcrumb, navigation, right-sidebar, status, toolbar, and workspace controllers. See the root [Architecture](../Architecture.md) page for the behavior and extension points.

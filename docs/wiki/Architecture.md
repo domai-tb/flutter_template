@@ -1,8 +1,6 @@
 # Architecture
 
-This page documents the current project architecture used by this Flutter skeleton.
-
-It is intentionally small: the goal is to demonstrate a repeatable structure (layers, wiring, testing seams) without pulling in app-specific concepts from the original repository this template came from.
+This page documents the project architecture and reusable shell in this Flutter template.
 
 ## Folder Structure
 
@@ -127,3 +125,28 @@ The skeleton uses GetIt as a service locator to keep object creation centralized
 - An `AppServices` aggregate used by the UI (`AppScope.of(context).services`).
 
 The UI does not need to import GetIt directly: `AppScope` exposes `SettingsController` and `AppServices` down the widget tree.
+
+## Adaptive shell
+
+`lib/pages/home/home_page.dart` hosts the app shell. It adapts navigation and workspace layout to the platform and available width. Phones use bottom destination navigation; wider layouts use side navigation and a tab strip. At 800 px or wider a destination can show its activity panel, and at 1200 px or wider the right sidebar can dock beside the workspace. Below 1200 px the right sidebar opens as an end drawer. Each destination keeps an independent workspace and registered tabs.
+
+The public shell descriptors and tab-scoped extension APIs live in `lib/pages/home/page_navigator.dart`:
+
+- `ShellDestination` registers a navigation destination with a stable ID, title, icon, optional default view, and optional activity panel.
+- `ShellViewRegistration` registers content that can be opened in a workspace tab. A view may be associated with a destination, but destinations and tabs are separate concepts. The shell persists tab IDs and view registration IDs, and restores a tab only when its registration still exists.
+- `ShellModule` registers selectable module content; `ShellContext` groups modules for a selectable context.
+- `ShellViewContext` gives a page its tab-scoped controllers: `breadcrumbs`, `navigation`, `rightSidebar`, `status`, `toolbar`, and `workspace`.
+- `ShellConfig.rightSidebarBuilder` supplies optional application-level sidebar content. A page can instead register `ShellRightSidebarSection` entries with its `rightSidebar` controller. `focusSection(id)` opens the sidebar and focuses that section.
+- `ShellConfig.splitPaneBuilder` supplies application-level secondary content. A page can also request tab-scoped panes through its workspace controller.
+
+Use `ShellBreadcrumbController` with stable `ShellNavigationNode` IDs to publish a page hierarchy. The shell shows the active path in the footer; selecting a breadcrumb opens its child menu, and deeper selections reveal the next level. The active node IDs are saved with the owning tab. Page 1 is the working example.
+
+The top toolbar search lists open tabs across destinations. The `+` tab action creates another instance of the current view (or the destination's default view). Profile and Settings are utility destinations in the navigation. The Settings destination displays `Page6SettingsPage`; the Profile destination uses the optional auth provider from `AppServices` and opens the template login page when signed out.
+
+Pass a `ShellConfig` to `HomePage` to provide consuming-app content. The default configuration includes the six example destinations plus `profile` and `settings`. A custom configuration should register a `settings` destination if it should use the built-in Settings action.
+
+## Local settings and themes
+
+`SettingsController` stores JSON through SharedPreferences under `app_settings_json_v1`. Schema version 6 stores theme and text-scaling choices, locale, onboarding state, accent and density presets, navigation order and visibility, open tabs and workspaces, selected context/module, right-sidebar width and visibility, and split-pane state. Existing keys are retained during updates. Invalid individual values fall back to safe defaults; invalid JSON is not deleted automatically.
+
+Theme colors are centralized in `AppShellTokens` and the Material color scheme in `lib/core/themes.dart`. System text scaling is always passed through from `MediaQuery`, including when an older saved preference requested no scaling.

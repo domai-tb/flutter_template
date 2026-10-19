@@ -1,6 +1,6 @@
-# Flutter Mobile App Skeleton
+# Flutter Template
 
-This repository is a Flutter mobile app template that preserves an opinionated app shell:
+This repository is a Flutter app template for Android, iOS, macOS, Windows, Linux, and web. It includes an app shell with:
 - Home page with bottom navigation (and tablet side navigation).
 - Clean-ish feature structure: datasources, repositories, usecases, entities, pages.
 - Placeholder features named `Page 1` through `Page 6`.
