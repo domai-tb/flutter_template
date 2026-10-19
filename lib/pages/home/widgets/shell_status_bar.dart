@@ -167,6 +167,7 @@ class _ShellBreadcrumbBar extends StatelessWidget {
               if (index > 0) const Icon(Icons.chevron_right, size: 14),
               Flexible(
                 child: _BreadcrumbSegment(
+                  key: ValueKey('breadcrumb-segment-${visibleNodes[index].id}'),
                   node: visibleNodes[index],
                   active: index == visibleNodes.length - 1,
                   onNavigate: onNavigate,
@@ -206,7 +207,7 @@ class _BreadcrumbSegment extends StatefulWidget {
   final bool active;
   final FutureOr<void> Function(ShellNavigationNode node) onNavigate;
 
-  const _BreadcrumbSegment({required this.node, required this.active, required this.onNavigate});
+  const _BreadcrumbSegment({super.key, required this.node, required this.active, required this.onNavigate});
 
   @override
   State<_BreadcrumbSegment> createState() => _BreadcrumbSegmentState();

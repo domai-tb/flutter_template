@@ -278,6 +278,37 @@ void main() {
     expect(find.descendant(of: footer, matching: find.text('Overview')), findsOneWidget);
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
+  testWidgets('breadcrumb tooltips survive navigation changing a segment identity', (tester) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final semantics = tester.ensureSemantics();
+
+    await tester.pumpWidget(_app(_breadcrumbConfig()));
+    await tester.pumpAndSettle();
+
+    const networkSegment = ValueKey('breadcrumb-segment-network-navigation-1');
+    expect(find.byKey(networkSegment), findsOneWidget);
+    final networkCrumb = find.byKey(const ValueKey('breadcrumb-node-network-navigation-1'));
+    await tester.sendEventToBinding(PointerHoverEvent(position: tester.getCenter(networkCrumb)));
+    await tester.pump(const Duration(milliseconds: 30));
+    await tester.tap(find.byKey(const ValueKey('breadcrumb-node-configuration-navigation-1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Appearance navigation-1'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Appearance navigation-1'), findsOneWidget);
+    expect(find.byKey(networkSegment), findsNothing);
+    expect(find.byKey(const ValueKey('breadcrumb-segment-appearance-navigation-1')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('breadcrumb-node-configuration-navigation-1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Network navigation-1'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    semantics.dispose();
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
+
   testWidgets('renaming a tab keeps the reorderable tab tree stable', (tester) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(1440, 900);
