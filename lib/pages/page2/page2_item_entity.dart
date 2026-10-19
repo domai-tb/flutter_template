@@ -11,4 +11,3 @@ class Page2ItemEntity {
     required this.startsAt,
   });
 }
-

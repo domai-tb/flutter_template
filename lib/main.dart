@@ -1,15 +1,15 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-import 'package:mobile_app_skeleton/core/app_scope.dart';
-import 'package:mobile_app_skeleton/core/app_services.dart';
-import 'package:mobile_app_skeleton/core/injection.dart' as ic;
-import 'package:mobile_app_skeleton/core/settings.dart';
-import 'package:mobile_app_skeleton/core/themes.dart';
-import 'package:mobile_app_skeleton/l10n/l10n.dart';
-import 'package:mobile_app_skeleton/l10n/l10n_x.dart';
-import 'package:mobile_app_skeleton/pages/home/home_page.dart';
-import 'package:mobile_app_skeleton/pages/home/onboarding.dart';
+import 'package:flutter_template/core/app_scope.dart';
+import 'package:flutter_template/core/app_services.dart';
+import 'package:flutter_template/core/injection.dart' as ic;
+import 'package:flutter_template/core/settings.dart';
+import 'package:flutter_template/core/themes.dart';
+import 'package:flutter_template/l10n/l10n.dart';
+import 'package:flutter_template/l10n/l10n_x.dart';
+import 'package:flutter_template/pages/home/home_page.dart';
+import 'package:flutter_template/pages/home/onboarding.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

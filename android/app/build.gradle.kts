@@ -3,8 +3,7 @@ import java.io.FileInputStream
 
 plugins {
     id("com.android.application")
-    id("kotlin-android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
+    // The Flutter Gradle Plugin must be applied after the Android Gradle Plugin.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
@@ -15,26 +14,21 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.example.mobile_app_skeleton"
+    namespace = "com.example.flutter_template"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
         // Flag to enable support for the new language APIs
         isCoreLibraryDesugaringEnabled = true
-        // Sets Java compatibility to Java 11
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-    }
-
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     defaultConfig {
         // Application ID: https://developer.android.com/studio/build/application-id.html
-        applicationId = "com.example.mobile_app_skeleton"
-        
+        applicationId = "com.example.flutter_template"
+
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 26
@@ -43,9 +37,9 @@ android {
         versionName = flutter.versionName
 
         // Add the Dart define flag for Cronet HTTP without Play Services
-        applicationVariants.all { 
-            mergedFlavor.manifestPlaceholders["cronetHttpNoPlay"] = "true"
-        }
+        // applicationVariants.all {
+        //     mergedFlavor.manifestPlaceholders["cronetHttpNoPlay"] = "true"
+        // }
     }
 
     signingConfigs {
@@ -74,24 +68,29 @@ android {
     }
 }
 
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+    }
+}
+
 flutter {
     source = "../.."
 }
 
 dependencies {
-    implementation("org.jetbrains.kotlin:kotlin-stdlib:2.2.10")
     implementation("androidx.appcompat:appcompat:1.7.1")
     implementation("androidx.appcompat:appcompat-resources:1.7.1")
 
-    // `desugar_jdk_libs` is a core Android development library that 
-    // enables you to use modern Java features and APIs in your app 
-    // even on older Android devices with lower API levels. 
+    // `desugar_jdk_libs` is a core Android development library that
+    // enables you to use modern Java features and APIs in your app
+    // even on older Android devices with lower API levels.
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 
     // Skeleton: keep Android config minimal; avoid unnecessary Play Services requirements.
     //
-    // The Dio packages uses [cronet_http] libary to perform network requests. 
-    // At default, this libary depends on Google Play services instead of 
+    // The Dio packages uses [cronet_http] libary to perform network requests.
+    // At default, this libary depends on Google Play services instead of
     // of the embedded version of Cronet. Setting the embedded version (based on
     // native libaries) here will remove the dependency on Google Play services.
     //
@@ -99,5 +98,5 @@ dependencies {
     // Note: https://github.com/dart-lang/http/blob/master/pkgs/cronet_http/android/build.gradle
     // Note: https://mvnrepository.com/artifact/org.chromium.net/cronet-embedded
     //
-    implementation("org.chromium.net:cronet-embedded:119.6045.31")
+    //implementation("org.chromium.net:cronet-embedded:500.1.0")
 }

@@ -1,25 +1,25 @@
 import 'package:get_it/get_it.dart';
 
-import 'package:mobile_app_skeleton/core/app_services.dart';
-import 'package:mobile_app_skeleton/core/settings.dart';
-import 'package:mobile_app_skeleton/pages/page1/page1_datasource.dart';
-import 'package:mobile_app_skeleton/pages/page1/page1_repository.dart';
-import 'package:mobile_app_skeleton/pages/page1/page1_usecases.dart';
-import 'package:mobile_app_skeleton/pages/page2/page2_datasource.dart';
-import 'package:mobile_app_skeleton/pages/page2/page2_repository.dart';
-import 'package:mobile_app_skeleton/pages/page2/page2_usecases.dart';
-import 'package:mobile_app_skeleton/pages/page3/page3_datasource.dart';
-import 'package:mobile_app_skeleton/pages/page3/page3_repository.dart';
-import 'package:mobile_app_skeleton/pages/page3/page3_usecases.dart';
-import 'package:mobile_app_skeleton/pages/page4/page4_datasource.dart';
-import 'package:mobile_app_skeleton/pages/page4/page4_repository.dart';
-import 'package:mobile_app_skeleton/pages/page4/page4_usecases.dart';
-import 'package:mobile_app_skeleton/pages/page5/page5_datasource.dart';
-import 'package:mobile_app_skeleton/pages/page5/page5_repository.dart';
-import 'package:mobile_app_skeleton/pages/page5/page5_usecases.dart';
-import 'package:mobile_app_skeleton/pages/page6/page6_datasource.dart';
-import 'package:mobile_app_skeleton/pages/page6/page6_repository.dart';
-import 'package:mobile_app_skeleton/pages/page6/page6_usecases.dart';
+import 'package:flutter_template/core/app_services.dart';
+import 'package:flutter_template/core/settings.dart';
+import 'package:flutter_template/pages/page1/page1_datasource.dart';
+import 'package:flutter_template/pages/page1/page1_repository.dart';
+import 'package:flutter_template/pages/page1/page1_usecases.dart';
+import 'package:flutter_template/pages/page2/page2_datasource.dart';
+import 'package:flutter_template/pages/page2/page2_repository.dart';
+import 'package:flutter_template/pages/page2/page2_usecases.dart';
+import 'package:flutter_template/pages/page3/page3_datasource.dart';
+import 'package:flutter_template/pages/page3/page3_repository.dart';
+import 'package:flutter_template/pages/page3/page3_usecases.dart';
+import 'package:flutter_template/pages/page4/page4_datasource.dart';
+import 'package:flutter_template/pages/page4/page4_repository.dart';
+import 'package:flutter_template/pages/page4/page4_usecases.dart';
+import 'package:flutter_template/pages/page5/page5_datasource.dart';
+import 'package:flutter_template/pages/page5/page5_repository.dart';
+import 'package:flutter_template/pages/page5/page5_usecases.dart';
+import 'package:flutter_template/pages/page6/page6_datasource.dart';
+import 'package:flutter_template/pages/page6/page6_repository.dart';
+import 'package:flutter_template/pages/page6/page6_usecases.dart';
 
 /// Global service locator (GetIt).
 ///

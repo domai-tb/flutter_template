@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:mobile_app_skeleton/widgets/custom_button.dart';
+import 'package:flutter_template/widgets/custom_button.dart';
 
 /// A widget that displays an item in the bottom navigation menu which allows the user
 /// to switch between different pages. When active, the whole item is moved up and the title

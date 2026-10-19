@@ -9,4 +9,3 @@ class Page6ItemEntity {
     required this.subtitle,
   });
 }
-

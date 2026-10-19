@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
 
-import 'package:mobile_app_skeleton/core/app_services.dart';
-import 'package:mobile_app_skeleton/core/settings.dart';
+import 'package:flutter_template/core/app_services.dart';
+import 'package:flutter_template/core/settings.dart';
 
 /// Lightweight app-wide scope that avoids external state-management packages.
 class AppScope extends InheritedWidget {
@@ -27,4 +27,3 @@ class AppScope extends InheritedWidget {
     return settings != oldWidget.settings || services != oldWidget.services;
   }
 }
-

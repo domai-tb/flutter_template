@@ -1,6 +1,6 @@
 import 'dart:math';
 
-import 'package:mobile_app_skeleton/pages/page1/page1_item_entity.dart';
+import 'package:flutter_template/pages/page1/page1_item_entity.dart';
 
 /// Placeholder data source.
 ///
@@ -31,4 +31,3 @@ class Page1DataSource {
         .toList(growable: false);
   }
 }
-

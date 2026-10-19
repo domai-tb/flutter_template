@@ -1,5 +1,5 @@
-import 'package:mobile_app_skeleton/pages/page4/page4_datasource.dart';
-import 'package:mobile_app_skeleton/pages/page4/page4_item_entity.dart';
+import 'package:flutter_template/pages/page4/page4_datasource.dart';
+import 'package:flutter_template/pages/page4/page4_item_entity.dart';
 
 class Page4Repository {
   final Page4DataSource dataSource;
@@ -8,4 +8,3 @@ class Page4Repository {
 
   Future<List<Page4ItemEntity>> listItems() => dataSource.fetchItems();
 }
-

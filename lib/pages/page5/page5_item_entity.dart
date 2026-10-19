@@ -9,4 +9,3 @@ class Page5ItemEntity {
     required this.value,
   });
 }
-

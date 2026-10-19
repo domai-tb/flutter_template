@@ -1,23 +1,24 @@
-name: mobile_app_skeleton
-description: A Flutter mobile app skeleton with placeholder features and a clean-ish architecture.
+name: flutter_template
+description: Flutter Template for Android, iOS, macOS, Windows, Linux and Web
 publish_to: "none"
-version: 0.1.0+1
+version: 0.0.1+1
 
 environment:
-  sdk: ">=3.6.0 <4.0.0"
+  sdk: ">=3.13.0 <4.0.0"
 dependencies:
+  cupertino_icons: ^2.0.0
   flutter:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
-  get_it: ^8.0.3
-  intl: ^0.20.2
-  shared_preferences: ^2.3.3
+  get_it: ^9.3.0
+  intl: ^0.20.3
+  shared_preferences: ^2.5.6
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^5.0.0
+  flutter_lints: ^6.0.0
 
 flutter:
   uses-material-design: true

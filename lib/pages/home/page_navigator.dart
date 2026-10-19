@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
-import 'package:mobile_app_skeleton/l10n/l10n_x.dart';
-import 'package:mobile_app_skeleton/pages/home/widgets/page_navigation_animation.dart';
-import 'package:mobile_app_skeleton/pages/page1/page1_page.dart';
-import 'package:mobile_app_skeleton/pages/page2/page2_page.dart';
-import 'package:mobile_app_skeleton/pages/page3/page3_page.dart';
-import 'package:mobile_app_skeleton/pages/page4/page4_page.dart';
-import 'package:mobile_app_skeleton/pages/page5/page5_page.dart';
-import 'package:mobile_app_skeleton/pages/page6/page6_page.dart';
+import 'package:flutter_template/l10n/l10n_x.dart';
+import 'package:flutter_template/pages/home/widgets/page_navigation_animation.dart';
+import 'package:flutter_template/pages/page1/page1_page.dart';
+import 'package:flutter_template/pages/page2/page2_page.dart';
+import 'package:flutter_template/pages/page3/page3_page.dart';
+import 'package:flutter_template/pages/page4/page4_page.dart';
+import 'package:flutter_template/pages/page5/page5_page.dart';
+import 'package:flutter_template/pages/page6/page6_page.dart';
 
 enum PageItem { page1, page2, page3, page4, page5, page6 }
 

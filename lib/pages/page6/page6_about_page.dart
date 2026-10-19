@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:mobile_app_skeleton/l10n/l10n_x.dart';
+import 'package:flutter_template/l10n/l10n_x.dart';
 
 class Page6AboutPage extends StatelessWidget {
   const Page6AboutPage({super.key});

@@ -1,15 +1,15 @@
-import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 
 import 'package:flutter/material.dart';
 
-import 'package:mobile_app_skeleton/core/app_scope.dart';
-import 'package:mobile_app_skeleton/l10n/l10n_x.dart';
-import 'package:mobile_app_skeleton/pages/home/widgets/page_navigation_animation.dart';
-import 'package:mobile_app_skeleton/pages/page6/page6_about_page.dart';
-import 'package:mobile_app_skeleton/pages/page6/page6_item_entity.dart';
-import 'package:mobile_app_skeleton/pages/page6/page6_settings_page.dart';
-import 'package:mobile_app_skeleton/pages/page6/page6_usecases.dart';
-import 'package:mobile_app_skeleton/widgets/scroll_to_top_button.dart';
+import 'package:flutter_template/core/app_scope.dart';
+import 'package:flutter_template/l10n/l10n_x.dart';
+import 'package:flutter_template/pages/home/widgets/page_navigation_animation.dart';
+import 'package:flutter_template/pages/page6/page6_about_page.dart';
+import 'package:flutter_template/pages/page6/page6_item_entity.dart';
+import 'package:flutter_template/pages/page6/page6_settings_page.dart';
+import 'package:flutter_template/pages/page6/page6_usecases.dart';
+import 'package:flutter_template/widgets/scroll_to_top_button.dart';
 
 class Page6Page extends StatefulWidget {
   final GlobalKey<NavigatorState> mainNavigatorKey;
@@ -36,11 +36,6 @@ class _Page6PageState extends State<Page6Page> with AutomaticKeepAliveClientMixi
 
   @override
   bool get wantKeepAlive => true;
-
-  @override
-  void initState() {
-    super.initState();
-  }
 
   @override
   void dispose() {
@@ -130,7 +125,7 @@ class _Page6PageState extends State<Page6Page> with AutomaticKeepAliveClientMixi
                         onRefresh: _load,
                         child: ListView.builder(
                           controller: _scrollController,
-                          padding: EdgeInsets.only(bottom: Platform.isIOS ? 110 : 90, top: 10),
+                          padding: EdgeInsets.only(bottom: defaultTargetPlatform == TargetPlatform.iOS ? 110 : 90, top: 10),
                           itemCount: _loading ? 2 : _items.length,
                           itemBuilder: (context, index) {
                             if (_loading) {
@@ -181,7 +176,7 @@ class _Page6PageState extends State<Page6Page> with AutomaticKeepAliveClientMixi
                       ),
                       ScrollToTopButton(
                         scrollController: _scrollController,
-                        bottomOffset: Platform.isIOS ? 110 : 90,
+                        bottomOffset: defaultTargetPlatform == TargetPlatform.iOS ? 110 : 90,
                       ),
                     ],
                   ),

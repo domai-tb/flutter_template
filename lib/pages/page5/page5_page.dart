@@ -1,14 +1,14 @@
-import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 
 import 'package:flutter/material.dart';
 
-import 'package:mobile_app_skeleton/core/app_scope.dart';
-import 'package:mobile_app_skeleton/l10n/l10n_x.dart';
-import 'package:mobile_app_skeleton/pages/home/widgets/page_navigation_animation.dart';
-import 'package:mobile_app_skeleton/pages/page5/page5_item_entity.dart';
-import 'package:mobile_app_skeleton/pages/page5/page5_usecases.dart';
-import 'package:mobile_app_skeleton/widgets/app_button.dart';
-import 'package:mobile_app_skeleton/widgets/scroll_to_top_button.dart';
+import 'package:flutter_template/core/app_scope.dart';
+import 'package:flutter_template/l10n/l10n_x.dart';
+import 'package:flutter_template/pages/home/widgets/page_navigation_animation.dart';
+import 'package:flutter_template/pages/page5/page5_item_entity.dart';
+import 'package:flutter_template/pages/page5/page5_usecases.dart';
+import 'package:flutter_template/widgets/app_button.dart';
+import 'package:flutter_template/widgets/scroll_to_top_button.dart';
 
 class Page5Page extends StatefulWidget {
   final GlobalKey<AnimatedEntryState> pageEntryAnimationKey;
@@ -34,11 +34,6 @@ class _Page5PageState extends State<Page5Page>
 
   @override
   bool get wantKeepAlive => true;
-
-  @override
-  void initState() {
-    super.initState();
-  }
 
   @override
   void dispose() {
@@ -156,7 +151,7 @@ class _Page5PageState extends State<Page5Page>
                   ),
                   ScrollToTopButton(
                     scrollController: _scrollController,
-                    bottomOffset: Platform.isIOS ? 110 : 90,
+                    bottomOffset: defaultTargetPlatform == TargetPlatform.iOS ? 110 : 90,
                   ),
                 ],
               ),

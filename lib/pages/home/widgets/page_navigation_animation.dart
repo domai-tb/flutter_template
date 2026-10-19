@@ -102,7 +102,7 @@ class AnimatedEntryState extends State<AnimatedEntry> with TickerProviderStateMi
       opacity: _fadeAnimation,
       child: AnimatedBuilder(
         animation: _positionAnimation,
-        builder: (_, __) => Transform.translate(
+        builder: (_, _) => Transform.translate(
           offset: Offset(0, _positionAnimation.value * (-1)),
           child: widget.child,
         ),

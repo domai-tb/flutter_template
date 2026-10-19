@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import 'package:mobile_app_skeleton/l10n/l10n_x.dart';
-import 'package:mobile_app_skeleton/pages/home/page_navigator.dart';
+import 'package:flutter_template/l10n/l10n_x.dart';
+import 'package:flutter_template/pages/home/page_navigator.dart';
 
 class NavBarPreferencesEditor extends StatelessWidget {
   final List<PageItem> orderedItems;
@@ -44,9 +44,8 @@ class NavBarPreferencesEditor extends StatelessWidget {
           buildDefaultDragHandles: false,
           physics: const NeverScrollableScrollPhysics(),
           itemCount: orderedItems.length,
-          onReorder: (oldIndex, newIndex) {
+          onReorderItem: (oldIndex, newIndex) {
             final nextItems = List<PageItem>.from(orderedItems);
-            if (newIndex > oldIndex) newIndex -= 1;
             final item = nextItems.removeAt(oldIndex);
             nextItems.insert(newIndex, item);
             onOrderChanged(nextItems);

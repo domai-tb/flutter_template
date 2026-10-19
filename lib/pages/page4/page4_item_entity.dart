@@ -11,4 +11,3 @@ class Page4ItemEntity {
     required this.price,
   });
 }
-

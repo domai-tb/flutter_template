@@ -1,14 +1,14 @@
-import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'package:mobile_app_skeleton/core/app_scope.dart';
-import 'package:mobile_app_skeleton/core/settings.dart';
-import 'package:mobile_app_skeleton/pages/home/page_navigator.dart';
-import 'package:mobile_app_skeleton/pages/home/widgets/page_navigation_animation.dart';
-import 'package:mobile_app_skeleton/pages/home/widgets/bottom_nav_bar.dart';
-import 'package:mobile_app_skeleton/pages/home/widgets/side_nav_bar.dart';
+import 'package:flutter_template/core/app_scope.dart';
+import 'package:flutter_template/core/settings.dart';
+import 'package:flutter_template/pages/home/page_navigator.dart';
+import 'package:flutter_template/pages/home/widgets/page_navigation_animation.dart';
+import 'package:flutter_template/pages/home/widgets/bottom_nav_bar.dart';
+import 'package:flutter_template/pages/home/widgets/side_nav_bar.dart';
 
 /// The [HomePage] displays all general UI elements like the bottom nav-menu and
 /// handles the switching between the different pages.
@@ -268,7 +268,7 @@ class HomePageState extends State<HomePage> {
                     children: [
                       Padding(
                         padding:
-                            EdgeInsets.only(bottom: Platform.isIOS ? 80 : 60),
+                            EdgeInsets.only(bottom: defaultTargetPlatform == TargetPlatform.iOS ? 80 : 60),
                         child: PageView.builder(
                           physics: swipeDisabled
                               ? const NeverScrollableScrollPhysics()

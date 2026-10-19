@@ -1,9 +1,9 @@
-import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 
 import 'package:flutter/material.dart';
 
-import 'package:mobile_app_skeleton/pages/home/page_navigator.dart';
-import 'package:mobile_app_skeleton/pages/home/widgets/bottom_nav_bar_item.dart';
+import 'package:flutter_template/pages/home/page_navigator.dart';
+import 'package:flutter_template/pages/home/widgets/bottom_nav_bar_item.dart';
 
 /// Creates the bottom navigation bar that lets the user switch between different pages.
 class BottomNavBar extends StatefulWidget {
@@ -31,8 +31,8 @@ class _BottomNavBarState extends State<BottomNavBar> {
     final theme = Theme.of(context);
 
     return Container(
-      height: Platform.isIOS ? 88 : 98,
-      padding: Platform.isIOS
+      height: defaultTargetPlatform == TargetPlatform.iOS ? 88 : 98,
+      padding: defaultTargetPlatform == TargetPlatform.iOS
           ? const EdgeInsets.only(bottom: 20, left: 5)
           : const EdgeInsets.only(left: 7),
       decoration: BoxDecoration(

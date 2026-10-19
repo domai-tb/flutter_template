@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import 'package:mobile_app_skeleton/pages/home/page_navigator.dart';
-import 'package:mobile_app_skeleton/pages/home/widgets/side_nav_bar_item.dart';
+import 'package:flutter_template/pages/home/page_navigator.dart';
+import 'package:flutter_template/pages/home/widgets/side_nav_bar_item.dart';
 
 class SideNavBar extends StatefulWidget {
   /// Needs the currently active page in order to highlight it

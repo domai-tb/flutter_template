@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-import 'package:mobile_app_skeleton/core/app_scope.dart';
-import 'package:mobile_app_skeleton/l10n/l10n_x.dart';
-import 'package:mobile_app_skeleton/pages/home/page_navigator.dart';
-import 'package:mobile_app_skeleton/pages/home/widgets/nav_bar_preferences_editor.dart';
-import 'package:mobile_app_skeleton/widgets/app_segmented_triple_control.dart';
+import 'package:flutter_template/core/app_scope.dart';
+import 'package:flutter_template/l10n/l10n_x.dart';
+import 'package:flutter_template/pages/home/page_navigator.dart';
+import 'package:flutter_template/pages/home/widgets/nav_bar_preferences_editor.dart';
+import 'package:flutter_template/widgets/app_segmented_triple_control.dart';
 
 class Page6SettingsPage extends StatelessWidget {
   const Page6SettingsPage({super.key});

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:mobile_app_skeleton/pages/page1/page1_item_entity.dart';
-import 'package:mobile_app_skeleton/l10n/l10n_x.dart';
+import 'package:flutter_template/pages/page1/page1_item_entity.dart';
+import 'package:flutter_template/l10n/l10n_x.dart';
 
 class Page1DetailPage extends StatelessWidget {
   final Page1ItemEntity item;

@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:mobile_app_skeleton/pages/page1/page1_datasource.dart';
-import 'package:mobile_app_skeleton/pages/page1/page1_repository.dart';
-import 'package:mobile_app_skeleton/pages/page1/page1_usecases.dart';
+import 'package:flutter_template/pages/page1/page1_datasource.dart';
+import 'package:flutter_template/pages/page1/page1_repository.dart';
+import 'package:flutter_template/pages/page1/page1_usecases.dart';
 
 void main() {
   test('Page1Usecases returns placeholder items', () async {
@@ -28,4 +28,3 @@ void main() {
     expect(filtered.length, lessThanOrEqualTo(all.length));
   });
 }
-
