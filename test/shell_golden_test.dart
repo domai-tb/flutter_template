@@ -34,21 +34,21 @@ void main() {
     await tester.pumpWidget(_shellApp());
     await tester.pumpAndSettle();
     await expectLater(find.byType(Scaffold).first, matchesGoldenFile('goldens/shell_wide.png'));
-  });
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
   testWidgets('medium shell golden', (tester) async {
     _setSize(tester, const Size(960, 900));
     await tester.pumpWidget(_shellApp());
     await tester.pumpAndSettle();
     await expectLater(find.byType(Scaffold).first, matchesGoldenFile('goldens/shell_medium.png'));
-  });
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
   testWidgets('phone shell golden', (tester) async {
     _setSize(tester, const Size(390, 844));
     await tester.pumpWidget(_shellApp());
     await tester.pumpAndSettle();
     await expectLater(find.byType(Scaffold).first, matchesGoldenFile('goldens/shell_phone.png'));
-  });
+  }, variant: TargetPlatformVariant.only(TargetPlatform.android));
 
   for (final brightness in Brightness.values) {
     testWidgets('Settings ${brightness.name} golden', (tester) async {
@@ -61,23 +61,24 @@ void main() {
       );
       await tester.pumpWidget(_settingsApp());
       await tester.pumpAndSettle();
-      await expectLater(find.byType(Scaffold).first, matchesGoldenFile('goldens/settings_${brightness.name}.png'));
-    });
+      await expectLater(find.byType(Page6SettingsPage), matchesGoldenFile('goldens/settings_${brightness.name}.png'));
+    }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
   }
 
   testWidgets('tab overflow golden', (tester) async {
     _setSize(tester, const Size(1440, 900));
     final settings = ic.sl<SettingsController>();
     final tabs = [
-      const ShellTabPreference(id: 'route', registrationId: 'route'),
-      for (var index = 1; index <= 12; index++)
-        ShellTabPreference(id: 'placeholder-$index', registrationId: 'placeholder'),
+      const ShellTabPreference(id: 'home', registrationId: 'home', destinationId: 'home'),
+      for (var index = 1; index <= 20; index++)
+        ShellTabPreference(id: 'preview-$index', registrationId: 'preview', destinationId: 'home'),
     ];
-    settings.update(settings.settings.copyWith(shellTabs: tabs, selectedShellTabId: 'placeholder-12'));
+    settings.update(settings.settings.copyWith(shellTabs: tabs, selectedShellTabId: 'preview-20'));
     await tester.pumpWidget(_shellApp());
     await tester.pumpAndSettle();
+    expect(find.text('Preview 20'), findsNWidgets(2));
     await expectLater(find.byType(Scaffold).first, matchesGoldenFile('goldens/tab_overflow.png'));
-  });
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
   testWidgets('inspector overlay golden', (tester) async {
     _setSize(tester, const Size(960, 900));
@@ -86,7 +87,7 @@ void main() {
     await tester.tap(find.byTooltip('Open inspector'));
     await tester.pumpAndSettle();
     await expectLater(find.byType(Scaffold).first, matchesGoldenFile('goldens/inspector_overlay.png'));
-  });
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 }
 
 void _setSize(WidgetTester tester, Size size) {
@@ -163,10 +164,23 @@ ShellConfig _shellConfig() => ShellConfig(
   views: [
     ShellViewRegistration(id: 'route', title: (_, _) => 'Home'),
     ShellViewRegistration(
-      id: 'placeholder',
-      title: (_, id) => 'Tab ${id.split('-').last}',
+      id: 'preview',
+      title: (_, id) => id == 'preview' ? 'Preview view' : 'Preview ${id.split('-').last}',
+      icon: Icons.article_outlined,
       builder: (_) => const Center(child: Text('Neutral content slot')),
+      statusProviderFactory: _PreviewStatusProvider.new,
     ),
   ],
   inspectorBuilder: (_) => const Center(child: Text('Inspector content')),
 );
+
+class _PreviewStatusProvider extends ShellStatusProvider {
+  final String instanceId;
+
+  _PreviewStatusProvider(this.instanceId);
+
+  @override
+  List<ShellStatusItem> get items => [
+    ShellStatusItem(id: instanceId, label: 'Template preview', icon: Icons.info_outline),
+  ];
+}

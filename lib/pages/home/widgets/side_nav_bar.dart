@@ -14,10 +14,12 @@ class SideNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final tokens = theme.extension<AppShellTokens>();
-    final spacingScale = tokens?.spacingScale ?? 1;
+    final railWidth = tokens?.comfortable == true
+        ? tokens!.desktopComfortable.railWidth
+        : tokens?.desktopCompact.railWidth ?? AppShellMetrics.desktopCompact.railWidth;
 
     return Container(
-      width: 72 * spacingScale,
+      width: railWidth,
       decoration: BoxDecoration(
         color: tokens?.canvas ?? theme.colorScheme.surface,
         border: Border(right: BorderSide(color: theme.dividerColor)),

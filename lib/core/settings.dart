@@ -40,22 +40,73 @@ class SettingsController with ChangeNotifier {
 }
 
 class ShellTabPreference {
+  static const Object _noChange = Object();
+
   final String id;
   final String registrationId;
+  final String? destinationId;
+  final String? contextId;
+  final String? moduleId;
+  final bool? inspectorOpen;
+  final bool? splitOpen;
 
-  const ShellTabPreference({required this.id, required this.registrationId});
+  const ShellTabPreference({
+    required this.id,
+    required this.registrationId,
+    this.destinationId,
+    this.contextId,
+    this.moduleId,
+    this.inspectorOpen,
+    this.splitOpen,
+  });
 
-  factory ShellTabPreference.fromJson(Map<String, dynamic> json) {
-    return ShellTabPreference(id: json['id'] as String, registrationId: json['registrationId'] as String);
+  ShellTabPreference copyWith({
+    Object? destinationId = _noChange,
+    Object? contextId = _noChange,
+    Object? moduleId = _noChange,
+    Object? inspectorOpen = _noChange,
+    Object? splitOpen = _noChange,
+  }) {
+    return ShellTabPreference(
+      id: id,
+      registrationId: registrationId,
+      destinationId: identical(destinationId, _noChange) ? this.destinationId : destinationId as String?,
+      contextId: identical(contextId, _noChange) ? this.contextId : contextId as String?,
+      moduleId: identical(moduleId, _noChange) ? this.moduleId : moduleId as String?,
+      inspectorOpen: identical(inspectorOpen, _noChange) ? this.inspectorOpen : inspectorOpen as bool?,
+      splitOpen: identical(splitOpen, _noChange) ? this.splitOpen : splitOpen as bool?,
+    );
   }
 
-  Map<String, String> toJson() => {'id': id, 'registrationId': registrationId};
+  factory ShellTabPreference.fromJson(Map<String, dynamic> json) {
+    return ShellTabPreference(
+      id: json['id'] as String,
+      registrationId: json['registrationId'] as String,
+      destinationId: json['destinationId'] is String ? json['destinationId'] as String : null,
+      contextId: json['contextId'] is String ? json['contextId'] as String : null,
+      moduleId: json['moduleId'] is String ? json['moduleId'] as String : null,
+      inspectorOpen: json['inspectorOpen'] is bool ? json['inspectorOpen'] as bool : null,
+      splitOpen: json['splitOpen'] is bool ? json['splitOpen'] as bool : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'registrationId': registrationId,
+    if (destinationId != null) 'destinationId': destinationId,
+    if (contextId != null) 'contextId': contextId,
+    if (moduleId != null) 'moduleId': moduleId,
+    if (inspectorOpen != null) 'inspectorOpen': inspectorOpen,
+    if (splitOpen != null) 'splitOpen': splitOpen,
+  };
 }
 
 class Settings {
   static const Object _noChange = Object();
   static const List<String> _defaultNavBarOrder = ['page1', 'page2', 'page3', 'page4', 'page5', 'page6'];
-  static const List<ShellTabPreference> _defaultTabs = [ShellTabPreference(id: 'route', registrationId: 'route')];
+  static const List<ShellTabPreference> _defaultTabs = [
+    ShellTabPreference(id: 'page1', registrationId: 'page1', destinationId: 'page1'),
+  ];
 
   final bool useSystemDarkmode;
   final bool useDarkmode;
@@ -92,7 +143,7 @@ class Settings {
     this.splitRatio = 0.5,
     this.splitOpen = false,
     this.shellTabs = _defaultTabs,
-    this.selectedShellTabId = 'route',
+    this.selectedShellTabId = 'page1',
     this.selectedContextId,
     this.selectedModuleId,
     this.extraSettings = const {},
@@ -208,8 +259,8 @@ class Settings {
       inspectorOpen: readBool('inspectorOpen', fallback: false),
       splitRatio: ratio is num && ratio.isFinite ? ratio.toDouble().clamp(0.3, 0.7) : 0.5,
       splitOpen: readBool('splitOpen', fallback: false),
-      shellTabs: tabs.isEmpty ? _defaultTabs : tabs,
-      selectedShellTabId: json['selectedShellTabId'] is String ? json['selectedShellTabId'] as String : 'route',
+      shellTabs: tabs,
+      selectedShellTabId: json['selectedShellTabId'] is String ? json['selectedShellTabId'] as String : 'page1',
       selectedContextId: json['selectedContextId'] is String ? json['selectedContextId'] as String : null,
       selectedModuleId: json['selectedModuleId'] is String ? json['selectedModuleId'] as String : null,
       extraSettings: Map.fromEntries(json.entries.where((entry) => !knownKeys.contains(entry.key))),
@@ -219,7 +270,7 @@ class Settings {
   Map<String, dynamic> toJson() {
     return {
       ...extraSettings,
-      'schemaVersion': 4,
+      'schemaVersion': 5,
       'useSystemDarkmode': useSystemDarkmode,
       'useDarkmode': useDarkmode,
       'useSystemTextScaling': useSystemTextScaling,

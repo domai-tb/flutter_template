@@ -632,6 +632,168 @@ abstract class AppLocalizations {
   /// **'System'**
   String get themeSystem;
 
+  /// No description provided for @openViewTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Open view'**
+  String get openViewTab;
+
+  /// No description provided for @viewPickerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Open registered view'**
+  String get viewPickerTitle;
+
+  /// No description provided for @viewPickerHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search registered views'**
+  String get viewPickerHint;
+
+  /// No description provided for @openTabOverflow.
+  ///
+  /// In en, this message translates to:
+  /// **'Find open tab'**
+  String get openTabOverflow;
+
+  /// No description provided for @tabOverflowTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Open tabs'**
+  String get tabOverflowTitle;
+
+  /// No description provided for @noTabsOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'No views are open.'**
+  String get noTabsOpen;
+
+  /// No description provided for @closeOtherTabs.
+  ///
+  /// In en, this message translates to:
+  /// **'Close other tabs'**
+  String get closeOtherTabs;
+
+  /// No description provided for @closeTabsToRight.
+  ///
+  /// In en, this message translates to:
+  /// **'Close tabs to the right'**
+  String get closeTabsToRight;
+
+  /// No description provided for @notifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get notifications;
+
+  /// No description provided for @openNotifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Open notifications'**
+  String get openNotifications;
+
+  /// No description provided for @noNotifications.
+  ///
+  /// In en, this message translates to:
+  /// **'No notifications'**
+  String get noNotifications;
+
+  /// No description provided for @markAllRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Mark all read'**
+  String get markAllRead;
+
+  /// No description provided for @dismissNotification.
+  ///
+  /// In en, this message translates to:
+  /// **'Dismiss notification'**
+  String get dismissNotification;
+
+  /// No description provided for @clearNotifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear all'**
+  String get clearNotifications;
+
+  /// No description provided for @notificationAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get notificationAction;
+
+  /// No description provided for @notificationInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Information'**
+  String get notificationInfo;
+
+  /// No description provided for @notificationSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Success'**
+  String get notificationSuccess;
+
+  /// No description provided for @notificationWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Warning'**
+  String get notificationWarning;
+
+  /// No description provided for @notificationError.
+  ///
+  /// In en, this message translates to:
+  /// **'Error'**
+  String get notificationError;
+
+  /// No description provided for @notificationPrivacyNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications stay in memory and are cleared when the app closes.'**
+  String get notificationPrivacyNote;
+
+  /// No description provided for @settingsAppearance.
+  ///
+  /// In en, this message translates to:
+  /// **'Appearance'**
+  String get settingsAppearance;
+
+  /// No description provided for @settingsLayout.
+  ///
+  /// In en, this message translates to:
+  /// **'Layout'**
+  String get settingsLayout;
+
+  /// No description provided for @settingsNavigation.
+  ///
+  /// In en, this message translates to:
+  /// **'Navigation'**
+  String get settingsNavigation;
+
+  /// No description provided for @settingsKeyboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Keyboard'**
+  String get settingsKeyboard;
+
+  /// No description provided for @settingsNotifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get settingsNotifications;
+
+  /// No description provided for @settingsAbout.
+  ///
+  /// In en, this message translates to:
+  /// **'About'**
+  String get settingsAbout;
+
+  /// No description provided for @shellEmptyWorkspace.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a registered view to open.'**
+  String get shellEmptyWorkspace;
+
   /// No description provided for @walletPlaceholderBody.
   ///
   /// In en, this message translates to:

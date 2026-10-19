@@ -105,6 +105,36 @@ typedef ShellDestinationBuilder = Widget Function(
   GlobalKey<AnimatedExitState> exitAnimationKey,
 );
 
+enum ShellStatusSeverity { normal, success, warning, error }
+
+class ShellStatusItem {
+  final String id;
+  final String label;
+  final IconData? icon;
+  final int priority;
+  final ShellStatusSeverity severity;
+  final String? tooltip;
+  final VoidCallback? onTap;
+  final bool Function()? isVisible;
+
+  const ShellStatusItem({
+    required this.id,
+    required this.label,
+    this.icon,
+    this.priority = 0,
+    this.severity = ShellStatusSeverity.normal,
+    this.tooltip,
+    this.onTap,
+    this.isVisible,
+  });
+}
+
+abstract class ShellStatusProvider extends ChangeNotifier {
+  List<ShellStatusItem> get items;
+}
+
+typedef ShellStatusProviderFactory = ShellStatusProvider Function(String instanceId);
+
 class ShellDestination {
   final String id;
   final String Function(BuildContext) title;
@@ -127,8 +157,30 @@ class ShellViewRegistration {
   final String id;
   final String Function(BuildContext, String instanceId) title;
   final WidgetBuilder? builder;
+  final String? destinationId;
+  final String? contextId;
+  final String? moduleId;
+  final IconData? icon;
+  final bool isRoot;
+  final bool closeable;
+  final WidgetBuilder? inspectorBuilder;
+  final WidgetBuilder? splitPaneBuilder;
+  final ShellStatusProviderFactory? statusProviderFactory;
 
-  const ShellViewRegistration({required this.id, required this.title, this.builder});
+  const ShellViewRegistration({
+    required this.id,
+    required this.title,
+    this.builder,
+    this.destinationId,
+    this.contextId,
+    this.moduleId,
+    this.icon,
+    this.isRoot = false,
+    this.closeable = true,
+    this.inspectorBuilder,
+    this.splitPaneBuilder,
+    this.statusProviderFactory,
+  });
 }
 
 class ShellModule {
@@ -241,19 +293,9 @@ ShellConfig defaultShellConfig() => ShellConfig(
     );
   }).toList(),
   views: defaultShellViews(),
-  inspectorBuilder: (context) => Center(child: Text(context.l10n.inspectorEmpty)),
-  splitPaneBuilder: (context) =>
-      ShellContentSlot(state: ShellSlotState.empty, message: context.l10n.splitPanePlaceholder),
 );
 
-List<ShellViewRegistration> defaultShellViews() => [
-  ShellViewRegistration(id: 'route', title: (context, _) => context.l10n.currentPageLabel),
-  ShellViewRegistration(
-    id: 'placeholder',
-    title: (context, id) => '${context.l10n.shellPlaceholderTab} ${id.split('-').last}',
-    builder: (context) => const ShellContentSlot(state: ShellSlotState.empty),
-  ),
-];
+List<ShellViewRegistration> defaultShellViews() => const [];
 
 PageItemPresentation _pageItemIcons(PageItem item) {
   switch (item) {

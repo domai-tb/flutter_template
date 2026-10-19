@@ -1,6 +1,67 @@
 import 'package:flutter/material.dart';
 
 @immutable
+class AppShellMetrics {
+  final double headerHeight;
+  final double railWidth;
+  final double tabHeight;
+  final double bodyFontSize;
+  final double menuRowHeight;
+  final double controlHeight;
+  final double statusHeight;
+  final double targetSize;
+  final double settingsMaxWidth;
+
+  const AppShellMetrics({
+    required this.headerHeight,
+    required this.railWidth,
+    required this.tabHeight,
+    required this.bodyFontSize,
+    required this.menuRowHeight,
+    required this.controlHeight,
+    required this.statusHeight,
+    required this.targetSize,
+    required this.settingsMaxWidth,
+  });
+
+  static const desktopCompact = AppShellMetrics(
+    headerHeight: 40,
+    railWidth: 48,
+    tabHeight: 34,
+    bodyFontSize: 13,
+    menuRowHeight: 30,
+    controlHeight: 30,
+    statusHeight: 24,
+    targetSize: 30,
+    settingsMaxWidth: 560,
+  );
+
+  static const desktopComfortable = AppShellMetrics(
+    headerHeight: 44,
+    railWidth: 56,
+    tabHeight: 38,
+    bodyFontSize: 14,
+    menuRowHeight: 36,
+    controlHeight: 36,
+    statusHeight: 26,
+    targetSize: 36,
+    settingsMaxWidth: 640,
+  );
+
+  static const phoneTouch = AppShellMetrics(
+    headerHeight: 52,
+    railWidth: 0,
+    tabHeight: 0,
+    bodyFontSize: 16,
+    menuRowHeight: 48,
+    controlHeight: 48,
+    statusHeight: 0,
+    targetSize: 48,
+    settingsMaxWidth: 720,
+  );
+}
+
+@immutable
 class AppShellTokens extends ThemeExtension<AppShellTokens> {
   final Color canvas;
   final Color surface;
@@ -10,6 +71,10 @@ class AppShellTokens extends ThemeExtension<AppShellTokens> {
   final Color textSecondary;
   final Color focus;
   final double spacingScale;
+  final bool comfortable;
+  final AppShellMetrics desktopCompact;
+  final AppShellMetrics desktopComfortable;
+  final AppShellMetrics phoneTouch;
 
   const AppShellTokens({
     required this.canvas,
@@ -20,6 +85,10 @@ class AppShellTokens extends ThemeExtension<AppShellTokens> {
     required this.textSecondary,
     required this.focus,
     required this.spacingScale,
+    required this.comfortable,
+    this.desktopCompact = AppShellMetrics.desktopCompact,
+    this.desktopComfortable = AppShellMetrics.desktopComfortable,
+    this.phoneTouch = AppShellMetrics.phoneTouch,
   });
 
   @override
@@ -32,6 +101,7 @@ class AppShellTokens extends ThemeExtension<AppShellTokens> {
     Color? textSecondary,
     Color? focus,
     double? spacingScale,
+    bool? comfortable,
   }) {
     return AppShellTokens(
       canvas: canvas ?? this.canvas,
@@ -42,6 +112,10 @@ class AppShellTokens extends ThemeExtension<AppShellTokens> {
       textSecondary: textSecondary ?? this.textSecondary,
       focus: focus ?? this.focus,
       spacingScale: spacingScale ?? this.spacingScale,
+      comfortable: comfortable ?? this.comfortable,
+      desktopCompact: desktopCompact,
+      desktopComfortable: desktopComfortable,
+      phoneTouch: phoneTouch,
     );
   }
 
@@ -57,6 +131,10 @@ class AppShellTokens extends ThemeExtension<AppShellTokens> {
       textSecondary: Color.lerp(textSecondary, other.textSecondary, t)!,
       focus: Color.lerp(focus, other.focus, t)!,
       spacingScale: spacingScale + (other.spacingScale - spacingScale) * t,
+      comfortable: t < 0.5 ? comfortable : other.comfortable,
+      desktopCompact: desktopCompact,
+      desktopComfortable: desktopComfortable,
+      phoneTouch: phoneTouch,
     );
   }
 }
@@ -68,6 +146,14 @@ class AppTheme {
     'green': Color(0xFF4F8A70),
     'violet': Color(0xFF7865A8),
   };
+
+  static AppShellMetrics metrics(BuildContext context, {required bool phone}) {
+    final tokens = Theme.of(context).extension<AppShellTokens>();
+    if (phone) return tokens?.phoneTouch ?? AppShellMetrics.phoneTouch;
+    return tokens?.comfortable == true
+        ? tokens!.desktopComfortable
+        : tokens?.desktopCompact ?? AppShellMetrics.desktopCompact;
+  }
 
   static ThemeData light({String accentPreset = 'steel', bool comfortable = false}) =>
       _build(Brightness.light, accentPreset, comfortable);
@@ -96,6 +182,7 @@ class AppTheme {
       textSecondary: secondaryText,
       focus: scheme.primary,
       spacingScale: comfortable ? 1.15 : 1,
+      comfortable: comfortable,
     );
 
     return ThemeData(
@@ -105,7 +192,7 @@ class AppTheme {
       scaffoldBackgroundColor: canvas,
       canvasColor: surface,
       cardColor: surface,
-      visualDensity: comfortable ? VisualDensity.comfortable : VisualDensity.standard,
+      visualDensity: comfortable ? VisualDensity.comfortable : VisualDensity.compact,
       extensions: [tokens],
       dividerColor: tokens.border,
       focusColor: tokens.focus.withValues(alpha: 0.16),
@@ -113,12 +200,14 @@ class AppTheme {
         displayMedium: TextStyle(fontSize: 30, fontWeight: FontWeight.w600, color: tokens.textPrimary),
         displaySmall: TextStyle(fontSize: 26, fontWeight: FontWeight.w600, color: tokens.textPrimary),
         headlineSmall: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: tokens.textPrimary),
-        bodyMedium: TextStyle(color: secondaryText, fontWeight: FontWeight.w500, letterSpacing: 0.2),
-        labelSmall: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: secondaryText),
-        labelMedium: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: tokens.textPrimary),
-        labelLarge: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: tokens.textPrimary),
+        bodyMedium: TextStyle(fontSize: comfortable ? 14 : 13, color: secondaryText, fontWeight: FontWeight.w400),
+        labelSmall: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: secondaryText),
+        labelMedium: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: tokens.textPrimary),
+        labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: tokens.textPrimary),
       ),
       inputDecorationTheme: InputDecorationTheme(
+        isDense: !comfortable,
+        contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: comfortable ? 10 : 6),
         border: const OutlineInputBorder(),
         focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: tokens.focus, width: 2)),
       ),

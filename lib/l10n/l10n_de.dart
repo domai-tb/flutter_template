@@ -296,6 +296,89 @@ class AppLocalizationsDe extends AppLocalizations {
   String get themeSystem => 'System';
 
   @override
+  String get openViewTab => 'Ansicht öffnen';
+
+  @override
+  String get viewPickerTitle => 'Registrierte Ansicht öffnen';
+
+  @override
+  String get viewPickerHint => 'Registrierte Ansichten suchen';
+
+  @override
+  String get openTabOverflow => 'Offenen Tab suchen';
+
+  @override
+  String get tabOverflowTitle => 'Offene Tabs';
+
+  @override
+  String get noTabsOpen => 'Es sind keine Ansichten geöffnet.';
+
+  @override
+  String get closeOtherTabs => 'Andere Tabs schließen';
+
+  @override
+  String get closeTabsToRight => 'Tabs rechts schließen';
+
+  @override
+  String get notifications => 'Benachrichtigungen';
+
+  @override
+  String get openNotifications => 'Benachrichtigungen öffnen';
+
+  @override
+  String get noNotifications => 'Keine Benachrichtigungen';
+
+  @override
+  String get markAllRead => 'Alle als gelesen markieren';
+
+  @override
+  String get dismissNotification => 'Benachrichtigung schließen';
+
+  @override
+  String get clearNotifications => 'Alle löschen';
+
+  @override
+  String get notificationAction => 'Öffnen';
+
+  @override
+  String get notificationInfo => 'Information';
+
+  @override
+  String get notificationSuccess => 'Erfolg';
+
+  @override
+  String get notificationWarning => 'Warnung';
+
+  @override
+  String get notificationError => 'Fehler';
+
+  @override
+  String get notificationPrivacyNote =>
+      'Benachrichtigungen bleiben im Speicher und werden beim Schließen der App gelöscht.';
+
+  @override
+  String get settingsAppearance => 'Darstellung';
+
+  @override
+  String get settingsLayout => 'Layout';
+
+  @override
+  String get settingsNavigation => 'Navigation';
+
+  @override
+  String get settingsKeyboard => 'Tastatur';
+
+  @override
+  String get settingsNotifications => 'Benachrichtigungen';
+
+  @override
+  String get settingsAbout => 'Über';
+
+  @override
+  String get shellEmptyWorkspace =>
+      'Wähle eine registrierte Ansicht zum Öffnen.';
+
+  @override
   String get walletPlaceholderBody =>
       'Platzhalter fuer eine Wallet-aehnliche Funktion.';
 

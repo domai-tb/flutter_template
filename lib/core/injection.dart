@@ -2,6 +2,7 @@ import 'package:get_it/get_it.dart';
 
 import 'package:flutter_template/core/app_services.dart';
 import 'package:flutter_template/core/settings.dart';
+import 'package:flutter_template/core/shell_notifications.dart';
 import 'package:flutter_template/pages/page1/page1_datasource.dart';
 import 'package:flutter_template/pages/page1/page1_repository.dart';
 import 'package:flutter_template/pages/page1/page1_usecases.dart';
@@ -30,60 +31,37 @@ final sl = GetIt.instance;
 Future<void> init() async {
   // Core
   sl.registerSingleton<SettingsController>(await SettingsController.load());
+  sl.registerSingleton<ShellNotificationService>(ShellNotificationService());
 
   // Page 1
   sl.registerLazySingleton<Page1DataSource>(Page1DataSource.new);
-  sl.registerLazySingleton<Page1Repository>(
-    () => Page1Repository(dataSource: sl()),
-  );
-  sl.registerLazySingleton<Page1Usecases>(
-    () => Page1Usecases(repository: sl()),
-  );
+  sl.registerLazySingleton<Page1Repository>(() => Page1Repository(dataSource: sl()));
+  sl.registerLazySingleton<Page1Usecases>(() => Page1Usecases(repository: sl()));
 
   // Page 2
   sl.registerLazySingleton<Page2DataSource>(Page2DataSource.new);
-  sl.registerLazySingleton<Page2Repository>(
-    () => Page2Repository(dataSource: sl()),
-  );
-  sl.registerLazySingleton<Page2Usecases>(
-    () => Page2Usecases(repository: sl()),
-  );
+  sl.registerLazySingleton<Page2Repository>(() => Page2Repository(dataSource: sl()));
+  sl.registerLazySingleton<Page2Usecases>(() => Page2Usecases(repository: sl()));
 
   // Page 3
   sl.registerLazySingleton<Page3DataSource>(Page3DataSource.new);
-  sl.registerLazySingleton<Page3Repository>(
-    () => Page3Repository(dataSource: sl()),
-  );
-  sl.registerLazySingleton<Page3Usecases>(
-    () => Page3Usecases(repository: sl()),
-  );
+  sl.registerLazySingleton<Page3Repository>(() => Page3Repository(dataSource: sl()));
+  sl.registerLazySingleton<Page3Usecases>(() => Page3Usecases(repository: sl()));
 
   // Page 4
   sl.registerLazySingleton<Page4DataSource>(Page4DataSource.new);
-  sl.registerLazySingleton<Page4Repository>(
-    () => Page4Repository(dataSource: sl()),
-  );
-  sl.registerLazySingleton<Page4Usecases>(
-    () => Page4Usecases(repository: sl()),
-  );
+  sl.registerLazySingleton<Page4Repository>(() => Page4Repository(dataSource: sl()));
+  sl.registerLazySingleton<Page4Usecases>(() => Page4Usecases(repository: sl()));
 
   // Page 5
   sl.registerLazySingleton<Page5DataSource>(Page5DataSource.new);
-  sl.registerLazySingleton<Page5Repository>(
-    () => Page5Repository(dataSource: sl()),
-  );
-  sl.registerLazySingleton<Page5Usecases>(
-    () => Page5Usecases(repository: sl()),
-  );
+  sl.registerLazySingleton<Page5Repository>(() => Page5Repository(dataSource: sl()));
+  sl.registerLazySingleton<Page5Usecases>(() => Page5Usecases(repository: sl()));
 
   // Page 6
   sl.registerLazySingleton<Page6DataSource>(Page6DataSource.new);
-  sl.registerLazySingleton<Page6Repository>(
-    () => Page6Repository(dataSource: sl()),
-  );
-  sl.registerLazySingleton<Page6Usecases>(
-    () => Page6Usecases(repository: sl()),
-  );
+  sl.registerLazySingleton<Page6Repository>(() => Page6Repository(dataSource: sl()));
+  sl.registerLazySingleton<Page6Usecases>(() => Page6Usecases(repository: sl()));
 
   // Aggregate wiring
   sl.registerLazySingleton<AppServices>(
@@ -94,6 +72,7 @@ Future<void> init() async {
       page4: sl(),
       page5: sl(),
       page6: sl(),
+      shellNotifications: sl(),
     ),
   );
 }

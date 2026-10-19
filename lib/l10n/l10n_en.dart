@@ -293,6 +293,88 @@ class AppLocalizationsEn extends AppLocalizations {
   String get themeSystem => 'System';
 
   @override
+  String get openViewTab => 'Open view';
+
+  @override
+  String get viewPickerTitle => 'Open registered view';
+
+  @override
+  String get viewPickerHint => 'Search registered views';
+
+  @override
+  String get openTabOverflow => 'Find open tab';
+
+  @override
+  String get tabOverflowTitle => 'Open tabs';
+
+  @override
+  String get noTabsOpen => 'No views are open.';
+
+  @override
+  String get closeOtherTabs => 'Close other tabs';
+
+  @override
+  String get closeTabsToRight => 'Close tabs to the right';
+
+  @override
+  String get notifications => 'Notifications';
+
+  @override
+  String get openNotifications => 'Open notifications';
+
+  @override
+  String get noNotifications => 'No notifications';
+
+  @override
+  String get markAllRead => 'Mark all read';
+
+  @override
+  String get dismissNotification => 'Dismiss notification';
+
+  @override
+  String get clearNotifications => 'Clear all';
+
+  @override
+  String get notificationAction => 'Open';
+
+  @override
+  String get notificationInfo => 'Information';
+
+  @override
+  String get notificationSuccess => 'Success';
+
+  @override
+  String get notificationWarning => 'Warning';
+
+  @override
+  String get notificationError => 'Error';
+
+  @override
+  String get notificationPrivacyNote =>
+      'Notifications stay in memory and are cleared when the app closes.';
+
+  @override
+  String get settingsAppearance => 'Appearance';
+
+  @override
+  String get settingsLayout => 'Layout';
+
+  @override
+  String get settingsNavigation => 'Navigation';
+
+  @override
+  String get settingsKeyboard => 'Keyboard';
+
+  @override
+  String get settingsNotifications => 'Notifications';
+
+  @override
+  String get settingsAbout => 'About';
+
+  @override
+  String get shellEmptyWorkspace => 'Choose a registered view to open.';
+
+  @override
   String get walletPlaceholderBody => 'Placeholder for a wallet-style feature.';
 
   @override
