@@ -7,7 +7,6 @@ import 'package:flutter_template/l10n/l10n_x.dart';
 import 'package:flutter_template/pages/home/widgets/page_navigation_animation.dart';
 import 'package:flutter_template/pages/page6/page6_about_page.dart';
 import 'package:flutter_template/pages/page6/page6_item_entity.dart';
-import 'package:flutter_template/pages/page6/page6_settings_page.dart';
 import 'package:flutter_template/pages/page6/page6_usecases.dart';
 import 'package:flutter_template/widgets/scroll_to_top_button.dart';
 
@@ -64,9 +63,6 @@ class _Page6PageState extends State<Page6Page> with AutomaticKeepAliveClientMixi
 
   void _open(Page6ItemEntity item) {
     switch (item.id) {
-      case 'settings':
-        Navigator.of(context).push(MaterialPageRoute(builder: (_) => const Page6SettingsPage()));
-        break;
       case 'about':
         Navigator.of(context).push(MaterialPageRoute(builder: (_) => const Page6AboutPage()));
         break;
@@ -82,8 +78,6 @@ class _Page6PageState extends State<Page6Page> with AutomaticKeepAliveClientMixi
 
     String itemTitle(Page6ItemEntity item) {
       switch (item.id) {
-        case 'settings':
-          return context.l10n.settingsTitle;
         case 'about':
           return context.l10n.aboutTitle;
         default:
@@ -93,8 +87,6 @@ class _Page6PageState extends State<Page6Page> with AutomaticKeepAliveClientMixi
 
     String itemSubtitle(Page6ItemEntity item) {
       switch (item.id) {
-        case 'settings':
-          return context.l10n.menuSettingsSubtitle;
         case 'about':
           return context.l10n.menuAboutSubtitle;
         default:
@@ -125,7 +117,10 @@ class _Page6PageState extends State<Page6Page> with AutomaticKeepAliveClientMixi
                         onRefresh: _load,
                         child: ListView.builder(
                           controller: _scrollController,
-                          padding: EdgeInsets.only(bottom: defaultTargetPlatform == TargetPlatform.iOS ? 110 : 90, top: 10),
+                          padding: EdgeInsets.only(
+                            bottom: defaultTargetPlatform == TargetPlatform.iOS ? 110 : 90,
+                            top: 10,
+                          ),
                           itemCount: _loading ? 2 : _items.length,
                           itemBuilder: (context, index) {
                             if (_loading) {

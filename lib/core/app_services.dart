@@ -1,4 +1,5 @@
 import 'package:flutter_template/core/shell_notifications.dart';
+import 'package:flutter_template/core/shell_auth.dart';
 import 'package:flutter_template/pages/page1/page1_usecases.dart';
 import 'package:flutter_template/pages/page2/page2_usecases.dart';
 import 'package:flutter_template/pages/page3/page3_usecases.dart';
@@ -18,6 +19,7 @@ class AppServices {
   final Page5Usecases page5;
   final Page6Usecases page6;
   final ShellNotificationService shellNotifications;
+  final ShellAuthProvider? authProvider;
 
   const AppServices({
     required this.page1,
@@ -27,5 +29,6 @@ class AppServices {
     required this.page5,
     required this.page6,
     required this.shellNotifications,
+    this.authProvider,
   });
 }

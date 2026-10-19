@@ -53,7 +53,7 @@ void main() {
     expect(settings.didCompleteOnboarding, isTrue);
     expect(settings.localeCode, 'de');
     expect(settings.navBarItemOrder, ['page3', 'page1']);
-    expect(settings.hiddenNavBarItems, ['page2']);
+    expect(settings.hiddenNavBarItems, ['page2', 'page6']);
     expect(settings.accentPreset, 'steel');
     expect(settings.density, 'compact');
     expect(settings.inspectorWidth, 256);
@@ -344,8 +344,8 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(_app(_testConfig()));
 
-    const ids = ['inspector', 'search', 'more'];
-    const icons = [Icons.vertical_split_outlined, Icons.search, Icons.more_vert];
+    const ids = ['inspector', 'search', 'more', 'account'];
+    const icons = [Icons.vertical_split_outlined, Icons.search, Icons.more_vert, Icons.person_outline];
     for (final size in [const Size(720, 900), const Size(1280, 720), const Size(1440, 900)]) {
       tester.view.physicalSize = size;
       await tester.pumpAndSettle();
@@ -377,7 +377,7 @@ void main() {
       expect(find.byTooltip('Find open tab'), findsOneWidget);
       expect(find.byTooltip('Open view'), findsOneWidget);
       if (size.width == 720) {
-        expect(find.byTooltip('Navigation'), findsOneWidget);
+        expect(find.byTooltip('Navigation'), findsNothing);
         expect(find.byKey(const ValueKey('shell-status-bar')), findsOneWidget);
       }
 
@@ -604,7 +604,13 @@ void main() {
     navigation.closeTab('test', firstTabId, closable: true);
     await tester.pumpAndSettle();
     expect(providers['one']!.disposed, isTrue);
-    expect(settings.settings.shellWorkspaces.single.tabs.map((tab) => tab.id), [secondTabId]);
+    expect(
+      settings.settings.shellWorkspaces
+          .singleWhere((workspace) => workspace.sectionId == 'test')
+          .tabs
+          .map((tab) => tab.id),
+      [secondTabId],
+    );
     expect(find.text('Status one'), findsNothing);
     expect(find.text('Status two'), findsOneWidget);
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));

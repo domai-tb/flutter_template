@@ -54,7 +54,6 @@ class NavBarPreferencesEditor extends StatelessWidget {
             final item = orderedItems[index];
             final presentation = pageItemPresentation(context, item);
             final isVisible = !hiddenItems.contains(item);
-            final isLockedVisible = item == PageItem.page6;
 
             return Padding(
               key: ValueKey(item.name),
@@ -66,27 +65,21 @@ class NavBarPreferencesEditor extends StatelessWidget {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   leading: Icon(isVisible ? presentation.activeIcon : presentation.inactiveIcon),
                   title: Text(presentation.title),
-                  subtitle: Text(
-                    isLockedVisible
-                        ? context.l10n.navigationSettingsAlwaysVisibleHint
-                        : context.l10n.navigationVisibilityLabel,
-                  ),
+                  subtitle: Text(context.l10n.navigationVisibilityLabel),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Switch.adaptive(
                         value: isVisible,
-                        onChanged: isLockedVisible
-                            ? null
-                            : (value) {
-                                final nextHiddenItems = Set<PageItem>.from(hiddenItems);
-                                if (value) {
-                                  nextHiddenItems.remove(item);
-                                } else {
-                                  nextHiddenItems.add(item);
-                                }
-                                onHiddenItemsChanged(nextHiddenItems);
-                              },
+                        onChanged: (value) {
+                          final nextHiddenItems = Set<PageItem>.from(hiddenItems);
+                          if (value) {
+                            nextHiddenItems.remove(item);
+                          } else {
+                            nextHiddenItems.add(item);
+                          }
+                          onHiddenItemsChanged(nextHiddenItems);
+                        },
                       ),
                       IconButton(
                         tooltip: context.l10n.moveUp,

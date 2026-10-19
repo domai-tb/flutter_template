@@ -492,4 +492,80 @@ class AppLocalizationsEn extends AppLocalizations {
   String closeUnsavedTabMessage(String title) {
     return 'Close $title and discard its unsaved changes?';
   }
+
+  @override
+  String get account => 'Account';
+
+  @override
+  String get guestNotSignedIn => 'Guest · Not signed in';
+
+  @override
+  String get signIn => 'Sign in';
+
+  @override
+  String get profile => 'Profile';
+
+  @override
+  String get signOut => 'Sign out';
+
+  @override
+  String get authenticationUnavailable =>
+      'Sign-in is not configured for this application. You can continue using the app as a guest.';
+
+  @override
+  String get returnToApp => 'Return to app';
+
+  @override
+  String get signInPrompt => 'Sign in to your account';
+
+  @override
+  String get emailOrUsername => 'Email or username';
+
+  @override
+  String get requiredField => 'This field is required.';
+
+  @override
+  String get showPassword => 'Show password';
+
+  @override
+  String get hidePassword => 'Hide password';
+
+  @override
+  String get authenticationFailed =>
+      'Sign-in could not be completed. Check your details and try again.';
+
+  @override
+  String get forgotPassword => 'Forgot password?';
+
+  @override
+  String get createAccount => 'Create account';
+
+  @override
+  String get continueAsGuest => 'Continue as guest';
+
+  @override
+  String get profileGuestMessage =>
+      'No account is connected. Your workspace remains available in guest mode.';
+
+  @override
+  String get accountIdentifier => 'Account ID';
+
+  @override
+  String get userIdentifier => 'User ID';
+
+  @override
+  String get authenticationProvider => 'Sign-in provider';
+
+  @override
+  String get signOutFailed => 'Could not sign out. Please try again.';
+
+  @override
+  String get returnToPreviousSection => 'Return to previous section';
+
+  @override
+  String get sessionExpired =>
+      'Your session has expired. Sign in again to continue.';
+
+  @override
+  String get checkingSession => 'Checking account…';
 }

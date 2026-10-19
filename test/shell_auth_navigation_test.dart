@@ -1,0 +1,277 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:flutter_template/core/app_scope.dart';
+import 'package:flutter_template/core/app_services.dart';
+import 'package:flutter_template/core/injection.dart' as ic;
+import 'package:flutter_template/core/settings.dart';
+import 'package:flutter_template/core/shell_auth.dart';
+import 'package:flutter_template/core/themes.dart';
+import 'package:flutter_template/l10n/l10n.dart';
+import 'package:flutter_template/pages/home/home_page.dart';
+import 'package:flutter_template/pages/home/page_navigator.dart';
+import 'package:flutter_template/pages/home/widgets/bottom_nav_bar.dart';
+import 'package:flutter_template/pages/page6/page6_settings_page.dart';
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUp(() async => SharedPreferences.setMockInitialValues({}));
+  tearDown(() async => ic.sl.reset());
+
+  testWidgets('guest account opens an honest unavailable login template', (tester) async {
+    await ic.init();
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1280, 800);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(_app());
+    await tester.pumpAndSettle();
+    final account = find.byKey(const ValueKey('header-action-account'));
+    final more = find.byKey(const ValueKey('header-action-more'));
+    expect(tester.getRect(account).right, greaterThan(tester.getRect(more).right));
+
+    await tester.tap(find.byKey(const ValueKey('account-menu-button')));
+    await tester.pumpAndSettle();
+    expect(find.text('Guest · Not signed in'), findsOneWidget);
+    await tester.tap(find.text('Sign in').last);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Sign-in is not configured'), findsOneWidget);
+    expect(find.byType(TextFormField), findsNothing);
+    expect(find.text('Return to app'), findsOneWidget);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
+
+  testWidgets('configured provider updates avatar, profile, and signed-out state', (tester) async {
+    final auth = _TestAuthProvider();
+    addTearDown(auth.dispose);
+    await ic.init(authProvider: auth);
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1280, 800);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(_app());
+    await tester.pumpAndSettle();
+    expect(auth.restoreCalls, 1);
+    await tester.tap(find.byKey(const ValueKey('account-menu-button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sign in').last);
+    await tester.pumpAndSettle();
+    final fields = find.byType(TextFormField);
+    EditableText editable(int index) =>
+        tester.widget<EditableText>(find.descendant(of: fields.at(index), matching: find.byType(EditableText)));
+    expect(editable(0).autofillHints, contains(AutofillHints.username));
+    expect(editable(1).autofillHints, contains(AutofillHints.password));
+    expect(editable(0).textInputAction, TextInputAction.next);
+    expect(editable(1).textInputAction, TextInputAction.done);
+    await tester.tap(find.byType(FilledButton).first);
+    await tester.pumpAndSettle();
+    expect(find.text('This field is required.').first, findsOneWidget);
+    expect(auth.lastEmail, isNull);
+    await tester.enterText(find.byType(TextFormField).at(0), 'ada@example.test');
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    await tester.enterText(find.byType(TextFormField).at(1), 'never-persist-this');
+    await tester.tap(find.byType(FilledButton).first);
+    await tester.pumpAndSettle();
+    expect(auth.lastEmail, 'ada@example.test');
+    expect(find.text('AL'), findsOneWidget);
+    final preferences = await SharedPreferences.getInstance();
+    expect(preferences.getString('app_settings_json_v1') ?? '', isNot(contains('never-persist-this')));
+
+    await tester.tap(find.byKey(const ValueKey('account-menu-button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Profile').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Ada Lovelace'), findsOneWidget);
+    expect(find.text('ada@example.test'), findsWidgets);
+    expect(find.text('acct-42'), findsOneWidget);
+
+    await tester.tap(find.text('Sign out'));
+    await tester.pumpAndSettle();
+    expect(auth.state.value.status, ShellAuthStatus.signedOut);
+    expect(find.text('Guest · Not signed in'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('AL'), findsNothing);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
+
+  testWidgets('desktop Settings stays pinned, is canonical, and restores the active workspace tab', (tester) async {
+    await ic.init();
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(760, 560);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    ic.sl<SettingsController>().update(
+      ic.sl<SettingsController>().settings.copyWith(
+        navBarItemOrder: const ['settings', 'section-3', 'section-2'],
+        hiddenNavBarItems: const ['settings'],
+      ),
+    );
+
+    await tester.pumpWidget(_app(config: _config(sections: 14)));
+    await tester.pumpAndSettle();
+    final rail = find.byKey(const ValueKey('activity-rail'));
+    final settingsItem = find.byKey(const ValueKey('activity-rail-settings'));
+    final pinnedRect = tester.getRect(settingsItem);
+    expect(tester.getRect(rail).bottom - pinnedRect.bottom, lessThanOrEqualTo(7));
+    await tester.drag(find.byKey(const ValueKey('activity-rail-sections')), const Offset(0, -420));
+    await tester.pumpAndSettle();
+    expect(tester.getRect(settingsItem).top, pinnedRect.top);
+
+    final home = tester.state<HomePageState>(find.byType(HomePage));
+    final tabId = home.openView('details', sectionId: 'section-0')!;
+    await tester.pumpAndSettle();
+    await tester.tap(settingsItem);
+    await tester.pumpAndSettle();
+    expect(find.byType(Page6SettingsPage), findsOneWidget);
+    expect(_workspace('settings').tabs, hasLength(1));
+    expect(_workspace('settings').tabs.single.registrationId, 'settings');
+    expect(ic.sl<SettingsController>().settings.hiddenNavBarItems, contains('settings'));
+
+    await tester.tap(settingsItem);
+    await tester.pumpAndSettle();
+    expect(_workspace('settings').tabs, hasLength(1));
+    await tester.tap(find.byTooltip('Return to previous section'));
+    await tester.pumpAndSettle();
+    expect(home.currentDestinationId, 'section-0');
+    expect(_workspace('section-0').activeTabId, tabId);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
+
+  testWidgets('mobile uses a bottom scroller, reveals selected Settings, and keeps the avatar in the header', (
+    tester,
+  ) async {
+    await ic.init();
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 844);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(_app(config: _config(sections: 10)));
+    await tester.pumpAndSettle();
+    final home = tester.state<HomePageState>(find.byType(HomePage));
+    await home.selectedPage('settings');
+    await tester.pumpAndSettle();
+
+    expect(find.byType(BottomNavBar), findsOneWidget);
+    expect(find.byKey(const ValueKey('activity-rail')), findsNothing);
+    expect(find.byIcon(Icons.menu), findsNothing);
+    expect(find.byKey(const ValueKey('header-action-account')), findsOneWidget);
+    final bar = tester.getRect(find.byType(BottomNavBar));
+    final settingsItem = tester.getRect(find.byKey(const ValueKey('bottom-navigation-item-settings')));
+    expect(bar.bottom, 844);
+    expect(settingsItem.left, greaterThanOrEqualTo(bar.left));
+    expect(settingsItem.right, lessThanOrEqualTo(bar.right));
+    expect(_workspace('settings').tabs.single.registrationId, 'settings');
+  }, variant: TargetPlatformVariant.only(TargetPlatform.android));
+
+  testWidgets('legacy Page 6 Settings preference migrates into the dedicated workspace', (tester) async {
+    await ic.init();
+    final controller = ic.sl<SettingsController>();
+    controller.update(
+      controller.settings.copyWith(
+        shellTabs: const [
+          ShellTabPreference(
+            id: 'page6::settings::1',
+            sectionId: 'page6',
+            registrationId: 'settings',
+            instanceId: 'settings-1',
+            destinationId: 'page6',
+          ),
+        ],
+        selectedShellTabId: 'page6::settings::1',
+        selectedActivityId: 'page6',
+      ),
+    );
+    await tester.pumpWidget(_app(config: defaultShellConfig()));
+    await tester.pumpAndSettle();
+    final home = tester.state<HomePageState>(find.byType(HomePage));
+    expect(home.currentDestinationId, 'settings');
+    expect(find.byType(Page6SettingsPage), findsOneWidget);
+    expect(_workspace('settings').tabs.single.registrationId, 'settings');
+    expect(_workspace('page6').tabs.any((tab) => tab.registrationId == 'settings'), isFalse);
+  });
+}
+
+ShellWorkspacePreference _workspace(String id) =>
+    ic.sl<SettingsController>().settings.shellWorkspaces.singleWhere((workspace) => workspace.sectionId == id);
+
+Widget _app({ShellConfig? config}) => AppScope(
+  settings: ic.sl<SettingsController>(),
+  services: ic.sl<AppServices>(),
+  child: MaterialApp(
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
+    theme: AppTheme.dark(),
+    home: HomePage(mainNavigatorKey: GlobalKey<NavigatorState>(), config: config ?? _config()),
+  ),
+);
+
+ShellConfig _config({int sections = 1}) => ShellConfig(
+  title: (_) => 'Test application',
+  destinations: [
+    for (var index = 0; index < sections; index++)
+      ShellDestination(
+        id: 'section-$index',
+        title: (_) => 'Section $index',
+        icon: Icons.dashboard_outlined,
+        defaultViewId: 'section-$index',
+        allowedViewIds: {'section-$index', 'details'},
+      ),
+  ],
+  views: [
+    for (var index = 0; index < sections; index++)
+      ShellViewRegistration(
+        id: 'section-$index',
+        destinationId: 'section-$index',
+        title: (_, _) => 'Section view',
+        reusePolicy: ShellViewReusePolicy.byRegistration,
+        viewBuilder: (_, _) => Center(child: Text('Workspace $index')),
+      ),
+    ShellViewRegistration(
+      id: 'details',
+      title: (_, _) => 'Details',
+      reusePolicy: ShellViewReusePolicy.byRegistration,
+      viewBuilder: (_, _) => const Center(child: Text('Details view')),
+    ),
+  ],
+);
+
+class _TestAuthProvider extends ShellAuthProvider {
+  final ValueNotifier<ShellAuthState> _state = ValueNotifier(const ShellAuthState(status: ShellAuthStatus.signedOut));
+  String? lastEmail;
+  int restoreCalls = 0;
+
+  @override
+  ValueListenable<ShellAuthState> get state => _state;
+
+  @override
+  Future<void> restoreSession() async => restoreCalls++;
+
+  @override
+  Future<ShellAuthResult> signIn({required String email, required String password}) async {
+    lastEmail = email;
+    _state.value = const ShellAuthState(
+      status: ShellAuthStatus.authenticated,
+      user: ShellAuthUser(
+        id: 'user-7',
+        displayName: 'Ada Lovelace',
+        email: 'ada@example.test',
+        accountId: 'acct-42',
+        providerName: 'Test identity',
+      ),
+    );
+    return const ShellAuthResult.success();
+  }
+
+  @override
+  Future<void> signOut() async {
+    _state.value = const ShellAuthState(status: ShellAuthStatus.signedOut);
+  }
+
+  void dispose() => _state.dispose();
+}

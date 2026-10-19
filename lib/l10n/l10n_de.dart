@@ -499,4 +499,81 @@ class AppLocalizationsDe extends AppLocalizations {
   String closeUnsavedTabMessage(String title) {
     return '$title schließen und ungespeicherte Änderungen verwerfen?';
   }
+
+  @override
+  String get account => 'Konto';
+
+  @override
+  String get guestNotSignedIn => 'Gast · Nicht angemeldet';
+
+  @override
+  String get signIn => 'Anmelden';
+
+  @override
+  String get profile => 'Profil';
+
+  @override
+  String get signOut => 'Abmelden';
+
+  @override
+  String get authenticationUnavailable =>
+      'Die Anmeldung ist für diese Anwendung nicht eingerichtet. Du kannst die App als Gast weiter nutzen.';
+
+  @override
+  String get returnToApp => 'Zur App';
+
+  @override
+  String get signInPrompt => 'Melde dich bei deinem Konto an';
+
+  @override
+  String get emailOrUsername => 'E-Mail oder Benutzername';
+
+  @override
+  String get requiredField => 'Dieses Feld ist erforderlich.';
+
+  @override
+  String get showPassword => 'Passwort anzeigen';
+
+  @override
+  String get hidePassword => 'Passwort verbergen';
+
+  @override
+  String get authenticationFailed =>
+      'Die Anmeldung war nicht möglich. Prüfe deine Angaben und versuche es erneut.';
+
+  @override
+  String get forgotPassword => 'Passwort vergessen?';
+
+  @override
+  String get createAccount => 'Konto erstellen';
+
+  @override
+  String get continueAsGuest => 'Als Gast fortfahren';
+
+  @override
+  String get profileGuestMessage =>
+      'Es ist kein Konto verbunden. Dein Arbeitsbereich bleibt im Gastmodus verfügbar.';
+
+  @override
+  String get accountIdentifier => 'Konto-ID';
+
+  @override
+  String get userIdentifier => 'Benutzer-ID';
+
+  @override
+  String get authenticationProvider => 'Anmeldeanbieter';
+
+  @override
+  String get signOutFailed =>
+      'Die Abmeldung war nicht möglich. Bitte versuche es erneut.';
+
+  @override
+  String get returnToPreviousSection => 'Zum vorherigen Bereich zurückkehren';
+
+  @override
+  String get sessionExpired =>
+      'Deine Sitzung ist abgelaufen. Melde dich erneut an.';
+
+  @override
+  String get checkingSession => 'Konto wird geprüft …';
 }

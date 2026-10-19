@@ -37,7 +37,7 @@ List<PageItem> orderedPageItemsFromSettings(List<String> order) {
 }
 
 Set<PageItem> hiddenPageItemsFromSettings(List<String> hiddenItems) {
-  return hiddenItems.map(pageItemFromId).whereType<PageItem>().where((item) => item != PageItem.page6).toSet();
+  return hiddenItems.map(pageItemFromId).whereType<PageItem>().toSet();
 }
 
 List<String> pageItemIds(Iterable<PageItem> items) => items.map((item) => item.name).toList();
@@ -376,6 +376,7 @@ class ShellDestination {
   final IconData icon;
   final IconData? inactiveIcon;
   final bool lockedVisible;
+  final bool isUtility;
   final String? defaultViewId;
   final Set<String>? allowedViewIds;
   @Deprecated('Move view content to ShellViewRegistration.')
@@ -394,6 +395,7 @@ class ShellDestination {
     required this.icon,
     this.inactiveIcon,
     this.lockedVisible = false,
+    this.isUtility = false,
     this.defaultViewId,
     this.allowedViewIds,
     @Deprecated('Move view content to ShellViewRegistration.') this.builder,
@@ -549,18 +551,29 @@ class ShellContentSlot extends StatelessWidget {
 
 ShellConfig defaultShellConfig() => ShellConfig(
   title: (context) => context.l10n.appTitle,
-  destinations: PageItem.values.map((item) {
-    final presentation = _pageItemIcons(item);
-    return ShellDestination(
-      id: item.name,
-      title: (context) => pageItemPresentation(context, item).title,
-      icon: presentation.activeIcon,
-      inactiveIcon: presentation.inactiveIcon,
-      lockedVisible: item == PageItem.page6,
-      defaultViewId: item.name,
-      allowedViewIds: item == PageItem.page6 ? {'page6', 'settings'} : {item.name},
-    );
-  }).toList(),
+  destinations: [
+    ...PageItem.values.map((item) {
+      final presentation = _pageItemIcons(item);
+      return ShellDestination(
+        id: item.name,
+        title: (context) => pageItemPresentation(context, item).title,
+        icon: presentation.activeIcon,
+        inactiveIcon: presentation.inactiveIcon,
+        defaultViewId: item.name,
+        allowedViewIds: {item.name},
+      );
+    }),
+    ShellDestination(
+      id: 'settings',
+      title: (context) => context.l10n.settingsTitle,
+      icon: Icons.settings_outlined,
+      inactiveIcon: Icons.settings_outlined,
+      lockedVisible: true,
+      isUtility: true,
+      defaultViewId: 'settings',
+      allowedViewIds: const {'settings'},
+    ),
+  ],
   views: defaultShellViews(),
 );
 

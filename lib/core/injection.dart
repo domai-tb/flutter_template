@@ -2,6 +2,7 @@ import 'package:get_it/get_it.dart';
 
 import 'package:flutter_template/core/app_services.dart';
 import 'package:flutter_template/core/settings.dart';
+import 'package:flutter_template/core/shell_auth.dart';
 import 'package:flutter_template/core/shell_notifications.dart';
 import 'package:flutter_template/pages/page1/page1_datasource.dart';
 import 'package:flutter_template/pages/page1/page1_repository.dart';
@@ -28,10 +29,18 @@ import 'package:flutter_template/pages/page6/page6_usecases.dart';
 /// `AppScope` (or, if you prefer, via `sl<T>()` in non-UI layers).
 final sl = GetIt.instance;
 
-Future<void> init() async {
+Future<void> init({ShellAuthProvider? authProvider}) async {
   // Core
   sl.registerSingleton<SettingsController>(await SettingsController.load());
   sl.registerSingleton<ShellNotificationService>(ShellNotificationService());
+  if (authProvider != null) {
+    sl.registerSingleton<ShellAuthProvider>(authProvider);
+    try {
+      await authProvider.restoreSession();
+    } catch (_) {
+      // An unavailable identity service must not prevent the app from opening in guest mode.
+    }
+  }
 
   // Page 1
   sl.registerLazySingleton<Page1DataSource>(Page1DataSource.new);
@@ -73,6 +82,7 @@ Future<void> init() async {
       page5: sl(),
       page6: sl(),
       shellNotifications: sl(),
+      authProvider: sl.isRegistered<ShellAuthProvider>() ? sl<ShellAuthProvider>() : null,
     ),
   );
 }

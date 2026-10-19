@@ -27,22 +27,34 @@ class SideNavBar extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const SizedBox(height: 12),
-          for (final destination in destinations)
-            SizedBox(
-              width: railWidth,
-              height: 44,
-              child: _SideNavItem(
-                key: ValueKey('activity-rail-${destination.id}'),
-                destination: destination,
-                selected: currentId == destination.id,
-                onSelected: () => onSelected(destination.id),
-              ),
+          Expanded(
+            child: ListView(
+              key: const ValueKey('activity-rail-sections'),
+              padding: const EdgeInsets.only(top: 12),
+              children: [
+                for (final destination in destinations.where((item) => !item.isUtility)) _item(railWidth, destination),
+              ],
             ),
+          ),
+          for (final destination in destinations.where((item) => item.isUtility)) ...[
+            Divider(height: 1, color: theme.dividerColor),
+            Padding(padding: const EdgeInsets.only(top: 6, bottom: 6), child: _item(railWidth, destination)),
+          ],
         ],
       ),
     );
   }
+
+  Widget _item(double railWidth, ShellDestination destination) => SizedBox(
+    width: railWidth,
+    height: 44,
+    child: _SideNavItem(
+      key: ValueKey('activity-rail-${destination.id}'),
+      destination: destination,
+      selected: currentId == destination.id,
+      onSelected: () => onSelected(destination.id),
+    ),
+  );
 }
 
 class _SideNavItem extends StatelessWidget {

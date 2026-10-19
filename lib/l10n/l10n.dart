@@ -1021,6 +1021,150 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Close {title} and discard its unsaved changes?'**
   String closeUnsavedTabMessage(String title);
+
+  /// No description provided for @account.
+  ///
+  /// In en, this message translates to:
+  /// **'Account'**
+  String get account;
+
+  /// No description provided for @guestNotSignedIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Guest · Not signed in'**
+  String get guestNotSignedIn;
+
+  /// No description provided for @signIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in'**
+  String get signIn;
+
+  /// No description provided for @profile.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile'**
+  String get profile;
+
+  /// No description provided for @signOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign out'**
+  String get signOut;
+
+  /// No description provided for @authenticationUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign-in is not configured for this application. You can continue using the app as a guest.'**
+  String get authenticationUnavailable;
+
+  /// No description provided for @returnToApp.
+  ///
+  /// In en, this message translates to:
+  /// **'Return to app'**
+  String get returnToApp;
+
+  /// No description provided for @signInPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to your account'**
+  String get signInPrompt;
+
+  /// No description provided for @emailOrUsername.
+  ///
+  /// In en, this message translates to:
+  /// **'Email or username'**
+  String get emailOrUsername;
+
+  /// No description provided for @requiredField.
+  ///
+  /// In en, this message translates to:
+  /// **'This field is required.'**
+  String get requiredField;
+
+  /// No description provided for @showPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Show password'**
+  String get showPassword;
+
+  /// No description provided for @hidePassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide password'**
+  String get hidePassword;
+
+  /// No description provided for @authenticationFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign-in could not be completed. Check your details and try again.'**
+  String get authenticationFailed;
+
+  /// No description provided for @forgotPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Forgot password?'**
+  String get forgotPassword;
+
+  /// No description provided for @createAccount.
+  ///
+  /// In en, this message translates to:
+  /// **'Create account'**
+  String get createAccount;
+
+  /// No description provided for @continueAsGuest.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue as guest'**
+  String get continueAsGuest;
+
+  /// No description provided for @profileGuestMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'No account is connected. Your workspace remains available in guest mode.'**
+  String get profileGuestMessage;
+
+  /// No description provided for @accountIdentifier.
+  ///
+  /// In en, this message translates to:
+  /// **'Account ID'**
+  String get accountIdentifier;
+
+  /// No description provided for @userIdentifier.
+  ///
+  /// In en, this message translates to:
+  /// **'User ID'**
+  String get userIdentifier;
+
+  /// No description provided for @authenticationProvider.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign-in provider'**
+  String get authenticationProvider;
+
+  /// No description provided for @signOutFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not sign out. Please try again.'**
+  String get signOutFailed;
+
+  /// No description provided for @returnToPreviousSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Return to previous section'**
+  String get returnToPreviousSection;
+
+  /// No description provided for @sessionExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'Your session has expired. Sign in again to continue.'**
+  String get sessionExpired;
+
+  /// No description provided for @checkingSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking account…'**
+  String get checkingSession;
 }
 
 class _AppLocalizationsDelegate

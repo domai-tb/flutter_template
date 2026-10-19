@@ -17,6 +17,9 @@ import 'package:flutter_template/pages/home/widgets/page_navigation_animation.da
 import 'package:flutter_template/pages/home/widgets/shell_notification_center.dart';
 import 'package:flutter_template/pages/home/widgets/shell_status_bar.dart';
 import 'package:flutter_template/pages/home/widgets/side_nav_bar.dart';
+import 'package:flutter_template/pages/home/widgets/shell_account_button.dart';
+import 'package:flutter_template/pages/home/shell_login_page.dart';
+import 'package:flutter_template/pages/home/shell_profile_page.dart';
 import 'package:flutter_template/pages/page6/page6_settings_page.dart';
 
 class HomePage extends StatefulWidget {
@@ -53,6 +56,7 @@ class HomePageState extends State<HomePage> {
   bool _restoringSettings = false;
   bool _activityPanelOpen = true;
   bool _inspectorDrawerOpen = false;
+  String? _returnSectionId;
   String? _lastPushedRouteId;
   String? _lastLifecycleActiveId;
 
@@ -80,18 +84,14 @@ class HomePageState extends State<HomePage> {
     final ordered = <ShellDestination>[];
     for (final id in _settingsController.settings.navBarItemOrder) {
       final destination = byId[id];
-      if (destination != null && !ordered.contains(destination)) ordered.add(destination);
+      if (destination != null && !destination.isUtility && !ordered.contains(destination)) ordered.add(destination);
     }
     for (final destination in _config.destinations) {
-      if (!ordered.contains(destination)) ordered.add(destination);
+      if (!destination.isUtility && !ordered.contains(destination)) ordered.add(destination);
     }
     final hidden = _settingsController.settings.hiddenNavBarItems.toSet();
-    return ordered
-        .where(
-          (destination) =>
-              destination.lockedVisible || destination.id == 'settings' || !hidden.contains(destination.id),
-        )
-        .toList();
+    ordered.removeWhere((destination) => !destination.lockedVisible && hidden.contains(destination.id));
+    return [...ordered, ..._config.destinations.where((destination) => destination.isUtility)];
   }
 
   ShellContext? get _selectedContext =>
@@ -114,7 +114,36 @@ class HomePageState extends State<HomePage> {
   bool get _splitOpen => _activeTab?.splitOpen ?? _settingsController.settings.splitOpen;
 
   List<ShellWorkspacePreference> _workspacePreferences(Settings settings) {
-    if (settings.shellWorkspaces.isNotEmpty) return settings.shellWorkspaces;
+    final stored = settings.shellWorkspaces.isNotEmpty
+        ? settings.shellWorkspaces
+        : _legacyWorkspacePreferences(settings);
+    final settingsTabs = <ShellTabPreference>[];
+    final workspaces = <String, ShellWorkspacePreference>{};
+    for (final workspace in stored) {
+      final tabs = <ShellTabPreference>[];
+      for (final tab in workspace.tabs) {
+        if (tab.registrationId == 'settings') {
+          settingsTabs.add(tab.copyWith(sectionId: 'settings', destinationId: 'settings'));
+        } else {
+          tabs.add(tab);
+        }
+      }
+      workspaces[workspace.sectionId] = ShellWorkspacePreference(
+        sectionId: workspace.sectionId,
+        tabs: tabs,
+        activeTabId: tabs.any((tab) => tab.id == workspace.activeTabId) ? workspace.activeTabId : tabs.firstOrNull?.id,
+        inspectorOpen: workspace.inspectorOpen,
+      );
+    }
+    if (settingsTabs.isNotEmpty) {
+      final activeSettingsTab = settingsTabs.where((tab) => tab.id == settings.selectedShellTabId).firstOrNull;
+      final tab = activeSettingsTab ?? settingsTabs.first;
+      workspaces['settings'] = ShellWorkspacePreference(sectionId: 'settings', tabs: [tab], activeTabId: tab.id);
+    }
+    return workspaces.values.toList();
+  }
+
+  List<ShellWorkspacePreference> _legacyWorkspacePreferences(Settings settings) {
     final sectionIds = _config.destinations.map((destination) => destination.id).toSet();
     if (settings.shellTabs.isEmpty || sectionIds.isEmpty) return const [];
     final fallback = sectionIds.contains(settings.selectedActivityId)
@@ -169,6 +198,13 @@ class HomePageState extends State<HomePage> {
     final destination = _destinations.where((item) => item.id == id).firstOrNull;
     if (destination == null) return false;
     final wasSelected = selectedActivityId == id;
+    if (destination.isUtility && !wasSelected) {
+      _returnSectionId = _navigation.sectionFor(selectedActivityId)?.isUtility == false
+          ? selectedActivityId
+          : _returnSectionId;
+    } else if (!destination.isUtility) {
+      _returnSectionId = id;
+    }
     if (!wasSelected) {
       setState(() => _activityPanelOpen = destination.panelBuilder != null);
     }
@@ -192,7 +228,6 @@ class HomePageState extends State<HomePage> {
 
   void _toggleActivityPanel() {
     setState(() => _activityPanelOpen = !_activityPanelOpen);
-    if (_isPhoneLayout && _activityPanelOpen) _scaffoldKey.currentState?.openDrawer();
   }
 
   void _updateBrowserRoute(String path) {
@@ -412,7 +447,7 @@ class HomePageState extends State<HomePage> {
     if (!mounted || !_settingsWired) return;
     final settings = _settingsController.settings;
     _restoringSettings = true;
-    _navigation.restoreWorkspaces(_workspacePreferences(settings), selectedSectionId: settings.selectedActivityId);
+    _navigation.restoreWorkspaces(_workspacePreferences(settings), selectedSectionId: _restoredSectionId(settings));
     _restoringSettings = false;
     setState(() {
       _splitRatio = settings.splitRatio;
@@ -492,19 +527,20 @@ class HomePageState extends State<HomePage> {
     super.initState();
     final supplied = widget.config ?? defaultShellConfig();
     final views = [...supplied.views];
-    final page6 = supplied.destinations.where((destination) => destination.id == 'page6').firstOrNull;
-    if (page6 != null && !views.any((view) => view.id == 'settings')) {
-      views.add(
-        ShellViewRegistration(
-          id: 'settings',
-          title: (buildContext, _) => buildContext.l10n.settingsTitle,
-          viewBuilder: (_, _) => const Page6SettingsPage(),
-          destinationId: 'page6',
-          icon: Icons.settings_outlined,
-          reusePolicy: ShellViewReusePolicy.byRegistration,
-        ),
-      );
-    }
+    final settingsRegistration = views.where((view) => view.id == 'settings').firstOrNull;
+    views.removeWhere((view) => view.id == 'settings');
+    views.add(
+      ShellViewRegistration(
+        id: 'settings',
+        title: settingsRegistration?.title ?? (buildContext, _) => buildContext.l10n.settingsTitle,
+        viewBuilder: settingsRegistration?.viewBuilder ?? (buildContext, _) => _buildSettingsView(buildContext),
+        destinationId: 'settings',
+        icon: settingsRegistration?.icon ?? Icons.settings_outlined,
+        routePath: settingsRegistration?.routePath,
+        reusePolicy: ShellViewReusePolicy.byRegistration,
+        closeable: false,
+      ),
+    );
     for (final context in supplied.contexts) {
       for (final module in context.modules) {
         views.add(
@@ -528,9 +564,28 @@ class HomePageState extends State<HomePage> {
         ),
       );
     }
+    final destinations = supplied.destinations.where((destination) => destination.id != 'settings').toList();
+    final suppliedSettings = supplied.destinations.where((destination) => destination.id == 'settings').firstOrNull;
+    destinations.add(
+      ShellDestination(
+        id: 'settings',
+        title: suppliedSettings?.title ?? (buildContext) => buildContext.l10n.settingsTitle,
+        icon: suppliedSettings?.icon ?? Icons.settings_outlined,
+        inactiveIcon: suppliedSettings?.inactiveIcon ?? Icons.settings_outlined,
+        lockedVisible: true,
+        isUtility: true,
+        defaultViewId: 'settings',
+        allowedViewIds: const {'settings'},
+        panelBuilder: suppliedSettings?.panelBuilder,
+        inspectorBuilder: suppliedSettings?.inspectorBuilder,
+        statusItemsBuilder: suppliedSettings?.statusItemsBuilder,
+        statusProvider: suppliedSettings?.statusProvider,
+        onSelected: suppliedSettings?.onSelected,
+      ),
+    );
     _config = ShellConfig(
       title: supplied.title,
-      destinations: supplied.destinations,
+      destinations: destinations,
       views: views,
       modules: supplied.modules,
       contexts: supplied.contexts,
@@ -541,7 +596,7 @@ class HomePageState extends State<HomePage> {
     );
     _sharedStatusProviders.addAll(supplied.globalStatusProviders);
     _sharedStatusProviders.addAll(
-      supplied.destinations.map((destination) => destination.statusProvider).whereType<ShellStatusProvider>(),
+      destinations.map((destination) => destination.statusProvider).whereType<ShellStatusProvider>(),
     );
     for (final provider in _sharedStatusProviders) {
       provider.addListener(_handleStatusChanged);
@@ -571,7 +626,7 @@ class HomePageState extends State<HomePage> {
         : Uri.base;
     final workspacePreferences = _workspacePreferences(settings);
     _restoringSettings = true;
-    _navigation.restoreWorkspaces(workspacePreferences, selectedSectionId: settings.selectedActivityId);
+    _navigation.restoreWorkspaces(workspacePreferences, selectedSectionId: _restoredSectionId(settings));
     if (selectedActivityId.isNotEmpty) _ensureSectionDefaultView(selectedActivityId, activateSection: false);
     _restoringSettings = false;
     _lastPushedRouteId = _activeTab == null ? null : _viewFor(_activeTab!.registrationId)?.routePath;
@@ -584,7 +639,7 @@ class HomePageState extends State<HomePage> {
         _navigation.workspaces.length != settings.shellWorkspaces.length ||
         _allTabs.length != settings.shellTabs.length ||
         _selectedTabId != settings.selectedShellTabId ||
-        selectedActivityId != settings.selectedActivityId) {
+        selectedActivityId != _restoredSectionId(settings)) {
       final migrated = settings.copyWith(
         shellWorkspaces: _navigation.workspaces.map((workspace) => workspace.toPreference()).toList(),
         shellTabs: _allTabs,
@@ -628,13 +683,68 @@ class HomePageState extends State<HomePage> {
   }
 
   Future<void> _openSettings() async {
-    final settingsView = _navigation.registrationFor('settings');
-    if (settingsView != null) {
-      _openRegisteredView(settingsView);
-      return;
+    await selectedPage('settings');
+  }
+
+  String? _restoredSectionId(Settings settings) {
+    if (settings.selectedActivityId != 'page6') return settings.selectedActivityId;
+    final savedTabs = [...settings.shellTabs, ...settings.shellWorkspaces.expand((workspace) => workspace.tabs)];
+    return savedTabs.any((tab) => tab.id == settings.selectedShellTabId && tab.registrationId == 'settings')
+        ? 'settings'
+        : settings.selectedActivityId;
+  }
+
+  Widget _buildSettingsView(BuildContext context) => Column(
+    children: [
+      SizedBox(
+        height: 44,
+        child: Row(
+          children: [
+            IconButton(
+              tooltip: context.l10n.returnToPreviousSection,
+              onPressed: _returnToPreviousSection,
+              icon: const Icon(Icons.arrow_back),
+            ),
+            Text(context.l10n.settingsTitle, style: Theme.of(context).textTheme.labelLarge),
+          ],
+        ),
+      ),
+      const Expanded(child: Page6SettingsPage()),
+    ],
+  );
+
+  void _returnToPreviousSection() {
+    final fallback = _config.destinations.where((destination) => !destination.isUtility).firstOrNull?.id;
+    unawaited(selectedPage(_returnSectionId ?? fallback ?? 'settings'));
+  }
+
+  void _openLogin() {
+    unawaited(
+      Navigator.of(
+        context,
+        rootNavigator: true,
+      ).push<void>(MaterialPageRoute(builder: (_) => ShellLoginPage(appTitle: _config.title(context)))),
+    );
+  }
+
+  void _openProfile() {
+    unawaited(
+      Navigator.of(context, rootNavigator: true).push<void>(
+        MaterialPageRoute(
+          builder: (_) => ShellProfilePage(appTitle: _config.title(context), onSignIn: _openLogin),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _signOut() async {
+    final provider = AppScope.of(context).services.authProvider;
+    if (provider == null) return;
+    try {
+      await provider.signOut();
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.signOutFailed)));
     }
-    final destination = _config.destinations.where((item) => item.id == 'settings' || item.id == 'page6').firstOrNull;
-    if (destination != null) await selectedPage(destination.id);
   }
 
   void _toggleAppearance() {
@@ -895,7 +1005,6 @@ class HomePageState extends State<HomePage> {
 
   Widget _buildHeader(double width, AppShellMetrics metrics) {
     final theme = Theme.of(context);
-    final compact = width < 800;
     final actionSize = _isPhoneLayout
         ? metrics.targetSize
         : (Theme.of(context).extension<AppShellTokens>()?.comfortable == true ? 36.0 : 32.0);
@@ -922,12 +1031,6 @@ class HomePageState extends State<HomePage> {
         height: metrics.headerHeight,
         child: Row(
           children: [
-            if (compact)
-              IconButton(
-                tooltip: context.l10n.navigationLabel,
-                onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-                icon: const Icon(Icons.menu),
-              ),
             if (width >= 800)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -1031,28 +1134,14 @@ class HomePageState extends State<HomePage> {
                   if (value == 'layout') _restoreLayout();
                   if (value == 'split') _toggleSplit();
                   if (value == 'inspector') _openInspector();
-                  if (value == 'activity-panel') _toggleActivityPanel();
-                  if (value == 'settings') unawaited(_openSettings());
                   if (value == 'tab') unawaited(_showViewPicker());
                 },
                 itemBuilder: (context) => [
-                  if (_isPhoneLayout && _activeSection?.panelBuilder != null)
-                    PopupMenuItem(
-                      height: metrics.menuRowHeight,
-                      value: 'activity-panel',
-                      child: Text(_activityPanelOpen ? context.l10n.closeSectionPanel : context.l10n.openSectionPanel),
-                    ),
                   if (_isPhoneLayout)
                     PopupMenuItem(
                       height: metrics.menuRowHeight,
                       value: 'inspector',
                       child: Text(_inspectorOpen ? context.l10n.closeInspector : context.l10n.openInspector),
-                    ),
-                  if (_config.destinations.any((item) => item.id == 'settings' || item.id == 'page6'))
-                    PopupMenuItem(
-                      height: metrics.menuRowHeight,
-                      value: 'settings',
-                      child: Text(context.l10n.openSettings),
                     ),
                   PopupMenuItem(height: metrics.menuRowHeight, value: 'tab', child: Text(context.l10n.openViewTab)),
                   PopupMenuItem(
@@ -1072,6 +1161,15 @@ class HomePageState extends State<HomePage> {
                     child: Text(context.l10n.restoreLayout),
                   ),
                 ],
+              ),
+            ),
+            headerAction(
+              'account',
+              ShellAccountButton(
+                provider: AppScope.of(context).services.authProvider,
+                onSignIn: _openLogin,
+                onProfile: _openProfile,
+                onSignOut: () => unawaited(_signOut()),
               ),
             ),
             const SizedBox(width: 8),
@@ -1260,36 +1358,6 @@ class HomePageState extends State<HomePage> {
       builder: (_) => _TabOverflowDialog(tabs: _tabs, title: _tabTitle),
     );
     if (id != null) _navigation.selectTab(selectedActivityId, id);
-  }
-
-  Widget _buildDrawer() {
-    final selected = _destinations.where((item) => item.id == selectedActivityId).firstOrNull;
-    return Drawer(
-      child: SafeArea(
-        child: ListView(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(_config.title(context), style: Theme.of(context).textTheme.titleLarge),
-            ),
-            for (final destination in _destinations)
-              ListTile(
-                selected: destination.id == selectedActivityId,
-                leading: Icon(destination.icon),
-                title: Text(destination.title(context)),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  unawaited(selectedPage(destination.id));
-                },
-              ),
-            if (_activityPanelOpen && selected?.panelBuilder != null) ...[
-              const Divider(),
-              Builder(builder: selected!.panelBuilder!),
-            ],
-          ],
-        ),
-      ),
-    );
   }
 
   Widget _buildActivityPanel(ShellDestination destination) {
@@ -1658,7 +1726,6 @@ class HomePageState extends State<HomePage> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
-        final compact = width < 800;
         final wide = width >= 1200;
         final visible = _destinations;
         final settings = _settingsController.settings;
@@ -1744,7 +1811,6 @@ class HomePageState extends State<HomePage> {
                     child: Scaffold(
                       key: _scaffoldKey,
                       resizeToAvoidBottomInset: true,
-                      drawer: compact ? _buildDrawer() : null,
                       endDrawer: Drawer(child: _buildInspector(drawer: true)),
                       onEndDrawerChanged: (isOpen) {
                         _inspectorDrawerOpen = isOpen;
@@ -1759,7 +1825,7 @@ class HomePageState extends State<HomePage> {
                             Expanded(
                               child: Row(
                                 children: [
-                                  if (!_isPhoneLayout && width >= 800)
+                                  if (!_isPhoneLayout)
                                     SideNavBar(
                                       currentId: currentDestinationId,
                                       destinations: visible,

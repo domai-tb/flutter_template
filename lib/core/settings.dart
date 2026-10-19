@@ -337,7 +337,7 @@ class Settings {
           ? (json['navBarItemOrder'] as List).whereType<String>().toList()
           : _defaultNavBarOrder,
       hiddenNavBarItems: json['hiddenNavBarItems'] is List
-          ? (json['hiddenNavBarItems'] as List).whereType<String>().where((item) => item != 'page6').toList()
+          ? (json['hiddenNavBarItems'] as List).whereType<String>().toList()
           : const [],
       accentPreset: const {'steel', 'blue', 'green', 'violet'}.contains(json['accentPreset'])
           ? json['accentPreset'] as String
@@ -373,7 +373,7 @@ class Settings {
       'didCompleteOnboarding': didCompleteOnboarding,
       'localeCode': localeCode,
       'navBarItemOrder': navBarItemOrder,
-      'hiddenNavBarItems': hiddenNavBarItems.where((item) => item != 'page6').toList(),
+      'hiddenNavBarItems': hiddenNavBarItems,
       'accentPreset': accentPreset,
       'density': density,
       'inspectorWidth': inspectorWidth.clamp(256, 440),
