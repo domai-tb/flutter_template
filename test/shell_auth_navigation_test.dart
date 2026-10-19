@@ -14,6 +14,7 @@ import 'package:flutter_template/l10n/l10n.dart';
 import 'package:flutter_template/pages/home/home_page.dart';
 import 'package:flutter_template/pages/home/page_navigator.dart';
 import 'package:flutter_template/pages/home/widgets/bottom_nav_bar.dart';
+import 'package:flutter_template/pages/home/widgets/shell_status_bar.dart';
 import 'package:flutter_template/pages/page6/page6_settings_page.dart';
 
 void main() {
@@ -45,6 +46,57 @@ void main() {
     expect(find.text('Return to app'), findsOneWidget);
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
+  testWidgets('desktop toolbar, rail, tabs, and status bar follow shared geometry', (tester) async {
+    await ic.init();
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1440, 900);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(_app(config: _config(sections: 5)));
+    await tester.pumpAndSettle();
+
+    final search = tester.getRect(find.byKey(const ValueKey('header-action-search')));
+    final more = tester.getRect(find.byKey(const ValueKey('header-action-more')));
+    final account = tester.getRect(find.byKey(const ValueKey('header-action-account')));
+    expect(search.size, const Size.square(32));
+    expect(more.size, search.size);
+    expect(account.size, search.size);
+    expect(search.center.dy, more.center.dy);
+    expect(more.center.dy, account.center.dy);
+    expect(account.left, greaterThan(more.right));
+
+    final rail = tester.getRect(find.byKey(const ValueKey('activity-rail')));
+    final settings = tester.getRect(find.byKey(const ValueKey('activity-rail-settings')));
+    final tabStrip = tester.getRect(find.byType(ReorderableListView).first);
+    final status = tester.getRect(find.byType(ShellStatusBar));
+    expect(rail.top, 40);
+    expect(rail.bottom, status.top);
+    expect(settings.bottom, rail.bottom);
+    expect(settings.height, 44);
+    expect(tabStrip.left, rail.right);
+    expect(tabStrip.height, 34);
+    expect(status.height, 24);
+    expect(1440 - tester.getRect(find.byKey(const ValueKey('status-notifications'))).right, lessThanOrEqualTo(8));
+    expect(find.byKey(const ValueKey('header-action-notifications')), findsNothing);
+    expect(find.byKey(const ValueKey('status-notifications')), findsOneWidget);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
+
+  testWidgets('phone-sized desktop windows keep the compact rail instead of mobile navigation', (tester) async {
+    await ic.init();
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 844);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(_app());
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('activity-rail')), findsOneWidget);
+    expect(find.byType(BottomNavBar), findsNothing);
+    expect(tester.takeException(), isNull);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
+
   testWidgets('configured provider updates avatar, profile, and signed-out state', (tester) async {
     final auth = _TestAuthProvider();
     addTearDown(auth.dispose);
@@ -56,6 +108,7 @@ void main() {
 
     await tester.pumpWidget(_app());
     await tester.pumpAndSettle();
+    final home = tester.state<HomePageState>(find.byType(HomePage));
     expect(auth.restoreCalls, 1);
     await tester.tap(find.byKey(const ValueKey('account-menu-button')));
     await tester.pumpAndSettle();
@@ -95,7 +148,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(auth.state.value.status, ShellAuthStatus.signedOut);
     expect(find.text('Guest · Not signed in'), findsOneWidget);
-    await tester.pageBack();
+    await home.selectedPage('page1');
     await tester.pumpAndSettle();
     expect(find.text('AL'), findsNothing);
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
@@ -124,6 +177,7 @@ void main() {
     expect(tester.getRect(settingsItem).top, pinnedRect.top);
 
     final home = tester.state<HomePageState>(find.byType(HomePage));
+    final localizations = AppLocalizations.of(tester.element(find.byType(HomePage)))!;
     final tabId = home.openView('details', sectionId: 'section-0')!;
     await tester.pumpAndSettle();
     await tester.tap(settingsItem);
@@ -140,6 +194,16 @@ void main() {
     await tester.pumpAndSettle();
     expect(home.currentDestinationId, 'section-0');
     expect(_workspace('section-0').activeTabId, tabId);
+
+    Focus.of(tester.element(find.byType(AnnotatedRegion<SystemUiOverlayStyle>))).requestFocus();
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyK);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(localizations.openSettings));
+    await tester.pumpAndSettle();
+    expect(home.currentDestinationId, 'settings');
+    expect(_workspace('settings').tabs, hasLength(1));
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
   testWidgets('mobile uses a bottom scroller, reveals selected Settings, and keeps the avatar in the header', (

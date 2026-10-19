@@ -16,6 +16,8 @@ import 'package:flutter_template/pages/home/widgets/bottom_nav_bar.dart';
 import 'package:flutter_template/pages/home/widgets/page_navigation_animation.dart';
 import 'package:flutter_template/pages/home/widgets/shell_notification_center.dart';
 import 'package:flutter_template/pages/home/widgets/shell_status_bar.dart';
+import 'package:flutter_template/pages/home/widgets/shell_inspector_sections.dart';
+import 'package:flutter_template/pages/home/widgets/shell_split_view.dart';
 import 'package:flutter_template/pages/home/widgets/side_nav_bar.dart';
 import 'package:flutter_template/pages/home/widgets/shell_account_button.dart';
 import 'package:flutter_template/pages/home/shell_login_page.dart';
@@ -80,18 +82,19 @@ class HomePageState extends State<HomePage> {
   PageItem get currentPage => pageItemFromId(currentDestinationId) ?? PageItem.page1;
 
   List<ShellDestination> get _destinations {
-    final byId = {for (final destination in _config.destinations) destination.id: destination};
+    final sections = _navigation.sections;
+    final byId = {for (final destination in sections) destination.id: destination};
     final ordered = <ShellDestination>[];
     for (final id in _settingsController.settings.navBarItemOrder) {
       final destination = byId[id];
       if (destination != null && !destination.isUtility && !ordered.contains(destination)) ordered.add(destination);
     }
-    for (final destination in _config.destinations) {
+    for (final destination in sections) {
       if (!destination.isUtility && !ordered.contains(destination)) ordered.add(destination);
     }
     final hidden = _settingsController.settings.hiddenNavBarItems.toSet();
     ordered.removeWhere((destination) => !destination.lockedVisible && hidden.contains(destination.id));
-    return [...ordered, ..._config.destinations.where((destination) => destination.isUtility)];
+    return [...ordered, ...sections.where((destination) => destination.isUtility)];
   }
 
   ShellContext? get _selectedContext =>
@@ -100,6 +103,9 @@ class HomePageState extends State<HomePage> {
   List<ShellModule> get _modules => _selectedContext?.modules ?? _config.modules;
   ShellStatusProvider? get _activeStatusProvider => _activeTab == null ? null : _statusProviders[_activeTab!.id];
   ShellDestination? get _activeSection => _navigation.sectionFor(selectedActivityId);
+  bool get _hasSplitContent =>
+      (_activeTab != null && _tabRuntimes[_activeTab!.id]?.workspace.panes.isNotEmpty == true) ||
+      _activeSplitBuilder != null;
   ShellViewBuilder? get _activeSplitBuilder {
     final builder = _activeTab == null ? null : _viewFor(_activeTab!.registrationId)?.splitPaneBuilder;
     if (builder != null) return builder;
@@ -108,10 +114,14 @@ class HomePageState extends State<HomePage> {
   }
 
   bool get _inspectorOpen =>
+      (_activeTab == null ? null : _tabRuntimes[_activeTab!.id]?.inspector.isVisible) ??
       _activeTab?.inspectorOpen ??
       _navigation.activeWorkspace.inspectorOpen ??
       _settingsController.settings.inspectorOpen;
-  bool get _splitOpen => _activeTab?.splitOpen ?? _settingsController.settings.splitOpen;
+  bool get _splitOpen =>
+      (_activeTab == null ? null : _tabRuntimes[_activeTab!.id]?.workspace.isSplitOpen) ??
+      _activeTab?.splitOpen ??
+      _settingsController.settings.splitOpen;
 
   List<ShellWorkspacePreference> _workspacePreferences(Settings settings) {
     final stored = settings.shellWorkspaces.isNotEmpty
@@ -226,6 +236,15 @@ class HomePageState extends State<HomePage> {
     return true;
   }
 
+  Future<void> _navigateSection(String id) async {
+    await selectedPage(id);
+  }
+
+  Future<void> _navigateTab(String sectionId, String tabId) async {
+    if (!await selectedPage(sectionId)) return;
+    _navigation.selectTab(sectionId, tabId);
+  }
+
   void _toggleActivityPanel() {
     setState(() => _activityPanelOpen = !_activityPanelOpen);
   }
@@ -268,7 +287,7 @@ class HomePageState extends State<HomePage> {
   }
 
   Widget _activeContent() {
-    final sections = _config.destinations;
+    final sections = _navigation.sections;
     if (sections.isEmpty) {
       return Center(
         child: Column(
@@ -403,10 +422,64 @@ class HomePageState extends State<HomePage> {
       false;
 
   _ShellTabRuntime _runtimeFor(ShellTabPreference tab) => _tabRuntimes.putIfAbsent(tab.id, () {
-    final runtime = _ShellTabRuntime(isRestored: _restoringSettings, initialNavigationPath: tab.navigationPath);
+    final runtime = _ShellTabRuntime(
+      tab: tab,
+      isRestored: _restoringSettings,
+      initialNavigationPath: tab.navigationPath,
+      initialInspectorOpen: tab.inspectorOpen,
+      initialSplitOpen: tab.splitOpen ?? _settingsController.settings.splitOpen,
+      hasSplitPreference: tab.splitOpen != null,
+      initialSplitWeights: tab.splitWeights,
+      openView: _openViewFromContext,
+      activateTab: _activateTabFromContext,
+      closeTab: _closeTabFromContext,
+      selectSection: selectedPage,
+      updateTab: _updateTabFromContext,
+    );
     runtime.breadcrumbs.addListener(() => _handleBreadcrumbChanged(tab, runtime.breadcrumbs));
+    for (final controller in runtime.controllers) {
+      controller.addListener(_handleStatusChanged);
+    }
     return runtime;
   });
+
+  void _updateTabFromContext(String tabId, ShellTabPreference Function(ShellTabPreference) update) {
+    final tab = _navigation.workspaceContaining(tabId)?.tabs.where((candidate) => candidate.id == tabId).firstOrNull;
+    if (tab != null) _navigation.updateTab(update(tab));
+  }
+
+  Future<String?> _openViewFromContext(
+    String registrationId, {
+    String? sectionId,
+    String? instanceId,
+    Map<String, dynamic> parameters = const {},
+    String? title,
+  }) async {
+    final targetSectionId = sectionId ?? selectedActivityId;
+    if (_navigation.sectionFor(targetSectionId) == null) return null;
+    await selectedPage(targetSectionId);
+    return _navigation.openTab(
+      targetSectionId,
+      registrationId,
+      instanceId: instanceId,
+      parameters: parameters,
+      title: title,
+    );
+  }
+
+  Future<bool> _activateTabFromContext(String sectionId, String tabId) async {
+    if (_navigation.workspaceFor(sectionId).tabs.every((tab) => tab.id != tabId)) return false;
+    await selectedPage(sectionId);
+    _navigation.selectTab(sectionId, tabId);
+    return _navigation.activeTab?.id == tabId;
+  }
+
+  Future<bool> _closeTabFromContext(String tabId) async {
+    final tab = _navigation.workspaceContaining(tabId)?.tabs.where((candidate) => candidate.id == tabId).firstOrNull;
+    if (tab == null) return false;
+    await _closeTab(tab);
+    return _navigation.workspaceContaining(tabId) == null;
+  }
 
   void _handleBreadcrumbChanged(ShellTabPreference tab, ShellBreadcrumbController breadcrumbs) {
     if (!mounted) return;
@@ -427,10 +500,19 @@ class HomePageState extends State<HomePage> {
     for (final id in _tabRuntimes.keys.where((id) => !tabIds.contains(id)).toList()) {
       final runtime = _tabRuntimes.remove(id)!;
       runtime.lifecycle.value = ShellTabLifecycle.closed;
+      for (final controller in runtime.controllers) {
+        controller.removeListener(_handleStatusChanged);
+      }
       runtime.dispose();
     }
     for (final tab in _allTabs) {
-      _runtimeFor(tab);
+      final runtime = _runtimeFor(tab);
+      runtime.inspector.restoreVisibility(isVisible: tab.inspectorOpen);
+      runtime.workspace.restoreLayout(
+        isOpen: tab.splitOpen ?? _settingsController.settings.splitOpen,
+        hasPreference: tab.splitOpen != null,
+        weights: tab.splitWeights,
+      );
     }
     if (_lastLifecycleActiveId != _selectedTabId) {
       if (_lastLifecycleActiveId case final previousId?) {
@@ -519,7 +601,16 @@ class HomePageState extends State<HomePage> {
   }
 
   void _handleStatusChanged() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    setState(() {});
+    final inspector = _activeTab == null ? null : _tabRuntimes[_activeTab!.id]?.inspector;
+    if (inspector?.isVisible == true && MediaQuery.sizeOf(context).width < 1200 && !_inspectorDrawerOpen) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_inspectorDrawerOpen && inspector?.isVisible == true) {
+          _scaffoldKey.currentState?.openEndDrawer();
+        }
+      });
+    }
   }
 
   @override
@@ -527,20 +618,35 @@ class HomePageState extends State<HomePage> {
     super.initState();
     final supplied = widget.config ?? defaultShellConfig();
     final views = [...supplied.views];
-    final settingsRegistration = views.where((view) => view.id == 'settings').firstOrNull;
-    views.removeWhere((view) => view.id == 'settings');
-    views.add(
-      ShellViewRegistration(
-        id: 'settings',
-        title: settingsRegistration?.title ?? (buildContext, _) => buildContext.l10n.settingsTitle,
-        viewBuilder: settingsRegistration?.viewBuilder ?? (buildContext, _) => _buildSettingsView(buildContext),
-        destinationId: 'settings',
-        icon: settingsRegistration?.icon ?? Icons.settings_outlined,
-        routePath: settingsRegistration?.routePath,
-        reusePolicy: ShellViewReusePolicy.byRegistration,
-        closeable: false,
+    for (final (id, fallbackTitle, icon, fallbackBuilder) in [
+      (
+        'profile',
+        (BuildContext buildContext, _) => buildContext.l10n.profile,
+        Icons.person_outline,
+        (BuildContext buildContext, _) => _buildProfileView(buildContext),
       ),
-    );
+      (
+        'settings',
+        (BuildContext buildContext, _) => buildContext.l10n.settingsTitle,
+        Icons.settings_outlined,
+        (BuildContext buildContext, _) => _buildSettingsView(buildContext),
+      ),
+    ]) {
+      final registration = views.where((view) => view.id == id).firstOrNull;
+      views.removeWhere((view) => view.id == id);
+      views.add(
+        ShellViewRegistration(
+          id: id,
+          title: registration?.title ?? fallbackTitle,
+          viewBuilder: registration?.viewBuilder ?? fallbackBuilder,
+          destinationId: id,
+          icon: registration?.icon ?? icon,
+          routePath: registration?.routePath,
+          reusePolicy: ShellViewReusePolicy.byRegistration,
+          closeable: false,
+        ),
+      );
+    }
     for (final context in supplied.contexts) {
       for (final module in context.modules) {
         views.add(
@@ -564,25 +670,33 @@ class HomePageState extends State<HomePage> {
         ),
       );
     }
-    final destinations = supplied.destinations.where((destination) => destination.id != 'settings').toList();
-    final suppliedSettings = supplied.destinations.where((destination) => destination.id == 'settings').firstOrNull;
-    destinations.add(
-      ShellDestination(
-        id: 'settings',
-        title: suppliedSettings?.title ?? (buildContext) => buildContext.l10n.settingsTitle,
-        icon: suppliedSettings?.icon ?? Icons.settings_outlined,
-        inactiveIcon: suppliedSettings?.inactiveIcon ?? Icons.settings_outlined,
-        lockedVisible: true,
-        isUtility: true,
-        defaultViewId: 'settings',
-        allowedViewIds: const {'settings'},
-        panelBuilder: suppliedSettings?.panelBuilder,
-        inspectorBuilder: suppliedSettings?.inspectorBuilder,
-        statusItemsBuilder: suppliedSettings?.statusItemsBuilder,
-        statusProvider: suppliedSettings?.statusProvider,
-        onSelected: suppliedSettings?.onSelected,
-      ),
-    );
+    final destinations = supplied.destinations
+        .where((destination) => destination.id != 'profile' && destination.id != 'settings')
+        .toList();
+    for (final (id, icon, showOnMobile, fallbackTitle) in [
+      ('profile', Icons.person_outline, false, (BuildContext buildContext) => buildContext.l10n.profile),
+      ('settings', Icons.settings_outlined, true, (BuildContext buildContext) => buildContext.l10n.settingsTitle),
+    ]) {
+      final suppliedDestination = supplied.destinations.where((destination) => destination.id == id).firstOrNull;
+      destinations.add(
+        ShellDestination(
+          id: id,
+          title: suppliedDestination?.title ?? fallbackTitle,
+          icon: suppliedDestination?.icon ?? icon,
+          inactiveIcon: suppliedDestination?.inactiveIcon ?? icon,
+          lockedVisible: true,
+          isUtility: true,
+          showOnMobile: showOnMobile,
+          defaultViewId: id,
+          allowedViewIds: {id},
+          panelBuilder: suppliedDestination?.panelBuilder,
+          inspectorBuilder: suppliedDestination?.inspectorBuilder,
+          statusItemsBuilder: suppliedDestination?.statusItemsBuilder,
+          statusProvider: suppliedDestination?.statusProvider,
+          onSelected: suppliedDestination?.onSelected,
+        ),
+      );
+    }
     _config = ShellConfig(
       title: supplied.title,
       destinations: destinations,
@@ -713,8 +827,11 @@ class HomePageState extends State<HomePage> {
     ],
   );
 
+  Widget _buildProfileView(BuildContext context) =>
+      ShellProfileView(appTitle: _config.title(context), onSignIn: _openLogin, showHeader: false);
+
   void _returnToPreviousSection() {
-    final fallback = _config.destinations.where((destination) => !destination.isUtility).firstOrNull?.id;
+    final fallback = _navigation.sections.where((destination) => !destination.isUtility).firstOrNull?.id;
     unawaited(selectedPage(_returnSectionId ?? fallback ?? 'settings'));
   }
 
@@ -728,13 +845,7 @@ class HomePageState extends State<HomePage> {
   }
 
   void _openProfile() {
-    unawaited(
-      Navigator.of(context, rootNavigator: true).push<void>(
-        MaterialPageRoute(
-          builder: (_) => ShellProfilePage(appTitle: _config.title(context), onSignIn: _openLogin),
-        ),
-      ),
-    );
+    unawaited(selectedPage('profile'));
   }
 
   Future<void> _signOut() async {
@@ -765,8 +876,8 @@ class HomePageState extends State<HomePage> {
 
   void _setInspectorOpen(bool isOpen) {
     final tab = _activeTab;
-    if (tab?.inspectorOpen != null) {
-      _navigation.updateTab(tab!.copyWith(inspectorOpen: isOpen));
+    if (tab != null) {
+      _runtimeFor(tab).inspector.setVisible(isVisible: isOpen);
       return;
     }
     final workspace = _navigation.activeWorkspace;
@@ -783,7 +894,12 @@ class HomePageState extends State<HomePage> {
     if (tab == null) {
       _settingsController.update(settings.copyWith(splitOpen: !settings.splitOpen));
     } else {
-      _navigation.updateTab(tab.copyWith(splitOpen: !_splitOpen));
+      final workspace = _runtimeFor(tab).workspace;
+      if (workspace.panes.isNotEmpty) {
+        workspace.setSplitOpen(isOpen: !workspace.isSplitOpen);
+      } else {
+        _navigation.updateTab(tab.copyWith(splitOpen: !_splitOpen));
+      }
     }
   }
 
@@ -814,11 +930,13 @@ class HomePageState extends State<HomePage> {
   List<ShellViewAction> get _activeToolbarActions {
     final active = _activeTab;
     final builder = active == null ? null : _viewFor(active.registrationId)?.toolbarActionsBuilder;
-    if (active == null || builder == null) return const [];
+    if (active == null) return const [];
+    final actions = _tabRuntimes[active.id]?.toolbar.actions ?? const <ShellViewAction>[];
+    if (builder == null) return actions;
     try {
-      return builder(context, _viewContextFor(active));
+      return [...builder(context, _viewContextFor(active)), ...actions];
     } catch (_) {
-      return const [];
+      return actions;
     }
   }
 
@@ -860,7 +978,7 @@ class HomePageState extends State<HomePage> {
         shortcut: '',
         run: _openInspector,
       ),
-      if (_activeSplitBuilder != null)
+      if (_hasSplitContent)
         _ShellCommand(
           id: 'split',
           title: _splitOpen ? context.l10n.closeSplitView : context.l10n.openSplitView,
@@ -1003,12 +1121,12 @@ class HomePageState extends State<HomePage> {
     }
   }
 
-  Widget _buildHeader(double width, AppShellMetrics metrics) {
+  Widget _buildHeader(double width, AppShellMetrics metrics, {required bool phone}) {
     final theme = Theme.of(context);
-    final actionSize = _isPhoneLayout
+    final actionSize = phone
         ? metrics.targetSize
         : (Theme.of(context).extension<AppShellTokens>()?.comfortable == true ? 36.0 : 32.0);
-    final actionIconSize = _isPhoneLayout ? 24.0 : 18.0;
+    final actionIconSize = phone ? 24.0 : 18.0;
     final shortcut = defaultTargetPlatform == TargetPlatform.macOS ? '⌘K' : (kIsWeb ? 'Ctrl+Shift+K' : 'Ctrl+K');
     final notificationService = AppScope.of(context).services.shellNotifications;
     final viewActions = _activeToolbarActions;
@@ -1094,7 +1212,7 @@ class HomePageState extends State<HomePage> {
                   icon: const Icon(Icons.tab),
                 ),
               ),
-            if (!_isPhoneLayout)
+            if (!phone)
               if (_activeSection?.panelBuilder != null)
                 headerAction(
                   'activity-panel',
@@ -1104,7 +1222,7 @@ class HomePageState extends State<HomePage> {
                     icon: const Icon(Icons.menu_open),
                   ),
                 ),
-            if (!_isPhoneLayout)
+            if (!phone)
               headerAction(
                 'inspector',
                 IconButton(
@@ -1113,7 +1231,7 @@ class HomePageState extends State<HomePage> {
                   icon: Icon(_inspectorOpen ? Icons.vertical_split : Icons.vertical_split_outlined),
                 ),
               ),
-            if (_isPhoneLayout)
+            if (phone)
               headerAction('notifications', ShellNotificationsAction(service: notificationService, phone: true)),
             headerAction(
               'search',
@@ -1137,7 +1255,7 @@ class HomePageState extends State<HomePage> {
                   if (value == 'tab') unawaited(_showViewPicker());
                 },
                 itemBuilder: (context) => [
-                  if (_isPhoneLayout)
+                  if (phone)
                     PopupMenuItem(
                       height: metrics.menuRowHeight,
                       value: 'inspector',
@@ -1149,7 +1267,7 @@ class HomePageState extends State<HomePage> {
                     value: 'theme',
                     child: Text(context.l10n.toggleAppearance),
                   ),
-                  if (_activeSplitBuilder != null)
+                  if (_hasSplitContent)
                     PopupMenuItem(
                       height: metrics.menuRowHeight,
                       value: 'split',
@@ -1401,6 +1519,10 @@ class HomePageState extends State<HomePage> {
         try {
           final active = _activeTab;
           final tabBuilder = active == null ? null : _viewFor(active.registrationId)?.inspectorBuilder;
+          final inspector = active == null ? null : _runtimeFor(active).inspector;
+          if (inspector != null && inspector.sections.isNotEmpty) {
+            return ShellInspectorSections(controller: inspector);
+          }
           if (active != null && tabBuilder != null) return tabBuilder(context, _viewContextFor(active));
           final sectionBuilder = _activeSection?.inspectorBuilder;
           if (sectionBuilder != null) return sectionBuilder(context);
@@ -1525,6 +1647,13 @@ class HomePageState extends State<HomePage> {
   }
 
   Widget _buildSplit(Widget primary, double width, {required bool wide}) {
+    final active = _activeTab;
+    if (active != null) {
+      final runtime = _runtimeFor(active);
+      if (runtime.workspace.panes.isNotEmpty) {
+        return ShellSplitView(primary: primary, view: _viewContextFor(active), workspace: runtime.workspace);
+      }
+    }
     final builder = _activeSplitBuilder;
     if (!wide || builder == null || !_splitOpen || width < 824) return primary;
     final panelWidth = width - 24;
@@ -1600,7 +1729,7 @@ class HomePageState extends State<HomePage> {
             id: sectionNodeId,
             label: section?.title(context) ?? _config.title(context),
             icon: section?.icon,
-            onActivate: section == null ? null : () => _navigation.selectSection(section.id),
+            onActivate: section == null ? null : () => _navigateSection(section.id),
             childrenProvider: _destinations.length > 1
                 ? () async => [
                     for (final destination in _destinations)
@@ -1608,7 +1737,7 @@ class HomePageState extends State<HomePage> {
                         id: 'shell-section:${destination.id}',
                         label: destination.title(context),
                         icon: destination.icon,
-                        onActivate: () => _navigation.selectSection(destination.id),
+                        onActivate: () => _navigateSection(destination.id),
                       ),
                   ]
                 : null,
@@ -1621,30 +1750,31 @@ class HomePageState extends State<HomePage> {
               label: _tabTitle(tab),
               icon: _tabIcon(tab),
               parentId: sectionNodeId,
-              onActivate: () => _navigation.selectTab(tab.sectionId ?? sectionId, tab.id),
-              childrenProvider: _tabs.length > 1
+              onActivate: () => _navigateTab(tab.sectionId ?? sectionId, tab.id),
+              childrenProvider: _navigation.workspaceFor(tab.sectionId ?? sectionId).tabs.length > 1
                   ? () async => [
-                      for (final sibling in _tabs)
+                      for (final sibling in _navigation.workspaceFor(tab.sectionId ?? sectionId).tabs)
                         ShellNavigationNode(
                           id: 'shell-tab:${sibling.id}',
                           label: _tabTitle(sibling),
                           icon: _tabIcon(sibling),
                           parentId: sectionNodeId,
-                          onActivate: () => _navigation.selectTab(sibling.sectionId ?? sectionId, sibling.id),
+                          onActivate: () => _navigateTab(sibling.sectionId ?? sectionId, sibling.id),
                         ),
                     ]
                   : null,
             ),
           );
           if (controller != null) {
-            for (final node in controller.activePath) {
+            for (var index = 0; index < controller.activePath.length; index++) {
+              final node = controller.activePath[index];
               breadcrumbs.add(
                 ShellNavigationNode(
                   id: node.id,
                   label: node.label,
                   icon: node.icon,
-                  parentId: node.parentId,
-                  onActivate: () => controller.navigateTo(node.id),
+                  parentId: node.parentId ?? (index == 0 ? 'shell-tab:${tab.id}' : controller.activePath[index - 1].id),
+                  onActivate: () async => controller.navigateTo(node.id),
                   children: node.children,
                   childrenProvider: controller.hasChildren(node.id) ? () => controller.getChildren(node.id) : null,
                   enabled: node.enabled,
@@ -1673,7 +1803,10 @@ class HomePageState extends State<HomePage> {
           }
         }
 
-        final tabItems = [...?_activeStatusProvider?.items].where((item) => item.isVisible?.call() ?? true).toList();
+        final tabItems = [
+          ...?_activeStatusProvider?.items,
+          if (activeTab != null) ...?_tabRuntimes[activeTab.id]?.status.items,
+        ].where((item) => item.isVisible?.call() ?? true).toList();
         final sectionItems = [
           ...?section?.statusItemsBuilder?.call(context),
           ...?section?.statusProvider?.items,
@@ -1706,15 +1839,6 @@ class HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final isLight = Theme.of(context).brightness == Brightness.light;
     final baseTheme = Theme.of(context);
-    final shellTheme = _isPhoneLayout
-        ? baseTheme.copyWith(
-            textTheme: baseTheme.textTheme.copyWith(
-              bodyMedium: baseTheme.textTheme.bodyMedium?.copyWith(fontSize: 16),
-              labelSmall: baseTheme.textTheme.labelSmall?.copyWith(fontSize: 14),
-              labelMedium: baseTheme.textTheme.labelMedium?.copyWith(fontSize: 15),
-            ),
-          )
-        : baseTheme;
     final overlayStyle = SystemUiOverlayStyle(
       statusBarBrightness: isLight ? Brightness.light : Brightness.dark,
       statusBarColor: Colors.transparent,
@@ -1726,17 +1850,27 @@ class HomePageState extends State<HomePage> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
+        final phoneLayout = _isPhoneLayout || (kIsWeb && width < 600);
+        final shellTheme = phoneLayout
+            ? baseTheme.copyWith(
+                textTheme: baseTheme.textTheme.copyWith(
+                  bodyMedium: baseTheme.textTheme.bodyMedium?.copyWith(fontSize: 16),
+                  labelSmall: baseTheme.textTheme.labelSmall?.copyWith(fontSize: 14),
+                  labelMedium: baseTheme.textTheme.labelMedium?.copyWith(fontSize: 15),
+                ),
+              )
+            : baseTheme;
         final wide = width >= 1200;
         final visible = _destinations;
         final settings = _settingsController.settings;
-        final metrics = AppTheme.metrics(context, phone: _isPhoneLayout);
+        final metrics = AppTheme.metrics(context, phone: phoneLayout);
         final showInspector = wide && _inspectorOpen;
         final availableInspectorWidth = (width - metrics.railWidth - 400).clamp(256.0, 440.0);
         final inspectorWidth = settings.inspectorWidth.clamp(256.0, availableInspectorWidth);
         final body = _activeContent();
         final activeActivity = _destinations.where((item) => item.id == selectedActivityId).firstOrNull;
         final showActivityPanel =
-            !_isPhoneLayout && width >= 800 && _activityPanelOpen && activeActivity?.panelBuilder != null;
+            !phoneLayout && width >= 800 && _activityPanelOpen && activeActivity?.panelBuilder != null;
 
         return CallbackShortcuts(
           bindings: {
@@ -1820,39 +1954,54 @@ class HomePageState extends State<HomePage> {
                         bottom: false,
                         child: Column(
                           children: [
-                            _buildHeader(width, metrics),
-                            if (!_isPhoneLayout) _buildTabStrip(metrics),
+                            _buildHeader(width, metrics, phone: phoneLayout),
                             Expanded(
                               child: Row(
                                 children: [
-                                  if (!_isPhoneLayout)
+                                  if (!phoneLayout)
                                     SideNavBar(
                                       currentId: currentDestinationId,
                                       destinations: visible,
                                       onSelected: (id) => unawaited(selectedPage(id)),
                                     ),
-                                  if (showActivityPanel) _buildActivityPanel(activeActivity!),
                                   Expanded(
-                                    child: Padding(
-                                      padding: EdgeInsets.all(wide ? 8 : 0),
-                                      child: LayoutBuilder(
-                                        builder: (context, constraints) =>
-                                            _buildSplit(body, constraints.maxWidth - (wide ? 16 : 0), wide: wide),
-                                      ),
+                                    child: Column(
+                                      children: [
+                                        if (!phoneLayout) _buildTabStrip(metrics),
+                                        Expanded(
+                                          child: Row(
+                                            children: [
+                                              if (showActivityPanel) _buildActivityPanel(activeActivity!),
+                                              Expanded(
+                                                child: Padding(
+                                                  padding: EdgeInsets.all(wide ? 8 : 0),
+                                                  child: LayoutBuilder(
+                                                    builder: (context, constraints) => _buildSplit(
+                                                      body,
+                                                      constraints.maxWidth - (wide ? 16 : 0),
+                                                      wide: wide,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                              if (showInspector) ...[
+                                                _resizeHandle(inspectorWidth),
+                                                SizedBox(width: inspectorWidth, child: _buildInspector(drawer: false)),
+                                              ],
+                                            ],
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                  if (showInspector) ...[
-                                    _resizeHandle(inspectorWidth),
-                                    SizedBox(width: inspectorWidth, child: _buildInspector(drawer: false)),
-                                  ],
                                 ],
                               ),
                             ),
-                            if (!_isPhoneLayout) _buildStatusBar(metrics),
+                            if (!phoneLayout) _buildStatusBar(metrics),
                           ],
                         ),
                       ),
-                      bottomNavigationBar: _isPhoneLayout
+                      bottomNavigationBar: phoneLayout
                           ? SafeArea(
                               top: false,
                               child: BottomNavBar(
@@ -1875,16 +2024,61 @@ class HomePageState extends State<HomePage> {
 }
 
 class _ShellTabRuntime {
-  _ShellTabRuntime({required this.isRestored, required List<String> initialNavigationPath})
-    : lifecycle = ValueNotifier(isRestored ? ShellTabLifecycle.restored : ShellTabLifecycle.opened),
-      breadcrumbs = ShellBreadcrumbController(initialPath: initialNavigationPath);
+  _ShellTabRuntime({
+    required this.tab,
+    required this.isRestored,
+    required List<String> initialNavigationPath,
+    required bool? initialInspectorOpen,
+    required bool initialSplitOpen,
+    required bool hasSplitPreference,
+    required List<double> initialSplitWeights,
+    required ShellOpenView openView,
+    required ShellCloseTab closeTab,
+    required ShellActivateTab activateTab,
+    required ShellSelectSection selectSection,
+    required void Function(String, ShellTabPreference Function(ShellTabPreference)) updateTab,
+  }) : lifecycle = ValueNotifier(isRestored ? ShellTabLifecycle.restored : ShellTabLifecycle.opened),
+       breadcrumbs = ShellBreadcrumbController(initialPath: initialNavigationPath) {
+    navigation = ShellNavigationController(
+      sectionId: tab.sectionId ?? tab.destinationId ?? '',
+      tabId: tab.id,
+      openView: openView,
+      closeTab: closeTab,
+      activateTab: activateTab,
+      selectSection: selectSection,
+    );
+    inspector = ShellInspectorController(
+      isVisible: initialInspectorOpen,
+      onVisibilityChanged: (visible) => updateTab(tab.id, (current) => current.copyWith(inspectorOpen: visible)),
+    );
+    status = ShellStatusController();
+    toolbar = ShellToolbarController();
+    workspace = ShellWorkspaceController(
+      initialSplitOpen: initialSplitOpen,
+      hasSplitPreference: hasSplitPreference,
+      initialWeights: initialSplitWeights,
+      onLayoutChanged: ({required isOpen, required weights, required persist}) {
+        if (persist) {
+          updateTab(tab.id, (current) => current.copyWith(splitOpen: isOpen, splitWeights: weights));
+        }
+      },
+    );
+  }
 
+  final ShellTabPreference tab;
   final bool isRestored;
   final ValueNotifier<ShellTabLifecycle> lifecycle;
   final ShellBreadcrumbController breadcrumbs;
+  late final ShellNavigationController navigation;
+  late final ShellInspectorController inspector;
+  late final ShellStatusController status;
+  late final ShellToolbarController toolbar;
+  late final ShellWorkspaceController workspace;
   final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
   final GlobalKey<AnimatedEntryState> entryAnimationKey = GlobalKey<AnimatedEntryState>();
   final GlobalKey<AnimatedExitState> exitAnimationKey = GlobalKey<AnimatedExitState>();
+
+  List<ChangeNotifier> get controllers => [inspector, status, toolbar, workspace];
 
   ShellViewContext viewContext(ShellTabPreference tab, GlobalKey<NavigatorState> mainNavigatorKey) => ShellViewContext(
     tab: tab,
@@ -1894,11 +2088,20 @@ class _ShellTabRuntime {
     mainNavigatorKey: mainNavigatorKey,
     entryAnimationKey: entryAnimationKey,
     exitAnimationKey: exitAnimationKey,
+    navigation: navigation,
+    inspector: inspector,
+    status: status,
+    toolbar: toolbar,
+    workspace: workspace,
   );
 
   void dispose() {
+    navigation.dispose();
     lifecycle.dispose();
     breadcrumbs.dispose();
+    for (final controller in controllers) {
+      controller.dispose();
+    }
   }
 }
 

@@ -54,6 +54,7 @@ class ShellTabPreference {
   final String? moduleId;
   final bool? inspectorOpen;
   final bool? splitOpen;
+  final List<double> splitWeights;
   final List<String> navigationPath;
 
   const ShellTabPreference({
@@ -69,6 +70,7 @@ class ShellTabPreference {
     this.moduleId,
     this.inspectorOpen,
     this.splitOpen,
+    this.splitWeights = const [],
     this.navigationPath = const [],
   });
 
@@ -83,6 +85,7 @@ class ShellTabPreference {
     Object? moduleId = _noChange,
     Object? inspectorOpen = _noChange,
     Object? splitOpen = _noChange,
+    List<double>? splitWeights,
     List<String>? navigationPath,
   }) {
     return ShellTabPreference(
@@ -98,6 +101,7 @@ class ShellTabPreference {
       moduleId: identical(moduleId, _noChange) ? this.moduleId : moduleId as String?,
       inspectorOpen: identical(inspectorOpen, _noChange) ? this.inspectorOpen : inspectorOpen as bool?,
       splitOpen: identical(splitOpen, _noChange) ? this.splitOpen : splitOpen as bool?,
+      splitWeights: splitWeights ?? this.splitWeights,
       navigationPath: navigationPath ?? this.navigationPath,
     );
   }
@@ -116,6 +120,14 @@ class ShellTabPreference {
       moduleId: json['moduleId'] is String ? json['moduleId'] as String : null,
       inspectorOpen: json['inspectorOpen'] is bool ? json['inspectorOpen'] as bool : null,
       splitOpen: json['splitOpen'] is bool ? json['splitOpen'] as bool : null,
+      splitWeights: json['splitWeights'] is List
+          ? (json['splitWeights'] as List)
+                .whereType<num>()
+                .map((weight) => weight.toDouble())
+                .where((weight) => weight.isFinite && weight > 0)
+                .take(3)
+                .toList()
+          : const [],
       navigationPath: json['navigationPath'] is List
           ? (json['navigationPath'] as List).whereType<String>().toList()
           : const [],
@@ -135,6 +147,7 @@ class ShellTabPreference {
     if (moduleId != null) 'moduleId': moduleId,
     if (inspectorOpen != null) 'inspectorOpen': inspectorOpen,
     if (splitOpen != null) 'splitOpen': splitOpen,
+    if (splitWeights.isNotEmpty) 'splitWeights': splitWeights,
     if (navigationPath.isNotEmpty) 'navigationPath': navigationPath,
   };
 }

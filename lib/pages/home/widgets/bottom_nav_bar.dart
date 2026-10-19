@@ -56,8 +56,8 @@ class _BottomNavBarState extends State<BottomNavBar> {
     final theme = Theme.of(context);
     final spacingScale = theme.extension<AppShellTokens>()?.spacingScale ?? 1;
     final destinations = [
-      ...widget.destinations.where((destination) => !destination.isUtility),
-      ...widget.destinations.where((destination) => destination.isUtility),
+      ...widget.destinations.where((destination) => destination.showOnMobile && !destination.isUtility),
+      ...widget.destinations.where((destination) => destination.showOnMobile && destination.isUtility),
     ];
     return Material(
       color: theme.colorScheme.surface,

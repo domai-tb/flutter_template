@@ -14,9 +14,9 @@ class SideNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final tokens = theme.extension<AppShellTokens>();
-    final railWidth = tokens?.comfortable == true
-        ? tokens!.desktopComfortable.railWidth
-        : tokens?.desktopCompact.railWidth ?? AppShellMetrics.desktopCompact.railWidth;
+    final metrics = AppTheme.metrics(context, phone: false);
+    final railWidth = metrics.railWidth;
+    final utilities = destinations.where((item) => item.isUtility).toList();
 
     return Container(
       key: const ValueKey('activity-rail'),
@@ -30,28 +30,27 @@ class SideNavBar extends StatelessWidget {
           Expanded(
             child: ListView(
               key: const ValueKey('activity-rail-sections'),
-              padding: const EdgeInsets.only(top: 12),
+              padding: const EdgeInsets.only(top: AppShellSpacing.md),
               children: [
-                for (final destination in destinations.where((item) => !item.isUtility)) _item(railWidth, destination),
+                for (final destination in destinations.where((item) => !item.isUtility)) _item(metrics, destination),
               ],
             ),
           ),
-          for (final destination in destinations.where((item) => item.isUtility)) ...[
-            Divider(height: 1, color: theme.dividerColor),
-            Padding(padding: const EdgeInsets.only(top: 6, bottom: 6), child: _item(railWidth, destination)),
-          ],
+          if (utilities.isNotEmpty) Divider(height: 1, color: tokens?.border ?? theme.dividerColor),
+          for (final destination in utilities) _item(metrics, destination),
         ],
       ),
     );
   }
 
-  Widget _item(double railWidth, ShellDestination destination) => SizedBox(
-    width: railWidth,
-    height: 44,
+  Widget _item(AppShellMetrics metrics, ShellDestination destination) => SizedBox(
+    width: metrics.railWidth,
+    height: metrics.activityRowHeight,
     child: _SideNavItem(
       key: ValueKey('activity-rail-${destination.id}'),
       destination: destination,
       selected: currentId == destination.id,
+      iconSize: metrics.activityIconSize,
       onSelected: () => onSelected(destination.id),
     ),
   );
@@ -60,15 +59,23 @@ class SideNavBar extends StatelessWidget {
 class _SideNavItem extends StatelessWidget {
   final ShellDestination destination;
   final bool selected;
+  final double iconSize;
   final VoidCallback onSelected;
 
-  const _SideNavItem({super.key, required this.destination, required this.selected, required this.onSelected});
+  const _SideNavItem({
+    super.key,
+    required this.destination,
+    required this.selected,
+    required this.iconSize,
+    required this.onSelected,
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final tokens = theme.extension<AppShellTokens>();
     final foreground = selected ? theme.colorScheme.primary : tokens?.textSecondary;
+    final radius = tokens?.cornerRadius ?? 4;
 
     return Tooltip(
       message: destination.title(context),
@@ -77,7 +84,7 @@ class _SideNavItem extends StatelessWidget {
         selected: selected,
         label: destination.title(context),
         child: SizedBox(
-          height: 44,
+          height: iconSize + AppShellSpacing.xl,
           child: Stack(
             alignment: Alignment.center,
             children: [
@@ -85,18 +92,27 @@ class _SideNavItem extends StatelessWidget {
                 left: 4,
                 right: 4,
                 child: Material(
-                  color: selected ? theme.colorScheme.primary.withValues(alpha: 0.08) : Colors.transparent,
-                  borderRadius: BorderRadius.circular(4),
+                  color: selected
+                      ? tokens?.selected ?? theme.colorScheme.primary.withValues(alpha: 0.08)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(radius),
                   child: InkWell(
                     onTap: onSelected,
-                    borderRadius: BorderRadius.circular(4),
-                    hoverColor: theme.colorScheme.onSurface.withValues(alpha: 0.04),
-                    focusColor: theme.colorScheme.primary.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(radius),
+                    hoverColor: tokens?.hover ?? theme.colorScheme.onSurface.withValues(alpha: 0.04),
+                    focusColor:
+                        tokens?.focus.withValues(alpha: 0.16) ?? theme.colorScheme.primary.withValues(alpha: 0.16),
                     child: const SizedBox.expand(),
                   ),
                 ),
               ),
-              IgnorePointer(child: Icon(destination.icon, size: 20, color: foreground)),
+              IgnorePointer(
+                child: Icon(
+                  selected ? destination.icon : destination.inactiveIcon ?? destination.icon,
+                  size: iconSize,
+                  color: foreground,
+                ),
+              ),
               if (selected)
                 Positioned(
                   left: 0,

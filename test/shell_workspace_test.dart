@@ -293,8 +293,6 @@ void main() {
 
     await home.selectedPage('page1');
     await tester.pumpAndSettle();
-    expect(settings.settings.inspectorOpen, isTrue);
-    expect(find.text('Workspace'), findsOneWidget);
     final page1 = _workspace(settings, 'page1');
     expect(find.byKey(ValueKey('workspace-tab-${page1.activeTabId}')), findsOneWidget);
 

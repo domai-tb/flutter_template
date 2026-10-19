@@ -96,15 +96,47 @@ class ShellNavigationCoordinator extends ChangeNotifier {
     notifyListeners();
   }
 
-  void unregisterView(String id) {
-    if (_views.remove(id) == null) return;
+  /// Removes a view registration only after its open tabs have been closed.
+  bool unregisterView(String id) {
+    if (!_views.containsKey(id) ||
+        _workspaces.values.any((workspace) => workspace.tabs.any((tab) => tab.registrationId == id))) {
+      return false;
+    }
+    _views.remove(id);
     notifyListeners();
+    return true;
+  }
+
+  /// Removes an empty section and selects the next available section if needed.
+  bool unregisterSection(String id) {
+    final workspace = _workspaces[id];
+    if (!_sections.containsKey(id) || workspace == null || workspace.tabs.isNotEmpty) return false;
+    _sections.remove(id);
+    _workspaces.remove(id);
+    _recentlyUsed.remove(id);
+    if (_selectedSectionId == id) _selectedSectionId = _sections.keys.firstOrNull;
+    final selected = _selectedSectionId == null ? null : _sections[_selectedSectionId!];
+    final defaultViewId = selected?.defaultViewId;
+    if (selected != null && defaultViewId != null && canOpenView(selected.id, defaultViewId)) {
+      openTab(selected.id, defaultViewId, activateSection: false);
+    } else {
+      notifyListeners();
+    }
+    return true;
   }
 
   void selectSection(String sectionId) {
-    if (!_sections.containsKey(sectionId) || _selectedSectionId == sectionId) return;
+    final section = _sections[sectionId];
+    if (section == null) return;
+    final changed = _selectedSectionId != sectionId;
     _selectedSectionId = sectionId;
-    notifyListeners();
+    final workspace = workspaceFor(sectionId);
+    final defaultViewId = section.defaultViewId;
+    if (workspace.tabs.isEmpty && defaultViewId != null && canOpenView(sectionId, defaultViewId)) {
+      openTab(sectionId, defaultViewId, activateSection: false);
+    } else if (changed) {
+      notifyListeners();
+    }
   }
 
   String? openTab(

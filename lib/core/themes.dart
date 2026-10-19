@@ -1,5 +1,14 @@
 import 'package:flutter/material.dart';
 
+/// Shared spacing increments used by shell surfaces and controls.
+abstract final class AppShellSpacing {
+  static const double xs = 4;
+  static const double sm = 8;
+  static const double md = 12;
+  static const double lg = 16;
+  static const double xl = 24;
+}
+
 @immutable
 class AppShellMetrics {
   final double headerHeight;
@@ -11,6 +20,12 @@ class AppShellMetrics {
   final double statusHeight;
   final double targetSize;
   final double settingsMaxWidth;
+  final double activityRowHeight;
+  final double activityIconSize;
+  final double toolbarIconSize;
+  final double profileAvatarSize;
+  final double inspectorHeaderHeight;
+  final double splitHandleWidth;
 
   const AppShellMetrics({
     required this.headerHeight,
@@ -22,6 +37,12 @@ class AppShellMetrics {
     required this.statusHeight,
     required this.targetSize,
     required this.settingsMaxWidth,
+    this.activityRowHeight = 44,
+    this.activityIconSize = 20,
+    this.toolbarIconSize = 18,
+    this.profileAvatarSize = 24,
+    this.inspectorHeaderHeight = 42,
+    this.splitHandleWidth = 12,
   });
 
   static const desktopCompact = AppShellMetrics(
@@ -70,7 +91,15 @@ class AppShellTokens extends ThemeExtension<AppShellTokens> {
   final Color textPrimary;
   final Color textSecondary;
   final Color focus;
+  final Color hover;
+  final Color selected;
+  final Color pressed;
+  final Color disabled;
+  final Color success;
+  final Color warning;
   final double spacingScale;
+  final double borderWidth;
+  final double cornerRadius;
   final bool comfortable;
   final AppShellMetrics desktopCompact;
   final AppShellMetrics desktopComfortable;
@@ -84,7 +113,15 @@ class AppShellTokens extends ThemeExtension<AppShellTokens> {
     required this.textPrimary,
     required this.textSecondary,
     required this.focus,
+    this.hover = const Color(0x0A000000),
+    this.selected = const Color(0x14789BB1),
+    this.pressed = const Color(0x24789BB1),
+    this.disabled = const Color(0x61556976),
+    this.success = const Color(0xFF2E7D5B),
+    this.warning = const Color(0xFFB7791F),
     required this.spacingScale,
+    this.borderWidth = 1,
+    this.cornerRadius = 4,
     required this.comfortable,
     this.desktopCompact = AppShellMetrics.desktopCompact,
     this.desktopComfortable = AppShellMetrics.desktopComfortable,
@@ -100,7 +137,15 @@ class AppShellTokens extends ThemeExtension<AppShellTokens> {
     Color? textPrimary,
     Color? textSecondary,
     Color? focus,
+    Color? hover,
+    Color? selected,
+    Color? pressed,
+    Color? disabled,
+    Color? success,
+    Color? warning,
     double? spacingScale,
+    double? borderWidth,
+    double? cornerRadius,
     bool? comfortable,
   }) {
     return AppShellTokens(
@@ -111,7 +156,15 @@ class AppShellTokens extends ThemeExtension<AppShellTokens> {
       textPrimary: textPrimary ?? this.textPrimary,
       textSecondary: textSecondary ?? this.textSecondary,
       focus: focus ?? this.focus,
+      hover: hover ?? this.hover,
+      selected: selected ?? this.selected,
+      pressed: pressed ?? this.pressed,
+      disabled: disabled ?? this.disabled,
+      success: success ?? this.success,
+      warning: warning ?? this.warning,
       spacingScale: spacingScale ?? this.spacingScale,
+      borderWidth: borderWidth ?? this.borderWidth,
+      cornerRadius: cornerRadius ?? this.cornerRadius,
       comfortable: comfortable ?? this.comfortable,
       desktopCompact: desktopCompact,
       desktopComfortable: desktopComfortable,
@@ -130,7 +183,15 @@ class AppShellTokens extends ThemeExtension<AppShellTokens> {
       textPrimary: Color.lerp(textPrimary, other.textPrimary, t)!,
       textSecondary: Color.lerp(textSecondary, other.textSecondary, t)!,
       focus: Color.lerp(focus, other.focus, t)!,
+      hover: Color.lerp(hover, other.hover, t)!,
+      selected: Color.lerp(selected, other.selected, t)!,
+      pressed: Color.lerp(pressed, other.pressed, t)!,
+      disabled: Color.lerp(disabled, other.disabled, t)!,
+      success: Color.lerp(success, other.success, t)!,
+      warning: Color.lerp(warning, other.warning, t)!,
       spacingScale: spacingScale + (other.spacingScale - spacingScale) * t,
+      borderWidth: borderWidth + (other.borderWidth - borderWidth) * t,
+      cornerRadius: cornerRadius + (other.cornerRadius - cornerRadius) * t,
       comfortable: t < 0.5 ? comfortable : other.comfortable,
       desktopCompact: desktopCompact,
       desktopComfortable: desktopComfortable,
@@ -181,6 +242,12 @@ class AppTheme {
       textPrimary: dark ? const Color(0xFFECF1F5) : const Color(0xFF1B2B37),
       textSecondary: secondaryText,
       focus: scheme.primary,
+      hover: scheme.onSurface.withValues(alpha: 0.04),
+      selected: scheme.primary.withValues(alpha: 0.10),
+      pressed: scheme.primary.withValues(alpha: 0.18),
+      disabled: scheme.onSurface.withValues(alpha: 0.38),
+      success: dark ? const Color(0xFF70C49A) : const Color(0xFF24744E),
+      warning: dark ? const Color(0xFFE6B566) : const Color(0xFF8D5A00),
       spacingScale: comfortable ? 1.15 : 1,
       comfortable: comfortable,
     );

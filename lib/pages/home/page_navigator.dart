@@ -122,6 +122,22 @@ typedef ShellCommandAction = FutureOr<void> Function(BuildContext context);
 typedef ShellNavigationAction = FutureOr<void> Function();
 typedef ShellNavigationChildrenProvider = FutureOr<List<ShellNavigationNode>> Function();
 
+typedef ShellOpenView = Future<String?> Function(
+  String registrationId, {
+  String? sectionId,
+  String? instanceId,
+  Map<String, dynamic> parameters,
+  String? title,
+});
+typedef ShellCloseTab = Future<bool> Function(String tabId);
+typedef ShellActivateTab = Future<bool> Function(String sectionId, String tabId);
+typedef ShellSelectSection = Future<bool> Function(String sectionId);
+typedef ShellWorkspaceLayoutChanged = void Function({
+  required bool isOpen,
+  required List<double> weights,
+  required bool persist,
+});
+
 class ShellNavigationNode {
   final String id;
   final String label;
@@ -312,6 +328,11 @@ class ShellViewContext {
   final GlobalKey<AnimatedEntryState> entryAnimationKey;
   final GlobalKey<AnimatedExitState> exitAnimationKey;
   final ShellBreadcrumbController breadcrumbs;
+  final ShellNavigationController navigation;
+  final ShellInspectorController inspector;
+  final ShellStatusController status;
+  final ShellToolbarController toolbar;
+  final ShellWorkspaceController workspace;
 
   const ShellViewContext({
     required this.tab,
@@ -321,10 +342,368 @@ class ShellViewContext {
     required this.entryAnimationKey,
     required this.exitAnimationKey,
     required this.breadcrumbs,
+    required this.navigation,
+    required this.inspector,
+    required this.status,
+    required this.toolbar,
+    required this.workspace,
   });
 
   String get instanceId => tab.instanceId ?? tab.id;
   Map<String, dynamic> get parameters => tab.parameters;
+}
+
+/// Provides navigation commands scoped to the owning tab and section.
+///
+/// Cross-section commands use the shell's normal section-selection path, so
+/// default views, active-tab restoration and section callbacks remain intact.
+class ShellNavigationController {
+  final String sectionId;
+  final String tabId;
+  late final ShellOpenView _openView;
+  late final ShellCloseTab _closeTab;
+  late final ShellActivateTab _activateTab;
+  late final ShellSelectSection _selectSection;
+  bool _disposed = false;
+
+  /// Creates a tab-scoped navigation controller.
+  ShellNavigationController({
+    required this.sectionId,
+    required this.tabId,
+    required ShellOpenView openView,
+    required ShellCloseTab closeTab,
+    required ShellActivateTab activateTab,
+    required ShellSelectSection selectSection,
+  }) {
+    _openView = openView;
+    _closeTab = closeTab;
+    _activateTab = activateTab;
+    _selectSection = selectSection;
+  }
+
+  /// Opens a registered view in this section or an explicitly named section.
+  Future<String?> openView(
+    String registrationId, {
+    String? sectionId,
+    String? instanceId,
+    Map<String, dynamic> parameters = const {},
+    String? title,
+  }) => _disposed
+      ? Future<String?>.value()
+      : _openView(
+          registrationId,
+          sectionId: sectionId ?? this.sectionId,
+          instanceId: instanceId,
+          parameters: parameters,
+          // Forward a caller-provided title even when it is null.
+          // ignore: avoid_redundant_argument_values
+          title: title,
+        );
+
+  /// Activates a tab in this section or an explicitly named section.
+  Future<bool> activateTab(String tabId, {String? sectionId}) =>
+      _disposed ? Future.value(false) : _activateTab(sectionId ?? this.sectionId, tabId);
+
+  /// Closes this tab or a tab in the same application shell.
+  Future<bool> closeTab({String? tabId}) => _disposed ? Future.value(false) : _closeTab(tabId ?? this.tabId);
+
+  /// Selects a section through the shell's complete navigation flow.
+  Future<bool> selectSection(String sectionId) => _disposed ? Future.value(false) : _selectSection(sectionId);
+
+  /// Invalidates commands when the owning tab is closed.
+  void dispose() => _disposed = true;
+}
+
+/// A page-provided section displayed in the shell Inspector.
+class ShellInspectorSection {
+  final String id;
+  final String title;
+  final WidgetBuilder builder;
+  final bool initiallyExpanded;
+
+  /// Creates an Inspector section with stable identity and page-built content.
+  const ShellInspectorSection({
+    required this.id,
+    required this.title,
+    required this.builder,
+    this.initiallyExpanded = true,
+  });
+}
+
+/// Holds tab-specific Inspector visibility and content.
+///
+/// A `null` visibility override inherits the section or application setting.
+class ShellInspectorController extends ChangeNotifier {
+  ShellInspectorController({bool? isVisible, ValueChanged<bool?>? onVisibilityChanged}) {
+    _isVisible = isVisible;
+    _onVisibilityChanged = onVisibilityChanged;
+  }
+
+  late bool? _isVisible;
+  String? _selectionLabel;
+  String? _focusedSectionId;
+  List<ShellInspectorSection> _sections = const [];
+  late final ValueChanged<bool?>? _onVisibilityChanged;
+
+  /// Whether this tab overrides inherited Inspector visibility.
+  bool? get isVisible => _isVisible;
+
+  /// The current Inspector section list.
+  List<ShellInspectorSection> get sections => List.unmodifiable(_sections);
+
+  /// The label of the page's current Inspector selection.
+  String? get selectionLabel => _selectionLabel;
+
+  /// The section most recently requested for focus.
+  String? get focusedSectionId => _focusedSectionId;
+
+  /// Opens the Inspector for this tab.
+  void open() => setVisible(isVisible: true);
+
+  /// Closes the Inspector for this tab.
+  void close() => setVisible(isVisible: false);
+
+  /// Sets tab visibility, or clears the override when [isVisible] is `null`.
+  void setVisible({required bool? isVisible}) {
+    if (_isVisible == isVisible) return;
+    _isVisible = isVisible;
+    _onVisibilityChanged?.call(isVisible);
+    notifyListeners();
+  }
+
+  /// Restores a saved visibility override without writing it back to settings.
+  void restoreVisibility({required bool? isVisible}) {
+    if (_isVisible == isVisible) return;
+    _isVisible = isVisible;
+    notifyListeners();
+  }
+
+  /// Replaces the Inspector sections and removes duplicate section IDs.
+  void setSections(Iterable<ShellInspectorSection> sections) {
+    final next = <String, ShellInspectorSection>{};
+    for (final section in sections) {
+      if (section.id.trim().isEmpty) throw ArgumentError.value(section.id, 'sections.id');
+      if (next.containsKey(section.id)) throw ArgumentError.value(section.id, 'sections', 'duplicate section ID');
+      next[section.id] = section;
+    }
+    if (mapEquals(next, {for (final section in _sections) section.id: section})) return;
+    _sections = next.values.toList(growable: false);
+    if (_focusedSectionId != null && !next.containsKey(_focusedSectionId)) _focusedSectionId = null;
+    notifyListeners();
+  }
+
+  /// Updates the current selection label shown above Inspector sections.
+  void setSelection(String? label) {
+    if (_selectionLabel == label) return;
+    _selectionLabel = label;
+    notifyListeners();
+  }
+
+  /// Requests focus and scrolling for a registered Inspector section.
+  void focusSection(String id) {
+    if (!_sections.any((section) => section.id == id)) return;
+    _focusedSectionId = id;
+    if (_isVisible != true) {
+      open();
+    } else {
+      notifyListeners();
+    }
+  }
+}
+
+/// Publishes contextual status items for the active tab.
+class ShellStatusController extends ChangeNotifier {
+  List<ShellStatusItem> _items = const [];
+
+  /// The current tab-owned status items.
+  List<ShellStatusItem> get items => List.unmodifiable(_items);
+
+  /// Replaces all status items after validating their stable IDs.
+  void setItems(Iterable<ShellStatusItem> items) {
+    final next = items.toList(growable: false);
+    final ids = <String>{};
+    for (final item in next) {
+      if (item.id.trim().isEmpty || !ids.add(item.id)) {
+        throw ArgumentError.value(item.id, 'items', 'status IDs must be non-empty and unique');
+      }
+    }
+    _items = next;
+    notifyListeners();
+  }
+
+  /// Adds or replaces a status item by ID.
+  void setItem(ShellStatusItem item) {
+    _items = [..._items.where((existing) => existing.id != item.id), item];
+    notifyListeners();
+  }
+
+  /// Removes the status item with [id].
+  void removeItem(String id) {
+    final next = _items.where((item) => item.id != id).toList(growable: false);
+    if (next.length == _items.length) return;
+    _items = next;
+    notifyListeners();
+  }
+}
+
+/// Publishes contextual toolbar actions for the active tab.
+class ShellToolbarController extends ChangeNotifier {
+  List<ShellViewAction> _actions = const [];
+
+  /// The current tab-owned toolbar actions.
+  List<ShellViewAction> get actions => List.unmodifiable(_actions);
+
+  /// Replaces toolbar actions after validating their stable IDs.
+  void setActions(Iterable<ShellViewAction> actions) {
+    final next = actions.toList(growable: false);
+    final ids = <String>{};
+    for (final action in next) {
+      if (action.id.trim().isEmpty || !ids.add(action.id)) {
+        throw ArgumentError.value(action.id, 'actions', 'action IDs must be non-empty and unique');
+      }
+    }
+    _actions = next;
+    notifyListeners();
+  }
+}
+
+/// Describes an additional pane that a tab asks the shell to host.
+class ShellWorkspacePane {
+  final String id;
+  final String title;
+  final ShellViewBuilder builder;
+  final double minWidth;
+
+  /// Creates a secondary workspace pane.
+  const ShellWorkspacePane({required this.id, required this.title, required this.builder, this.minWidth = 240});
+}
+
+/// Owns split-pane requests and per-tab split layout preferences.
+class ShellWorkspaceController extends ChangeNotifier {
+  ShellWorkspaceController({
+    required bool initialSplitOpen,
+    bool hasSplitPreference = false,
+    List<double> initialWeights = const [],
+    ShellWorkspaceLayoutChanged? onLayoutChanged,
+  }) : _isSplitOpen = initialSplitOpen,
+       _weights = List.of(initialWeights) {
+    _hasSplitPreference = hasSplitPreference;
+    _onLayoutChanged = onLayoutChanged;
+  }
+
+  bool _isSplitOpen;
+  late bool _hasSplitPreference;
+  List<double> _weights;
+  List<ShellWorkspacePane> _panes = const [];
+  String? _collapsedPaneId;
+  late final ShellWorkspaceLayoutChanged? _onLayoutChanged;
+
+  /// Whether additional panes are currently shown.
+  bool get isSplitOpen => _isSplitOpen;
+
+  /// The current secondary pane registrations.
+  List<ShellWorkspacePane> get panes => List.unmodifiable(_panes);
+
+  /// Normalized width weights, including the primary pane.
+  List<double> get weights => List.unmodifiable(_weights);
+
+  /// The pane selected while the split is collapsed for a narrow window.
+  String? get collapsedPaneId => _collapsedPaneId;
+
+  /// Requests up to two secondary panes, producing a one-, two- or three-column workspace.
+  void requestPanes(Iterable<ShellWorkspacePane> panes, {List<double>? weights}) {
+    final next = panes.toList(growable: false);
+    final ids = <String>{};
+    if (next.length > 2) throw ArgumentError.value(next.length, 'panes', 'at most two secondary panes are supported');
+    for (final pane in next) {
+      if (pane.id.trim().isEmpty || !ids.add(pane.id) || !pane.minWidth.isFinite || pane.minWidth < 120) {
+        throw ArgumentError.value(pane.id, 'panes', 'pane IDs must be unique and minimum widths at least 120dp');
+      }
+    }
+    final samePanes =
+        _panes.length == next.length &&
+        List.generate(_panes.length, (index) {
+          final previous = _panes[index];
+          final pane = next[index];
+          return previous.id == pane.id &&
+              previous.title == pane.title &&
+              previous.minWidth == pane.minWidth &&
+              identical(previous.builder, pane.builder);
+        }).every((same) => same);
+    _panes = next;
+    if (samePanes && weights == null) return;
+    if (weights != null) {
+      _weights = _normalizeWeights(weights, next.length + 1);
+    } else if (_weights.length != next.length + 1) {
+      _weights = _normalizeWeights(_weights, next.length + 1);
+    }
+    if (next.isNotEmpty && !_hasSplitPreference) {
+      _isSplitOpen = true;
+      _hasSplitPreference = true;
+      _onLayoutChanged?.call(isOpen: _isSplitOpen, weights: List.unmodifiable(_weights), persist: true);
+    }
+    if (next.isEmpty) _isSplitOpen = false;
+    if (_collapsedPaneId != 'primary' && !ids.contains(_collapsedPaneId)) _collapsedPaneId = null;
+    notifyListeners();
+  }
+
+  /// Opens the requested split panes.
+  void openSplit() => setSplitOpen(isOpen: true);
+
+  /// Closes secondary panes without discarding their registrations or state.
+  void closeSplit() => setSplitOpen(isOpen: false);
+
+  /// Sets per-tab split visibility and persists the preference.
+  void setSplitOpen({required bool isOpen}) {
+    if (_isSplitOpen == isOpen && _hasSplitPreference) return;
+    _isSplitOpen = isOpen;
+    _hasSplitPreference = true;
+    _notifyLayout(persist: true);
+  }
+
+  /// Updates pane widths; callers can persist once a drag gesture ends.
+  void setWeights(List<double> weights, {bool persist = false}) {
+    final next = _normalizeWeights(weights, _panes.length + 1);
+    if (listEquals(next, _weights)) {
+      if (persist) _notifyLayout(persist: true);
+      return;
+    }
+    _weights = next;
+    _notifyLayout(persist: persist);
+  }
+
+  /// Restores saved split preferences without persisting them again.
+  void restoreLayout({required bool isOpen, required bool hasPreference, required List<double> weights}) {
+    final nextWeights = weights.length <= 3 && weights.every((weight) => weight.isFinite && weight > 0)
+        ? List<double>.of(weights)
+        : const <double>[];
+    if (_isSplitOpen == isOpen && _hasSplitPreference == hasPreference && listEquals(_weights, nextWeights)) return;
+    _isSplitOpen = isOpen;
+    _hasSplitPreference = hasPreference;
+    _weights = nextWeights;
+    notifyListeners();
+  }
+
+  /// Selects a pane while the layout is collapsed to one visible column.
+  void selectCollapsedPane(String paneId) {
+    if (paneId != 'primary' && !_panes.any((pane) => pane.id == paneId)) return;
+    if (_collapsedPaneId == paneId) return;
+    _collapsedPaneId = paneId;
+    notifyListeners();
+  }
+
+  List<double> _normalizeWeights(List<double> weights, int count) {
+    final valid = weights.length == count && weights.every((weight) => weight.isFinite && weight > 0)
+        ? weights
+        : List<double>.filled(count, 1);
+    final total = valid.fold<double>(0, (sum, weight) => sum + weight);
+    return valid.map((weight) => weight / total).toList(growable: false);
+  }
+
+  void _notifyLayout({required bool persist}) {
+    _onLayoutChanged?.call(isOpen: _isSplitOpen, weights: List.unmodifiable(_weights), persist: persist);
+    notifyListeners();
+  }
 }
 
 class ShellViewAction {
@@ -377,6 +756,7 @@ class ShellDestination {
   final IconData? inactiveIcon;
   final bool lockedVisible;
   final bool isUtility;
+  final bool showOnMobile;
   final String? defaultViewId;
   final Set<String>? allowedViewIds;
   @Deprecated('Move view content to ShellViewRegistration.')
@@ -396,6 +776,7 @@ class ShellDestination {
     this.inactiveIcon,
     this.lockedVisible = false,
     this.isUtility = false,
+    this.showOnMobile = true,
     this.defaultViewId,
     this.allowedViewIds,
     @Deprecated('Move view content to ShellViewRegistration.') this.builder,
@@ -502,6 +883,28 @@ class ShellConfig {
     this.inspectorBuilder,
     this.splitPaneBuilder,
   });
+
+  /// Returns this configuration with selected registration collections replaced.
+  ShellConfig copyWith({
+    List<ShellDestination>? destinations,
+    List<ShellViewRegistration>? views,
+    List<ShellModule>? modules,
+    List<ShellContext>? contexts,
+    List<ShellCommandRegistration>? commands,
+    List<ShellStatusProvider>? globalStatusProviders,
+    WidgetBuilder? inspectorBuilder,
+    WidgetBuilder? splitPaneBuilder,
+  }) => ShellConfig(
+    title: title,
+    destinations: destinations ?? this.destinations,
+    views: views ?? this.views,
+    modules: modules ?? this.modules,
+    contexts: contexts ?? this.contexts,
+    commands: commands ?? this.commands,
+    globalStatusProviders: globalStatusProviders ?? this.globalStatusProviders,
+    inspectorBuilder: inspectorBuilder ?? this.inspectorBuilder,
+    splitPaneBuilder: splitPaneBuilder ?? this.splitPaneBuilder,
+  );
 }
 
 enum ShellSlotState { content, empty, loading, error, unavailable }
@@ -560,9 +963,24 @@ ShellConfig defaultShellConfig() => ShellConfig(
         icon: presentation.activeIcon,
         inactiveIcon: presentation.inactiveIcon,
         defaultViewId: item.name,
-        allowedViewIds: {item.name},
+        allowedViewIds: switch (item) {
+          PageItem.page1 => const {'page1', 'demo.workspace', 'demo.report'},
+          PageItem.page2 => const {'page2', 'demo.session'},
+          _ => {item.name},
+        },
       );
     }),
+    ShellDestination(
+      id: 'profile',
+      title: (context) => context.l10n.profile,
+      icon: Icons.person_outline,
+      inactiveIcon: Icons.person_outline,
+      lockedVisible: true,
+      isUtility: true,
+      showOnMobile: false,
+      defaultViewId: 'profile',
+      allowedViewIds: const {'profile'},
+    ),
     ShellDestination(
       id: 'settings',
       title: (context) => context.l10n.settingsTitle,
@@ -577,21 +995,162 @@ ShellConfig defaultShellConfig() => ShellConfig(
   views: defaultShellViews(),
 );
 
-List<ShellViewRegistration> defaultShellViews() => PageItem.values.map((item) {
-  final presentation = _pageItemIcons(item);
-  return ShellViewRegistration(
-    id: item.name,
-    title: (context, instanceId) {
-      final title = pageItemPresentation(context, item).title;
-      final instanceNumber = int.tryParse(instanceId.split('-').last);
-      return instanceNumber == null || instanceNumber == 1 ? title : '$title $instanceNumber';
-    },
-    destinationId: item.name,
-    icon: presentation.activeIcon,
-    routePath: '/${item.name}',
-    viewBuilder: (context, view) => _buildPageItem(context, view, item),
+List<ShellViewRegistration> defaultShellViews() =>
+    PageItem.values.map((item) {
+      final presentation = _pageItemIcons(item);
+      return ShellViewRegistration(
+        id: item.name,
+        title: (context, instanceId) {
+          final title = pageItemPresentation(context, item).title;
+          final instanceNumber = int.tryParse(instanceId.split('-').last);
+          return instanceNumber == null || instanceNumber == 1 ? title : '$title $instanceNumber';
+        },
+        destinationId: item.name,
+        icon: presentation.activeIcon,
+        routePath: '/${item.name}',
+        viewBuilder: (context, view) => _buildPageItem(context, view, item),
+      );
+    }).toList()..addAll([
+      ShellViewRegistration(
+        id: 'demo.workspace',
+        title: (_, _) => 'Workspace',
+        destinationId: 'page1',
+        viewBuilder: (_, view) => ShellDemoView(view: view, splitPaneCount: 1),
+      ),
+      ShellViewRegistration(
+        id: 'demo.report',
+        title: (_, _) => 'Report',
+        destinationId: 'page1',
+        viewBuilder: (_, view) => ShellDemoView(view: view, splitPaneCount: 2),
+      ),
+      ShellViewRegistration(
+        id: 'demo.session',
+        title: (_, instanceId) => 'Session $instanceId',
+        destinationId: 'page2',
+        viewBuilder: (_, view) => ShellDemoView(view: view),
+      ),
+    ]);
+
+/// Demonstrates tab-scoped shell contributions with independent local state.
+class ShellDemoView extends StatefulWidget {
+  final ShellViewContext view;
+  final int splitPaneCount;
+
+  /// Creates an example registered view for template workspaces.
+  const ShellDemoView({super.key, required this.view, this.splitPaneCount = 0});
+
+  @override
+  State<ShellDemoView> createState() => _ShellDemoViewState();
+}
+
+class _ShellDemoViewState extends State<ShellDemoView> {
+  int _count = 0;
+  String _selectedNode = 'summary';
+
+  String get _rootId => 'demo-root:${widget.view.instanceId}';
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _publishShellState();
+    });
+  }
+
+  void _publishShellState() {
+    final view = widget.view;
+    final children = [
+      for (final (id, label) in [('summary', 'Summary'), ('activity', 'Activity')])
+        ShellNavigationNode(
+          id: 'demo:$id:${view.instanceId}',
+          label: label,
+          parentId: _rootId,
+          onActivate: () {
+            setState(() => _selectedNode = id);
+            _publishShellState();
+          },
+        ),
+    ];
+    view.breadcrumbs.setPath([
+      ShellNavigationNode(
+        id: _rootId,
+        label: 'Overview',
+        onActivate: () {
+          setState(() => _selectedNode = 'summary');
+          _publishShellState();
+        },
+        children: children,
+      ),
+      children.firstWhere((node) => node.id == 'demo:$_selectedNode:${view.instanceId}'),
+    ]);
+    view.status.setItem(
+      ShellStatusItem(
+        id: 'demo-count',
+        label: 'Items: $_count',
+        icon: Icons.list_alt,
+        severity: ShellStatusSeverity.success,
+      ),
+    );
+    view.inspector
+      ..setSelection('Item $_count')
+      ..setSections([
+        ShellInspectorSection(
+          id: 'demo-details',
+          title: 'Selection',
+          builder: (_) => Padding(
+            padding: const EdgeInsets.all(12),
+            child: Text('Tab ${view.instanceId} · $_selectedNode · $_count items'),
+          ),
+        ),
+      ])
+      ..open();
+    view.toolbar.setActions([
+      ShellViewAction(id: 'add-item', label: 'Add item', icon: Icons.add, onPressed: _increment),
+    ]);
+    if (view.tab.registrationId == 'demo.report') {
+      view.workspace.requestPanes([
+        for (var index = 0; index < widget.splitPaneCount; index++)
+          ShellWorkspacePane(
+            id: 'demo-pane-$index',
+            title: 'Panel ${index + 1}',
+            builder: (_, _) => Center(child: Text('Panel ${index + 1} · ${view.instanceId}')),
+          ),
+      ]);
+    }
+  }
+
+  void _increment() {
+    setState(() => _count++);
+    _publishShellState();
+  }
+
+  Future<void> _openAnother() async {
+    final registrationId = widget.view.tab.registrationId == 'demo.session' ? 'demo.session' : 'demo.report';
+    await widget.view.navigation.openView(registrationId);
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.all(24),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(widget.view.tab.registrationId, style: Theme.of(context).textTheme.titleLarge),
+        Text('Instance: ${widget.view.instanceId}'),
+        Text('Selected: $_selectedNode · Local count: $_count'),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          children: [
+            FilledButton(onPressed: _increment, child: const Text('Add item')),
+            OutlinedButton(onPressed: _openAnother, child: const Text('Open another view')),
+            OutlinedButton(onPressed: widget.view.inspector.open, child: const Text('Open Inspector')),
+          ],
+        ),
+      ],
+    ),
   );
-}).toList();
+}
 
 Widget _buildPageItem(BuildContext context, ShellViewContext view, PageItem item) {
   return switch (item) {
