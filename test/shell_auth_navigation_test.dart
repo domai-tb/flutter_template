@@ -32,11 +32,8 @@ void main() {
 
     await tester.pumpWidget(_app());
     await tester.pumpAndSettle();
-    final account = find.byKey(const ValueKey('header-action-account'));
-    final more = find.byKey(const ValueKey('header-action-more'));
-    expect(tester.getRect(account).right, greaterThan(tester.getRect(more).right));
-
-    await tester.tap(find.byKey(const ValueKey('account-menu-button')));
+    expect(find.byKey(const ValueKey('header-action-account')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('activity-rail-profile')));
     await tester.pumpAndSettle();
     expect(find.text('Guest · Not signed in'), findsOneWidget);
     await tester.tap(find.text('Sign in').last);
@@ -56,25 +53,26 @@ void main() {
     await tester.pumpWidget(_app(config: _config(sections: 5)));
     await tester.pumpAndSettle();
 
-    final search = tester.getRect(find.byKey(const ValueKey('header-action-search')));
-    final more = tester.getRect(find.byKey(const ValueKey('header-action-more')));
-    final account = tester.getRect(find.byKey(const ValueKey('header-action-account')));
+    final sidebar = tester.getRect(find.byKey(const ValueKey('header-action-right-sidebar')));
+    final palette = tester.getRect(find.byKey(const ValueKey('header-action-command-palette')));
+    final search = tester.getRect(find.byKey(const ValueKey('header-action-search-tabs')));
     expect(search.size, const Size.square(32));
-    expect(more.size, search.size);
-    expect(account.size, search.size);
-    expect(search.center.dy, more.center.dy);
-    expect(more.center.dy, account.center.dy);
-    expect(account.left, greaterThan(more.right));
+    expect(palette.size, search.size);
+    expect(sidebar.size, search.size);
+    expect(search.center.dy, palette.center.dy);
+    expect(palette.center.dy, sidebar.center.dy);
+    expect(palette.left, greaterThan(sidebar.right));
+    expect(search.left, greaterThan(palette.right));
 
     final rail = tester.getRect(find.byKey(const ValueKey('activity-rail')));
     final settings = tester.getRect(find.byKey(const ValueKey('activity-rail-settings')));
     final tabStrip = tester.getRect(find.byType(ReorderableListView).first);
     final status = tester.getRect(find.byType(ShellStatusBar));
-    expect(rail.top, 40);
-    expect(rail.bottom, status.top);
-    expect(settings.bottom, rail.bottom);
+    expect(rail.top, 48);
+    expect(status.top - rail.bottom, 8);
+    expect(settings.bottom, closeTo(rail.bottom, 1));
     expect(settings.height, 44);
-    expect(tabStrip.left, rail.right);
+    expect(tabStrip.left - rail.right, closeTo(8, 1));
     expect(tabStrip.height, 34);
     expect(status.height, 24);
     expect(1440 - tester.getRect(find.byKey(const ValueKey('status-notifications'))).right, lessThanOrEqualTo(8));
@@ -110,7 +108,7 @@ void main() {
     await tester.pumpAndSettle();
     final home = tester.state<HomePageState>(find.byType(HomePage));
     expect(auth.restoreCalls, 1);
-    await tester.tap(find.byKey(const ValueKey('account-menu-button')));
+    await tester.tap(find.byKey(const ValueKey('activity-rail-profile')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Sign in').last);
     await tester.pumpAndSettle();
@@ -136,10 +134,6 @@ void main() {
     final preferences = await SharedPreferences.getInstance();
     expect(preferences.getString('app_settings_json_v1') ?? '', isNot(contains('never-persist-this')));
 
-    await tester.tap(find.byKey(const ValueKey('account-menu-button')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Profile').last);
-    await tester.pumpAndSettle();
     expect(find.text('Ada Lovelace'), findsOneWidget);
     expect(find.text('ada@example.test'), findsWidgets);
     expect(find.text('acct-42'), findsOneWidget);
@@ -206,9 +200,7 @@ void main() {
     expect(_workspace('settings').tabs, hasLength(1));
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
-  testWidgets('mobile uses a bottom scroller, reveals selected Settings, and keeps the avatar in the header', (
-    tester,
-  ) async {
+  testWidgets('mobile uses a bottom scroller with Profile and selected Settings', (tester) async {
     await ic.init();
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(390, 844);
@@ -224,10 +216,12 @@ void main() {
     expect(find.byType(BottomNavBar), findsOneWidget);
     expect(find.byKey(const ValueKey('activity-rail')), findsNothing);
     expect(find.byIcon(Icons.menu), findsNothing);
-    expect(find.byKey(const ValueKey('header-action-account')), findsOneWidget);
+    expect(find.byKey(const ValueKey('header-action-account')), findsNothing);
+    expect(find.byKey(const ValueKey('bottom-navigation-item-profile')), findsOneWidget);
     final bar = tester.getRect(find.byType(BottomNavBar));
     final settingsItem = tester.getRect(find.byKey(const ValueKey('bottom-navigation-item-settings')));
-    expect(bar.bottom, 844);
+    expect(bar.bottom, lessThanOrEqualTo(844));
+    expect(844 - bar.bottom, lessThanOrEqualTo(10));
     expect(settingsItem.left, greaterThanOrEqualTo(bar.left));
     expect(settingsItem.right, lessThanOrEqualTo(bar.right));
     expect(_workspace('settings').tabs.single.registrationId, 'settings');

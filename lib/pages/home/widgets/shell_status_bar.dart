@@ -201,7 +201,7 @@ class _ShellBreadcrumbBar extends StatelessWidget {
   }
 }
 
-class _BreadcrumbSegment extends StatelessWidget {
+class _BreadcrumbSegment extends StatefulWidget {
   final ShellNavigationNode node;
   final bool active;
   final FutureOr<void> Function(ShellNavigationNode node) onNavigate;
@@ -209,63 +209,105 @@ class _BreadcrumbSegment extends StatelessWidget {
   const _BreadcrumbSegment({required this.node, required this.active, required this.onNavigate});
 
   @override
+  State<_BreadcrumbSegment> createState() => _BreadcrumbSegmentState();
+}
+
+class _BreadcrumbSegmentState extends State<_BreadcrumbSegment> {
+  final MenuController _menuController = MenuController();
+  List<_BreadcrumbMenuNode> _menuNodes = const [];
+
+  Future<List<_BreadcrumbMenuNode>> _loadNodes(ShellNavigationNode node, Set<String> ancestors) async {
+    if (ancestors.contains(node.id)) return [];
+    final path = {...ancestors, node.id};
+    final provided = await node.childrenProvider?.call() ?? const <ShellNavigationNode>[];
+    final children = <String, ShellNavigationNode>{
+      for (final child in node.children) child.id: child,
+      for (final child in provided) child.id: child,
+    }.values.where((child) => child.enabled);
+    return [for (final child in children) _BreadcrumbMenuNode(child, await _loadNodes(child, path))];
+  }
+
+  Future<void> _openMenu() async {
+    final nodes = await _loadNodes(widget.node, const {});
+    if (!mounted || nodes.isEmpty) return;
+    setState(() => _menuNodes = nodes);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _menuController.open();
+    });
+  }
+
+  Widget _menuItem(_BreadcrumbMenuNode entry) {
+    final node = entry.node;
+    final label = Row(
+      children: [
+        if (node.icon case final icon?) ...[Icon(icon, size: 16), const SizedBox(width: 8)],
+        Flexible(child: Text(node.label, maxLines: 1, overflow: TextOverflow.ellipsis)),
+      ],
+    );
+    if (entry.children.isNotEmpty) {
+      return SubmenuButton(menuChildren: [for (final child in entry.children) _menuItem(child)], child: label);
+    }
+    return MenuItemButton(onPressed: () => unawaited(Future<void>.sync(() => widget.onNavigate(node))), child: label);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Flexible(
-          child: Tooltip(
-            message: node.tooltip ?? node.label,
-            child: TextButton(
-              key: ValueKey('breadcrumb-node-${node.id}'),
-              onPressed: node.enabled ? () => unawaited(Future<void>.sync(() => onNavigate(node))) : null,
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                minimumSize: const Size(0, 24),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                visualDensity: VisualDensity.compact,
-                foregroundColor: active ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
-              ),
-              child: MergeSemantics(
-                child: Semantics(
-                  label: node.accessibilityLabel ?? node.label,
-                  button: true,
-                  enabled: node.enabled,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (node.icon case final icon?) ...[Icon(icon, size: 14), const SizedBox(width: 2)],
-                      Flexible(
-                        child: Text(
-                          node.label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: active ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
-                            fontWeight: active ? FontWeight.w600 : null,
-                          ),
-                        ),
+    final hasMenu = widget.node.childrenProvider != null || widget.node.children.isNotEmpty;
+    return MenuAnchor(
+      controller: _menuController,
+      menuChildren: [for (final node in _menuNodes) _menuItem(node)],
+      builder: (context, _, _) => Tooltip(
+        message: widget.node.tooltip ?? widget.node.label,
+        child: TextButton(
+          key: ValueKey('breadcrumb-node-${widget.node.id}'),
+          onPressed: !widget.node.enabled
+              ? null
+              : hasMenu
+              ? _openMenu
+              : () => unawaited(Future<void>.sync(() => widget.onNavigate(widget.node))),
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            minimumSize: const Size(0, 24),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            visualDensity: VisualDensity.compact,
+            foregroundColor: widget.active ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
+          ),
+          child: MergeSemantics(
+            child: Semantics(
+              label: widget.node.accessibilityLabel ?? widget.node.label,
+              button: true,
+              enabled: widget.node.enabled,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (widget.node.icon case final icon?) ...[Icon(icon, size: 14), const SizedBox(width: 2)],
+                  Flexible(
+                    child: Text(
+                      widget.node.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: widget.active ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
+                        fontWeight: widget.active ? FontWeight.w600 : null,
                       ),
-                    ],
+                    ),
                   ),
-                ),
+                ],
               ),
             ),
           ),
         ),
-        if (node.childrenProvider != null || node.children.isNotEmpty)
-          _BreadcrumbMenuButton(
-            key: ValueKey('breadcrumb-menu-${node.id}'),
-            label: node.label,
-            tooltip: node.tooltip ?? node.label,
-            icon: Icons.arrow_drop_down,
-            loadNodes: () async => [...node.children, ...?await node.childrenProvider?.call()],
-            onSelect: onNavigate,
-          ),
-      ],
+      ),
     );
   }
+}
+
+class _BreadcrumbMenuNode {
+  final ShellNavigationNode node;
+  final List<_BreadcrumbMenuNode> children;
+
+  const _BreadcrumbMenuNode(this.node, this.children);
 }
 
 class _BreadcrumbMenuButton extends StatefulWidget {

@@ -111,7 +111,8 @@ class AppLocalizationsDe extends AppLocalizations {
       'Dieser Tab ist ein neutraler Inhaltsbereich. Registriere einen View-Builder, um App-Inhalte bereitzustellen.';
 
   @override
-  String get inspectorEmpty => 'Es ist kein Inspector-Inhalt registriert.';
+  String get inspectorEmpty =>
+      'Für die rechte Seitenleiste ist kein Inhalt registriert.';
 
   @override
   String get loading => 'Wird geladen';
@@ -137,10 +138,10 @@ class AppLocalizationsDe extends AppLocalizations {
   String get openSettings => 'Einstellungen öffnen';
 
   @override
-  String get openInspector => 'Inspector öffnen';
+  String get openInspector => 'Rechte Seitenleiste öffnen';
 
   @override
-  String get closeInspector => 'Inspector schließen';
+  String get closeInspector => 'Rechte Seitenleiste schließen';
 
   @override
   String get restoreLayout => 'Standardlayout wiederherstellen';
@@ -211,10 +212,10 @@ class AppLocalizationsDe extends AppLocalizations {
   String get closeTab => 'Tab schließen';
 
   @override
-  String get inspector => 'Inspector';
+  String get inspector => 'Rechte Seitenleiste';
 
   @override
-  String get resizeInspector => 'Inspector-Größe ändern';
+  String get resizeInspector => 'Breite der rechten Seitenleiste ändern';
 
   @override
   String get resizeSplitPane => 'Geteilten Bereich skalieren';
@@ -576,4 +577,55 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get checkingSession => 'Konto wird geprüft …';
+
+  @override
+  String get newTab => 'Neuer Tab';
+
+  @override
+  String get searchOpenTabs => 'Offene Tabs durchsuchen';
+
+  @override
+  String get noOpenTabsMatch => 'Keine offenen Tabs passen zu dieser Suche.';
+
+  @override
+  String get rightSidebar => 'Rechte Seitenleiste';
+
+  @override
+  String get openRightSidebar => 'Rechte Seitenleiste öffnen';
+
+  @override
+  String get closeRightSidebar => 'Rechte Seitenleiste schließen';
+
+  @override
+  String get resizeRightSidebar => 'Breite der rechten Seitenleiste ändern';
+
+  @override
+  String get page1Overview => 'Übersicht';
+
+  @override
+  String get page1Items => 'Einträge';
+
+  @override
+  String get page1AllItems => 'Alle Einträge';
+
+  @override
+  String get page1RecentItems => 'Neueste Einträge';
+
+  @override
+  String get page1Reports => 'Berichte';
+
+  @override
+  String get page1Summary => 'Zusammenfassung';
+
+  @override
+  String get selectedItem => 'Ausgewählter Eintrag';
+
+  @override
+  String get selectItemForDetails =>
+      'Wähle einen Eintrag aus, um hier Details zu sehen.';
+
+  @override
+  String page1SummaryDescription(int count) {
+    return '$count Einträge sind in diesem Arbeitsbereich verfügbar.';
+  }
 }

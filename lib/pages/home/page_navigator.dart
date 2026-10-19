@@ -329,12 +329,12 @@ class ShellViewContext {
   final GlobalKey<AnimatedExitState> exitAnimationKey;
   final ShellBreadcrumbController breadcrumbs;
   final ShellNavigationController navigation;
-  final ShellInspectorController inspector;
+  final ShellRightSidebarController rightSidebar;
   final ShellStatusController status;
   final ShellToolbarController toolbar;
   final ShellWorkspaceController workspace;
 
-  const ShellViewContext({
+  ShellViewContext({
     required this.tab,
     required this.isRestored,
     required this.lifecycle,
@@ -343,11 +343,14 @@ class ShellViewContext {
     required this.exitAnimationKey,
     required this.breadcrumbs,
     required this.navigation,
-    required this.inspector,
+    ShellRightSidebarController? rightSidebar,
+    @Deprecated('Use rightSidebar.') ShellRightSidebarController? inspector,
     required this.status,
     required this.toolbar,
     required this.workspace,
-  });
+  }) : rightSidebar = rightSidebar ?? inspector!;
+
+  ShellRightSidebarController get inspector => rightSidebar;
 
   String get instanceId => tab.instanceId ?? tab.id;
   Map<String, dynamic> get parameters => tab.parameters;
@@ -414,15 +417,14 @@ class ShellNavigationController {
   void dispose() => _disposed = true;
 }
 
-/// A page-provided section displayed in the shell Inspector.
-class ShellInspectorSection {
+/// A page-provided section displayed in the shell right sidebar.
+class ShellRightSidebarSection {
   final String id;
   final String title;
   final WidgetBuilder builder;
   final bool initiallyExpanded;
 
-  /// Creates an Inspector section with stable identity and page-built content.
-  const ShellInspectorSection({
+  const ShellRightSidebarSection({
     required this.id,
     required this.title,
     required this.builder,
@@ -430,11 +432,13 @@ class ShellInspectorSection {
   });
 }
 
-/// Holds tab-specific Inspector visibility and content.
+typedef ShellInspectorSection = ShellRightSidebarSection;
+
+/// Holds tab-specific right-sidebar visibility and content.
 ///
 /// A `null` visibility override inherits the section or application setting.
-class ShellInspectorController extends ChangeNotifier {
-  ShellInspectorController({bool? isVisible, ValueChanged<bool?>? onVisibilityChanged}) {
+class ShellRightSidebarController extends ChangeNotifier {
+  ShellRightSidebarController({bool? isVisible, ValueChanged<bool?>? onVisibilityChanged}) {
     _isVisible = isVisible;
     _onVisibilityChanged = onVisibilityChanged;
   }
@@ -442,25 +446,25 @@ class ShellInspectorController extends ChangeNotifier {
   late bool? _isVisible;
   String? _selectionLabel;
   String? _focusedSectionId;
-  List<ShellInspectorSection> _sections = const [];
+  List<ShellRightSidebarSection> _sections = const [];
   late final ValueChanged<bool?>? _onVisibilityChanged;
 
-  /// Whether this tab overrides inherited Inspector visibility.
+  /// Whether this tab overrides inherited right-sidebar visibility.
   bool? get isVisible => _isVisible;
 
-  /// The current Inspector section list.
-  List<ShellInspectorSection> get sections => List.unmodifiable(_sections);
+  /// The current right-sidebar section list.
+  List<ShellRightSidebarSection> get sections => List.unmodifiable(_sections);
 
-  /// The label of the page's current Inspector selection.
+  /// The label of the page's current right-sidebar selection.
   String? get selectionLabel => _selectionLabel;
 
   /// The section most recently requested for focus.
   String? get focusedSectionId => _focusedSectionId;
 
-  /// Opens the Inspector for this tab.
+  /// Opens the right sidebar for this tab.
   void open() => setVisible(isVisible: true);
 
-  /// Closes the Inspector for this tab.
+  /// Closes the right sidebar for this tab.
   void close() => setVisible(isVisible: false);
 
   /// Sets tab visibility, or clears the override when [isVisible] is `null`.
@@ -478,9 +482,9 @@ class ShellInspectorController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Replaces the Inspector sections and removes duplicate section IDs.
-  void setSections(Iterable<ShellInspectorSection> sections) {
-    final next = <String, ShellInspectorSection>{};
+  /// Replaces the right-sidebar sections and removes duplicate section IDs.
+  void setSections(Iterable<ShellRightSidebarSection> sections) {
+    final next = <String, ShellRightSidebarSection>{};
     for (final section in sections) {
       if (section.id.trim().isEmpty) throw ArgumentError.value(section.id, 'sections.id');
       if (next.containsKey(section.id)) throw ArgumentError.value(section.id, 'sections', 'duplicate section ID');
@@ -510,6 +514,8 @@ class ShellInspectorController extends ChangeNotifier {
     }
   }
 }
+
+typedef ShellInspectorController = ShellRightSidebarController;
 
 /// Publishes contextual status items for the active tab.
 class ShellStatusController extends ChangeNotifier {
@@ -764,6 +770,7 @@ class ShellDestination {
   final String? openViewId;
   final String? commandId;
   final WidgetBuilder? panelBuilder;
+  final WidgetBuilder? rightSidebarBuilder;
   final WidgetBuilder? inspectorBuilder;
   final ShellSectionStatusItemsBuilder? statusItemsBuilder;
   final ShellStatusProvider? statusProvider;
@@ -783,6 +790,7 @@ class ShellDestination {
     this.openViewId,
     this.commandId,
     this.panelBuilder,
+    this.rightSidebarBuilder,
     this.inspectorBuilder,
     this.statusItemsBuilder,
     this.statusProvider,
@@ -807,6 +815,7 @@ class ShellViewRegistration {
   final bool closeable;
   final ShellTabCloseGuard? onCloseRequested;
   final ShellViewActionsBuilder? toolbarActionsBuilder;
+  final ShellViewBuilder? rightSidebarBuilder;
   final ShellViewBuilder? inspectorBuilder;
   final ShellViewBuilder? splitPaneBuilder;
   final ShellStatusProviderFactory? statusProviderFactory;
@@ -826,6 +835,7 @@ class ShellViewRegistration {
     this.closeable = true,
     this.onCloseRequested,
     this.toolbarActionsBuilder,
+    this.rightSidebarBuilder,
     this.inspectorBuilder,
     this.splitPaneBuilder,
     this.statusProviderFactory,
@@ -869,6 +879,7 @@ class ShellConfig {
   final List<ShellContext> contexts;
   final List<ShellCommandRegistration> commands;
   final List<ShellStatusProvider> globalStatusProviders;
+  final WidgetBuilder? rightSidebarBuilder;
   final WidgetBuilder? inspectorBuilder;
   final WidgetBuilder? splitPaneBuilder;
 
@@ -880,6 +891,7 @@ class ShellConfig {
     this.contexts = const [],
     this.commands = const [],
     this.globalStatusProviders = const [],
+    this.rightSidebarBuilder,
     this.inspectorBuilder,
     this.splitPaneBuilder,
   });
@@ -892,6 +904,7 @@ class ShellConfig {
     List<ShellContext>? contexts,
     List<ShellCommandRegistration>? commands,
     List<ShellStatusProvider>? globalStatusProviders,
+    WidgetBuilder? rightSidebarBuilder,
     WidgetBuilder? inspectorBuilder,
     WidgetBuilder? splitPaneBuilder,
   }) => ShellConfig(
@@ -902,6 +915,7 @@ class ShellConfig {
     contexts: contexts ?? this.contexts,
     commands: commands ?? this.commands,
     globalStatusProviders: globalStatusProviders ?? this.globalStatusProviders,
+    rightSidebarBuilder: rightSidebarBuilder ?? this.rightSidebarBuilder,
     inspectorBuilder: inspectorBuilder ?? this.inspectorBuilder,
     splitPaneBuilder: splitPaneBuilder ?? this.splitPaneBuilder,
   );
@@ -977,7 +991,6 @@ ShellConfig defaultShellConfig() => ShellConfig(
       inactiveIcon: Icons.person_outline,
       lockedVisible: true,
       isUtility: true,
-      showOnMobile: false,
       defaultViewId: 'profile',
       allowedViewIds: const {'profile'},
     ),
@@ -1091,10 +1104,10 @@ class _ShellDemoViewState extends State<ShellDemoView> {
         severity: ShellStatusSeverity.success,
       ),
     );
-    view.inspector
+    view.rightSidebar
       ..setSelection('Item $_count')
       ..setSections([
-        ShellInspectorSection(
+        ShellRightSidebarSection(
           id: 'demo-details',
           title: 'Selection',
           builder: (_) => Padding(
@@ -1144,7 +1157,7 @@ class _ShellDemoViewState extends State<ShellDemoView> {
           children: [
             FilledButton(onPressed: _increment, child: const Text('Add item')),
             OutlinedButton(onPressed: _openAnother, child: const Text('Open another view')),
-            OutlinedButton(onPressed: widget.view.inspector.open, child: const Text('Open Inspector')),
+            OutlinedButton(onPressed: widget.view.rightSidebar.open, child: Text(context.l10n.openRightSidebar)),
           ],
         ),
       ],
@@ -1158,6 +1171,7 @@ Widget _buildPageItem(BuildContext context, ShellViewContext view, PageItem item
       mainNavigatorKey: view.mainNavigatorKey,
       pageEntryAnimationKey: view.entryAnimationKey,
       pageExitAnimationKey: view.exitAnimationKey,
+      view: view,
     ),
     PageItem.page2 => Page2Page(
       mainNavigatorKey: view.mainNavigatorKey,

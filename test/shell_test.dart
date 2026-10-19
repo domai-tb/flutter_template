@@ -156,7 +156,7 @@ void main() {
       expect(tester.getRect(find.byKey(const ValueKey('status-notifications'))).right, closeTo(size.width - 8, 2));
       if (size.width <= 720) expect(find.byType(ReorderableListView), findsOneWidget);
     }
-    await tester.tap(find.byTooltip('Open inspector'));
+    await tester.tap(find.byTooltip('Open right sidebar'));
     await tester.pumpAndSettle();
     expect(tester.getRect(find.byKey(const ValueKey('shell-status-bar'))).bottom, 900);
     tester.view.physicalSize = const Size(720, 900);
@@ -189,7 +189,7 @@ void main() {
     expect(find.text('Configuration navigation-1'), findsOneWidget);
     expect(find.text('Network navigation-1'), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('breadcrumb-menu-configuration-navigation-1')));
+    await tester.tap(find.byKey(const ValueKey('breadcrumb-node-configuration-navigation-1')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Appearance navigation-1'));
     await tester.pumpAndSettle();
@@ -201,8 +201,9 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('breadcrumb-node-configuration-navigation-1')));
     await tester.pumpAndSettle();
-    expect(find.text('Appearance navigation-1'), findsNothing);
-    expect(find.text('Configuration navigation-1'), findsOneWidget);
+    await tester.tap(find.text('Network navigation-1'));
+    await tester.pumpAndSettle();
+    expect(find.text('Network navigation-1'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('breadcrumb-page-network-navigation-1')));
     await tester.pumpAndSettle();
@@ -212,7 +213,7 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('tab-add-action')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Workspace navigation'));
+    expect(find.text('Breadcrumb content navigation-2'), findsOneWidget);
     await tester.pumpAndSettle();
     final coordinator = ShellWorkspace.of(tester.element(find.text('Breadcrumb content navigation-2')));
     final tabs = ic
@@ -222,6 +223,24 @@ void main() {
         .firstWhere((workspace) => workspace.sectionId == 'section-a')
         .tabs;
     expect(tabs, hasLength(2));
+
+    await tester.tap(find.byKey(const ValueKey('header-action-search-tabs')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(ValueKey('open-tab-search-${tabs.first.id}')), findsOneWidget);
+    await tester.enterText(find.byType(TextField).last, 'navigation-1');
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(ValueKey('open-tab-search-${tabs.first.id}')));
+    await tester.pumpAndSettle();
+    expect(find.text('Detail navigation-1'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('header-action-search-tabs')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, 'navigation-2');
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(ValueKey('open-tab-search-${tabs.last.id}')));
+    await tester.pumpAndSettle();
+    expect(find.text('Breadcrumb content navigation-2'), findsOneWidget);
+
     await tester.tap(find.byKey(const ValueKey('breadcrumb-page-appearance-navigation-2')));
     await tester.pumpAndSettle();
     expect(find.text('Appearance navigation-2'), findsOneWidget);
@@ -243,6 +262,41 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Detail navigation-1'), findsNothing);
     expect(find.text('Network navigation-1'), findsOneWidget);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
+
+  testWidgets('default page breadcrumbs do not repeat the section and tab titles', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1440, 900);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(_app(null));
+    await tester.pumpAndSettle();
+
+    final footer = find.byKey(const ValueKey('shell-status-bar'));
+    expect(find.descendant(of: footer, matching: find.text('Page 1')), findsOneWidget);
+    expect(find.descendant(of: footer, matching: find.text('Overview')), findsOneWidget);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
+
+  testWidgets('renaming a tab keeps the reorderable tab tree stable', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1440, 900);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(_app(_breadcrumbConfig()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(ReorderableDragStartListener).first, buttons: 2);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Rename tab'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, 'Renamed workspace');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Renamed workspace'), findsWidgets);
+    expect(tester.takeException(), isNull);
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
   testWidgets('global, section, and tab status providers compose with the active workspace', (tester) async {
@@ -344,8 +398,8 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(_app(_testConfig()));
 
-    const ids = ['inspector', 'search', 'more', 'account'];
-    const icons = [Icons.vertical_split_outlined, Icons.search, Icons.more_vert, Icons.person_outline];
+    const ids = ['right-sidebar', 'command-palette', 'search-tabs'];
+    const icons = [Icons.vertical_split_outlined, Icons.terminal, Icons.search];
     for (final size in [const Size(720, 900), const Size(1280, 720), const Size(1440, 900)]) {
       tester.view.physicalSize = size;
       await tester.pumpAndSettle();
@@ -372,10 +426,10 @@ void main() {
         tester.getRect(find.byIcon(Icons.notifications_none)).center.dy,
         greaterThan(tester.getRect(find.byKey(const ValueKey('shell-status-bar'))).top),
       );
-      expect(find.byKey(const ValueKey('header-action-search')), findsOneWidget);
-      expect(find.byKey(const ValueKey('header-action-more')), findsOneWidget);
-      expect(find.byTooltip('Find open tab'), findsOneWidget);
-      expect(find.byTooltip('Open view'), findsOneWidget);
+      expect(find.byKey(const ValueKey('header-action-command-palette')), findsOneWidget);
+      expect(find.byKey(const ValueKey('header-action-search-tabs')), findsOneWidget);
+      expect(find.byTooltip('Search open tabs'), findsOneWidget);
+      expect(find.byTooltip('New tab'), findsOneWidget);
       if (size.width == 720) {
         expect(find.byTooltip('Navigation'), findsNothing);
         expect(find.byKey(const ValueKey('shell-status-bar')), findsOneWidget);
@@ -386,15 +440,7 @@ void main() {
       expect(tabOverflow.size, const Size(32, 32));
       expect(tabAdd.size, const Size(32, 32));
       expect(tabAdd.center.dx - tabOverflow.center.dx, closeTo(36, 2));
-      expect(size.width - tabAdd.right, closeTo(8, 1));
-
-      await tester.tap(find.byTooltip('More actions'));
-      await tester.pumpAndSettle();
-      final menuItems = find.byType(PopupMenuItem<String>);
-      expect(menuItems, findsAtLeastNWidgets(1));
-      expect(tester.getSize(menuItems.first).height, inInclusiveRange(28, 34));
-      await tester.tapAt(Offset(size.width / 2, size.height / 2));
-      await tester.pumpAndSettle();
+      expect(size.width - tabAdd.right, closeTo(16, 2));
     }
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
@@ -416,10 +462,9 @@ void main() {
     expect(tabOverflow.size, const Size(36, 36));
     expect(tabAdd.size, const Size(36, 36));
     expect(tabAdd.center.dx - tabOverflow.center.dx, closeTo(40, 2));
-
-    await tester.tap(find.byTooltip('More actions'));
-    await tester.pumpAndSettle();
-    expect(tester.getSize(find.byType(PopupMenuItem<String>).first).height, inInclusiveRange(34, 38));
+    for (final id in ['right-sidebar', 'command-palette', 'search-tabs']) {
+      expect(tester.getSize(find.byKey(ValueKey('header-action-$id'))), const Size(36, 36));
+    }
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
   testWidgets('desktop rail keeps aligned icons and hover does not navigate', (tester) async {
@@ -741,7 +786,7 @@ void main() {
     tester.state<HomePageState>(find.byType(HomePage)).openView('broken', sectionId: 'errors');
     await tester.pumpAndSettle();
     expect(find.textContaining('intentional'), findsOneWidget);
-    expect(find.byTooltip('More actions'), findsOneWidget);
+    expect(find.byKey(const ValueKey('header-action-command-palette')), findsOneWidget);
     expect(tester.takeException(), isNull);
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
@@ -888,7 +933,7 @@ void main() {
 
     await tester.pumpWidget(_app(_testConfig()));
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('More actions'));
+    await tester.tap(find.byKey(const ValueKey('header-action-command-palette')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Open split view'));
     await tester.pumpAndSettle();
@@ -907,7 +952,7 @@ void main() {
     tester.view.physicalSize = const Size(1440, 900);
     await tester.pumpAndSettle();
     expect(find.text('Split test content'), findsOneWidget);
-    await tester.tap(find.byTooltip('More actions'));
+    await tester.tap(find.byKey(const ValueKey('header-action-command-palette')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Restore default layout'));
     await tester.pumpAndSettle();

@@ -50,7 +50,7 @@ void main() {
     expect(navigation.selectedSectionId, 'activity-b');
     expect(_workspace(settings, 'activity-b').tabs, isEmpty);
     expect(find.text('Document A2'), findsNothing);
-    await tester.tap(find.byTooltip('Open inspector'));
+    await tester.tap(find.byTooltip('Open right sidebar'));
     await tester.pumpAndSettle();
     expect(find.text('No tab is active.'), findsOneWidget);
     await tester.drag(find.byIcon(Icons.drag_indicator), const Offset(-32, 0));
@@ -174,6 +174,11 @@ void main() {
     expect(navigation.workspaceFor('b').tabs.where((tab) => tab.registrationId == 'new'), hasLength(50));
     expect(navigation.workspaceFor('c').tabs, isEmpty);
     expect(navigation.selectedSectionId, 'a');
+
+    final reusedTab = navigation.openTab('c', 'registration', instanceId: 'resource-c');
+    final newTab = navigation.openTab('c', 'registration', instanceId: 'resource-c', forceNew: true);
+    expect(newTab, isNot(reusedTab));
+    expect(navigation.workspaceFor('c').tabs, hasLength(2));
   });
 
   test('restoration retains unavailable section and view records', () {
@@ -214,15 +219,15 @@ void main() {
     expect(retired.tabs.single.parameters, {'opaque': 'preserve'});
   });
 
-  testWidgets('narrow desktop keeps the generic Inspector available in a drawer', (tester) async {
+  testWidgets('narrow desktop keeps the generic right sidebar available in a drawer', (tester) async {
     await _pumpShell(tester, config: _config(), size: const Size(960, 700));
-    expect(find.byTooltip('Open inspector'), findsOneWidget);
+    expect(find.byTooltip('Open right sidebar'), findsOneWidget);
 
-    await tester.tap(find.byTooltip('Open inspector'));
+    await tester.tap(find.byTooltip('Open right sidebar'));
     await tester.pumpAndSettle();
     expect(find.text('No tab is active.'), findsOneWidget);
     final drawer = find.ancestor(of: find.text('No tab is active.'), matching: find.byType(Drawer));
-    await tester.tap(find.descendant(of: drawer, matching: find.byTooltip('Close inspector')));
+    await tester.tap(find.descendant(of: drawer, matching: find.byTooltip('Close right sidebar')));
     await tester.pumpAndSettle();
     expect(find.text('No tab is active.'), findsNothing);
     expect(ic.sl<SettingsController>().settings.inspectorOpen, isFalse);
@@ -286,8 +291,8 @@ void main() {
     await home.selectedPage(active);
     await tester.pumpAndSettle();
     expect(_workspace(settings, active).tabs, isNotEmpty);
-    expect(find.byTooltip('Open inspector'), findsOneWidget);
-    await tester.tap(find.byTooltip('Open inspector'));
+    expect(find.byTooltip('Open right sidebar'), findsOneWidget);
+    await tester.tap(find.byTooltip('Open right sidebar'));
     await tester.pumpAndSettle();
     expect(find.text('Workspace'), findsOneWidget);
 
@@ -308,7 +313,9 @@ void main() {
     expect(page2Tabs.map((tab) => tab.id).toSet(), hasLength(2));
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
-  testWidgets('commands, contextual inspector, status, and middle click follow the active section tab', (tester) async {
+  testWidgets('commands, contextual right sidebar, status, and middle click follow the active section tab', (
+    tester,
+  ) async {
     final actions = <String>[];
     final providers = <String, _WorkspaceStatusProvider>{};
     final config = _config(onAction: actions.add, providers: providers);
@@ -317,11 +324,11 @@ void main() {
     final editorId = home.openView('editor', instanceId: 'one', parameters: {'document': 'alpha'})!;
     await tester.pumpAndSettle();
 
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-    await tester.sendKeyEvent(LogicalKeyboardKey.keyK);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+    await tester.tap(find.byKey(const ValueKey('header-action-command-palette')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Open view: Help'));
+    await tester.enterText(find.byType(TextField).first, 'Open view: Help');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Open view: Help').last);
     await tester.pumpAndSettle();
     expect(find.text('Help view'), findsOneWidget);
     expect(find.text('Status one'), findsNothing);
@@ -332,7 +339,7 @@ void main() {
     expect(find.text('Status one'), findsOneWidget);
     await tester.tap(find.byTooltip('Pin editor one'));
     expect(actions, ['one']);
-    await tester.tap(find.byTooltip('Open inspector'));
+    await tester.tap(find.byTooltip('Open right sidebar'));
     await tester.pumpAndSettle();
     expect(find.text('Inspector one'), findsOneWidget);
 

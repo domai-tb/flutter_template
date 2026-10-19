@@ -39,7 +39,7 @@
   "currentPageLabel": "Aktuelle Seite",
   "shellPlaceholderTab": "Platzhalter",
   "shellPlaceholderBody": "Dieser Tab ist ein neutraler Inhaltsbereich. Registriere einen View-Builder, um App-Inhalte bereitzustellen.",
-  "inspectorEmpty": "Es ist kein Inspector-Inhalt registriert.",
+  "inspectorEmpty": "Für die rechte Seitenleiste ist kein Inhalt registriert.",
   "loading": "Wird geladen",
   "retry": "Erneut versuchen",
   "shellMissingRoute": "Dieses Ziel ist nicht verfügbar.",
@@ -48,8 +48,8 @@
   "@shellContentError": {"placeholders": {"details": {"type": "String"}}},
   "shellMissingView": "Diese Ansicht ist nicht verfügbar.",
   "openSettings": "Einstellungen öffnen",
-  "openInspector": "Inspector öffnen",
-  "closeInspector": "Inspector schließen",
+  "openInspector": "Rechte Seitenleiste öffnen",
+  "closeInspector": "Rechte Seitenleiste schließen",
   "restoreLayout": "Standardlayout wiederherstellen",
   "openSplitView": "Geteilte Ansicht öffnen",
   "closeSplitView": "Geteilte Ansicht schließen",
@@ -74,8 +74,8 @@
   "moveLeft": "Tab nach links verschieben",
   "moveRight": "Tab nach rechts verschieben",
   "closeTab": "Tab schließen",
-  "inspector": "Inspector",
-  "resizeInspector": "Inspector-Größe ändern",
+  "inspector": "Rechte Seitenleiste",
+  "resizeInspector": "Breite der rechten Seitenleiste ändern",
   "resizeSplitPane": "Geteilten Bereich skalieren",
   "splitPanePlaceholder": "Dies ist ein neutraler zweiter Inhaltsbereich.",
   "shellReady": "Bereit",
@@ -193,6 +193,29 @@
   "returnToPreviousSection": "Zum vorherigen Bereich zurückkehren",
   "sessionExpired": "Deine Sitzung ist abgelaufen. Melde dich erneut an.",
   "checkingSession": "Konto wird geprüft …",
+  "newTab": "Neuer Tab",
+  "searchOpenTabs": "Offene Tabs durchsuchen",
+  "noOpenTabsMatch": "Keine offenen Tabs passen zu dieser Suche.",
+  "rightSidebar": "Rechte Seitenleiste",
+  "openRightSidebar": "Rechte Seitenleiste öffnen",
+  "closeRightSidebar": "Rechte Seitenleiste schließen",
+  "resizeRightSidebar": "Breite der rechten Seitenleiste ändern",
+  "page1Overview": "Übersicht",
+  "page1Items": "Einträge",
+  "page1AllItems": "Alle Einträge",
+  "page1RecentItems": "Neueste Einträge",
+  "page1Reports": "Berichte",
+  "page1Summary": "Zusammenfassung",
+  "selectedItem": "Ausgewählter Eintrag",
+  "selectItemForDetails": "Wähle einen Eintrag aus, um hier Details zu sehen.",
+  "page1SummaryDescription": "{count} Einträge sind in diesem Arbeitsbereich verfügbar.",
+  "@page1SummaryDescription": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "@closeUnsavedTabMessage": {
     "placeholders": {
       "title": {

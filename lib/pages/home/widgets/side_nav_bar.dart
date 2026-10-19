@@ -21,9 +21,11 @@ class SideNavBar extends StatelessWidget {
     return Container(
       key: const ValueKey('activity-rail'),
       width: railWidth,
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: tokens?.canvas ?? theme.colorScheme.surface,
-        border: Border(right: BorderSide(color: theme.dividerColor)),
+        color: tokens?.surface ?? theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: tokens?.border ?? theme.dividerColor),
       ),
       child: Column(
         children: [

@@ -39,7 +39,7 @@
   "currentPageLabel": "Current page",
   "shellPlaceholderTab": "Placeholder",
   "shellPlaceholderBody": "This tab is a neutral content slot. Register a view builder to supply app content.",
-  "inspectorEmpty": "No inspector content is registered.",
+  "inspectorEmpty": "No right sidebar content is registered.",
   "loading": "Loading",
   "retry": "Retry",
   "shellMissingRoute": "This destination is unavailable.",
@@ -48,8 +48,8 @@
   "@shellContentError": {"placeholders": {"details": {"type": "String"}}},
   "shellMissingView": "This view is unavailable.",
   "openSettings": "Open Settings",
-  "openInspector": "Open inspector",
-  "closeInspector": "Close inspector",
+  "openInspector": "Open right sidebar",
+  "closeInspector": "Close right sidebar",
   "restoreLayout": "Restore default layout",
   "openSplitView": "Open split view",
   "closeSplitView": "Close split view",
@@ -74,8 +74,8 @@
   "moveLeft": "Move tab left",
   "moveRight": "Move tab right",
   "closeTab": "Close tab",
-  "inspector": "Inspector",
-  "resizeInspector": "Resize inspector",
+  "inspector": "Right sidebar",
+  "resizeInspector": "Resize right sidebar",
   "resizeSplitPane": "Resize split pane",
   "splitPanePlaceholder": "This is a neutral second content slot.",
   "shellReady": "Ready",
@@ -193,6 +193,29 @@
   "returnToPreviousSection": "Return to previous section",
   "sessionExpired": "Your session has expired. Sign in again to continue.",
   "checkingSession": "Checking account…",
+  "newTab": "New tab",
+  "searchOpenTabs": "Search open tabs",
+  "noOpenTabsMatch": "No open tabs match this search.",
+  "rightSidebar": "Right sidebar",
+  "openRightSidebar": "Open right sidebar",
+  "closeRightSidebar": "Close right sidebar",
+  "resizeRightSidebar": "Resize right sidebar",
+  "page1Overview": "Overview",
+  "page1Items": "Items",
+  "page1AllItems": "All items",
+  "page1RecentItems": "Recent items",
+  "page1Reports": "Reports",
+  "page1Summary": "Summary",
+  "selectedItem": "Selected item",
+  "selectItemForDetails": "Select an item to see its details here.",
+  "page1SummaryDescription": "{count} items are available in this workspace.",
+  "@page1SummaryDescription": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "@closeUnsavedTabMessage": {
     "placeholders": {
       "title": {

@@ -2,17 +2,19 @@ import 'package:flutter/material.dart';
 
 import 'package:flutter_template/pages/home/page_navigator.dart';
 
-/// Renders page-owned Inspector sections and follows controller focus requests.
-class ShellInspectorSections extends StatefulWidget {
-  final ShellInspectorController controller;
+/// Renders page-owned right-sidebar sections and follows controller focus requests.
+class ShellRightSidebarSections extends StatefulWidget {
+  final ShellRightSidebarController controller;
 
-  const ShellInspectorSections({super.key, required this.controller});
+  const ShellRightSidebarSections({super.key, required this.controller});
 
   @override
-  State<ShellInspectorSections> createState() => _ShellInspectorSectionsState();
+  State<ShellRightSidebarSections> createState() => _ShellRightSidebarSectionsState();
 }
 
-class _ShellInspectorSectionsState extends State<ShellInspectorSections> {
+typedef ShellInspectorSections = ShellRightSidebarSections;
+
+class _ShellRightSidebarSectionsState extends State<ShellRightSidebarSections> {
   final ScrollController _scrollController = ScrollController();
   final Map<String, GlobalKey> _sectionKeys = {};
   final Set<String> _expanded = {};
@@ -26,7 +28,7 @@ class _ShellInspectorSectionsState extends State<ShellInspectorSections> {
   }
 
   @override
-  void didUpdateWidget(covariant ShellInspectorSections oldWidget) {
+  void didUpdateWidget(covariant ShellRightSidebarSections oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.controller == widget.controller) return;
     oldWidget.controller.removeListener(_handleControllerChanged);

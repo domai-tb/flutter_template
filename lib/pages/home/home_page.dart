@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, listEquals, TargetPlatform;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 
@@ -19,7 +20,6 @@ import 'package:flutter_template/pages/home/widgets/shell_status_bar.dart';
 import 'package:flutter_template/pages/home/widgets/shell_inspector_sections.dart';
 import 'package:flutter_template/pages/home/widgets/shell_split_view.dart';
 import 'package:flutter_template/pages/home/widgets/side_nav_bar.dart';
-import 'package:flutter_template/pages/home/widgets/shell_account_button.dart';
 import 'package:flutter_template/pages/home/shell_login_page.dart';
 import 'package:flutter_template/pages/home/shell_profile_page.dart';
 import 'package:flutter_template/pages/page6/page6_settings_page.dart';
@@ -57,7 +57,8 @@ class HomePageState extends State<HomePage> {
   bool _handlingPlatformRoute = false;
   bool _restoringSettings = false;
   bool _activityPanelOpen = true;
-  bool _inspectorDrawerOpen = false;
+  bool _rightSidebarDrawerOpen = false;
+  bool _statusRefreshScheduled = false;
   String? _returnSectionId;
   String? _lastPushedRouteId;
   String? _lastLifecycleActiveId;
@@ -113,8 +114,8 @@ class HomePageState extends State<HomePage> {
     return globalBuilder == null ? null : (context, _) => globalBuilder(context);
   }
 
-  bool get _inspectorOpen =>
-      (_activeTab == null ? null : _tabRuntimes[_activeTab!.id]?.inspector.isVisible) ??
+  bool get _rightSidebarOpen =>
+      (_activeTab == null ? null : _tabRuntimes[_activeTab!.id]?.rightSidebar.isVisible) ??
       _activeTab?.inspectorOpen ??
       _navigation.activeWorkspace.inspectorOpen ??
       _settingsController.settings.inspectorOpen;
@@ -426,7 +427,7 @@ class HomePageState extends State<HomePage> {
       tab: tab,
       isRestored: _restoringSettings,
       initialNavigationPath: tab.navigationPath,
-      initialInspectorOpen: tab.inspectorOpen,
+      initialRightSidebarOpen: tab.inspectorOpen,
       initialSplitOpen: tab.splitOpen ?? _settingsController.settings.splitOpen,
       hasSplitPreference: tab.splitOpen != null,
       initialSplitWeights: tab.splitWeights,
@@ -507,7 +508,7 @@ class HomePageState extends State<HomePage> {
     }
     for (final tab in _allTabs) {
       final runtime = _runtimeFor(tab);
-      runtime.inspector.restoreVisibility(isVisible: tab.inspectorOpen);
+      runtime.rightSidebar.restoreVisibility(isVisible: tab.inspectorOpen);
       runtime.workspace.restoreLayout(
         isOpen: tab.splitOpen ?? _settingsController.settings.splitOpen,
         hasPreference: tab.splitOpen != null,
@@ -581,6 +582,8 @@ class HomePageState extends State<HomePage> {
   }
 
   void _syncStatusProviders() {
+    final currentTabIds = _allTabs.map((tab) => tab.id).toSet();
+    _tabKeys.removeWhere((id, _) => !currentTabIds.contains(id));
     for (final id in _statusProviders.keys.where((id) {
       final tab = _allTabs.where((tab) => tab.id == id).firstOrNull;
       return tab == null || _viewFor(tab.registrationId)?.statusProviderFactory == null;
@@ -602,15 +605,23 @@ class HomePageState extends State<HomePage> {
 
   void _handleStatusChanged() {
     if (!mounted) return;
-    setState(() {});
-    final inspector = _activeTab == null ? null : _tabRuntimes[_activeTab!.id]?.inspector;
-    if (inspector?.isVisible == true && MediaQuery.sizeOf(context).width < 1200 && !_inspectorDrawerOpen) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && !_inspectorDrawerOpen && inspector?.isVisible == true) {
-          _scaffoldKey.currentState?.openEndDrawer();
-        }
-      });
+    void refresh() {
+      _statusRefreshScheduled = false;
+      if (!mounted) return;
+      setState(() {});
+      final rightSidebar = _activeTab == null ? null : _tabRuntimes[_activeTab!.id]?.rightSidebar;
+      if (rightSidebar?.isVisible == true && MediaQuery.sizeOf(context).width < 1200 && !_rightSidebarDrawerOpen) {
+        _scaffoldKey.currentState?.openEndDrawer();
+      }
     }
+
+    if (SchedulerBinding.instance.schedulerPhase != SchedulerPhase.persistentCallbacks) {
+      refresh();
+      return;
+    }
+    if (_statusRefreshScheduled) return;
+    _statusRefreshScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) => refresh());
   }
 
   @override
@@ -643,7 +654,9 @@ class HomePageState extends State<HomePage> {
           icon: registration?.icon ?? icon,
           routePath: registration?.routePath,
           reusePolicy: ShellViewReusePolicy.byRegistration,
-          closeable: false,
+          closeable: registration?.closeable ?? true,
+          rightSidebarBuilder: registration?.rightSidebarBuilder,
+          inspectorBuilder: registration?.inspectorBuilder,
         ),
       );
     }
@@ -674,7 +687,7 @@ class HomePageState extends State<HomePage> {
         .where((destination) => destination.id != 'profile' && destination.id != 'settings')
         .toList();
     for (final (id, icon, showOnMobile, fallbackTitle) in [
-      ('profile', Icons.person_outline, false, (BuildContext buildContext) => buildContext.l10n.profile),
+      ('profile', Icons.person_outline, true, (BuildContext buildContext) => buildContext.l10n.profile),
       ('settings', Icons.settings_outlined, true, (BuildContext buildContext) => buildContext.l10n.settingsTitle),
     ]) {
       final suppliedDestination = supplied.destinations.where((destination) => destination.id == id).firstOrNull;
@@ -686,10 +699,11 @@ class HomePageState extends State<HomePage> {
           inactiveIcon: suppliedDestination?.inactiveIcon ?? icon,
           lockedVisible: true,
           isUtility: true,
-          showOnMobile: showOnMobile,
+          showOnMobile: suppliedDestination?.showOnMobile ?? showOnMobile,
           defaultViewId: id,
           allowedViewIds: {id},
           panelBuilder: suppliedDestination?.panelBuilder,
+          rightSidebarBuilder: suppliedDestination?.rightSidebarBuilder,
           inspectorBuilder: suppliedDestination?.inspectorBuilder,
           statusItemsBuilder: suppliedDestination?.statusItemsBuilder,
           statusProvider: suppliedDestination?.statusProvider,
@@ -705,6 +719,7 @@ class HomePageState extends State<HomePage> {
       contexts: supplied.contexts,
       commands: supplied.commands,
       globalStatusProviders: supplied.globalStatusProviders,
+      rightSidebarBuilder: supplied.rightSidebarBuilder,
       inspectorBuilder: supplied.inspectorBuilder,
       splitPaneBuilder: supplied.splitPaneBuilder,
     );
@@ -844,20 +859,6 @@ class HomePageState extends State<HomePage> {
     );
   }
 
-  void _openProfile() {
-    unawaited(selectedPage('profile'));
-  }
-
-  Future<void> _signOut() async {
-    final provider = AppScope.of(context).services.authProvider;
-    if (provider == null) return;
-    try {
-      await provider.signOut();
-    } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.signOutFailed)));
-    }
-  }
-
   void _toggleAppearance() {
     final settings = _settingsController.settings;
     final useDarkmode = settings.useSystemDarkmode
@@ -870,19 +871,19 @@ class HomePageState extends State<HomePage> {
     unawaited(SemanticsService.sendAnnouncement(View.of(context), message, Directionality.of(context)));
   }
 
-  void _toggleInspector() {
-    _setInspectorOpen(!_inspectorOpen);
+  void _toggleRightSidebar() {
+    _setRightSidebarOpen(!_rightSidebarOpen);
   }
 
-  void _setInspectorOpen(bool isOpen) {
+  void _setRightSidebarOpen(bool isOpen) {
     final tab = _activeTab;
     if (tab != null) {
-      _runtimeFor(tab).inspector.setVisible(isVisible: isOpen);
+      _runtimeFor(tab).rightSidebar.setVisible(isVisible: isOpen);
       return;
     }
     final workspace = _navigation.activeWorkspace;
     if (workspace.inspectorOpen != null) {
-      _navigation.setSectionInspectorOpen(selectedActivityId, isOpen: isOpen);
+      _navigation.setSectionRightSidebarOpen(selectedActivityId, isOpen: isOpen);
       return;
     }
     _settingsController.update(_settingsController.settings.copyWith(inspectorOpen: isOpen));
@@ -973,10 +974,10 @@ class HomePageState extends State<HomePage> {
       if (_config.destinations.any((item) => item.id == 'settings' || item.id == 'page6'))
         _ShellCommand(id: 'settings', title: context.l10n.openSettings, shortcut: '', run: _openSettings),
       _ShellCommand(
-        id: 'inspector',
-        title: _inspectorOpen ? context.l10n.closeInspector : context.l10n.openInspector,
+        id: 'right-sidebar',
+        title: _rightSidebarOpen ? context.l10n.closeRightSidebar : context.l10n.openRightSidebar,
         shortcut: '',
-        run: _openInspector,
+        run: _openRightSidebar,
       ),
       if (_hasSplitContent)
         _ShellCommand(
@@ -993,7 +994,8 @@ class HomePageState extends State<HomePage> {
       ),
       _ShellCommand(id: 'layout', title: context.l10n.restoreLayout, shortcut: '', run: _restoreLayout),
       _ShellCommand(id: 'theme', title: context.l10n.toggleAppearance, shortcut: '', run: _toggleAppearance),
-      _ShellCommand(id: 'new-tab', title: context.l10n.openViewTab, shortcut: '', run: _showViewPicker),
+      _ShellCommand(id: 'new-tab', title: context.l10n.newTab, shortcut: '', run: _openNewTab),
+      _ShellCommand(id: 'open-view-picker', title: context.l10n.openViewTab, shortcut: '', run: _showViewPicker),
       for (final command in _config.commands)
         _ShellCommand(
           id: command.id,
@@ -1097,6 +1099,29 @@ class HomePageState extends State<HomePage> {
     if (selected != null) _navigation.openTab(selectedActivityId, selected.id);
   }
 
+  void _openNewTab() {
+    final sectionId = selectedActivityId;
+    final current = _activeTab;
+    final registrationId = current?.registrationId ?? _navigation.sectionFor(sectionId)?.defaultViewId;
+    if (registrationId != null && _navigation.canOpenView(sectionId, registrationId)) {
+      _navigation.openTab(sectionId, registrationId, forceNew: true);
+    }
+  }
+
+  Future<void> _showOpenTabsSearch() async {
+    final selected = await showDialog<ShellTabPreference>(
+      context: context,
+      builder: (_) => _OpenTabsSearchDialog(
+        tabs: _allTabs,
+        title: _tabTitle,
+        sectionTitle: (tab) => _navigation.sectionFor(tab.sectionId ?? tab.destinationId ?? '')?.title(context) ?? '',
+      ),
+    );
+    if (selected != null) {
+      _navigation.selectTab(selected.sectionId ?? selected.destinationId ?? selectedActivityId, selected.id);
+    }
+  }
+
   String _viewTitle(ShellViewRegistration registration) {
     return registration.title(context, registration.id);
   }
@@ -1106,19 +1131,33 @@ class HomePageState extends State<HomePage> {
     await (navigator ?? widget.mainNavigatorKey.currentState)?.maybePop();
   }
 
-  void _openInspector() {
+  void _openRightSidebar() {
     final width = MediaQuery.sizeOf(context).width;
     if (width < 1200) {
-      if (_inspectorDrawerOpen) {
-        _setInspectorOpen(false);
+      if (_rightSidebarDrawerOpen) {
+        _setRightSidebarOpen(false);
         _scaffoldKey.currentState?.closeEndDrawer();
       } else {
-        _setInspectorOpen(true);
+        _setRightSidebarOpen(true);
         _scaffoldKey.currentState?.openEndDrawer();
       }
     } else {
-      _toggleInspector();
+      _toggleRightSidebar();
     }
+  }
+
+  Widget _shellSurface(Widget child) {
+    final theme = Theme.of(context);
+    final tokens = theme.extension<AppShellTokens>();
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: tokens?.surface ?? theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: tokens?.border ?? theme.dividerColor),
+      ),
+      child: child,
+    );
   }
 
   Widget _buildHeader(double width, AppShellMetrics metrics, {required bool phone}) {
@@ -1155,14 +1194,17 @@ class HomePageState extends State<HomePage> {
                 child: Text(_config.title(context), style: theme.textTheme.titleMedium),
               ),
             Expanded(
-              child: Text(
-                _activeTab == null
-                    ? (_destinations.where((item) => item.id == selectedActivityId).firstOrNull?.title(context) ??
-                          _config.title(context))
-                    : _tabTitle(_activeTab!),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.labelLarge,
+              child: Padding(
+                padding: EdgeInsets.only(left: width < 800 ? 8 : 0),
+                child: Text(
+                  _activeTab == null
+                      ? (_destinations.where((item) => item.id == selectedActivityId).firstOrNull?.title(context) ??
+                            _config.title(context))
+                      : _tabTitle(_activeTab!),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelLarge,
+                ),
               ),
             ),
             if (_config.contexts.isNotEmpty) _buildContextPicker(width, metrics.menuRowHeight),
@@ -1222,72 +1264,30 @@ class HomePageState extends State<HomePage> {
                     icon: const Icon(Icons.menu_open),
                   ),
                 ),
-            if (!phone)
-              headerAction(
-                'inspector',
-                IconButton(
-                  tooltip: _inspectorOpen ? context.l10n.closeInspector : context.l10n.openInspector,
-                  onPressed: _openInspector,
-                  icon: Icon(_inspectorOpen ? Icons.vertical_split : Icons.vertical_split_outlined),
-                ),
+            headerAction(
+              'right-sidebar',
+              IconButton(
+                tooltip: _rightSidebarOpen ? context.l10n.closeRightSidebar : context.l10n.openRightSidebar,
+                onPressed: _openRightSidebar,
+                icon: Icon(_rightSidebarOpen ? Icons.vertical_split : Icons.vertical_split_outlined),
               ),
+            ),
             if (phone)
               headerAction('notifications', ShellNotificationsAction(service: notificationService, phone: true)),
             headerAction(
-              'search',
+              'command-palette',
               IconButton(
                 tooltip: '${context.l10n.commandPalette} ($shortcut)',
                 onPressed: _showCommandPalette,
+                icon: const Icon(Icons.terminal),
+              ),
+            ),
+            headerAction(
+              'search-tabs',
+              IconButton(
+                tooltip: context.l10n.searchOpenTabs,
+                onPressed: _showOpenTabsSearch,
                 icon: const Icon(Icons.search),
-              ),
-            ),
-            headerAction(
-              'more',
-              PopupMenuButton<String>(
-                tooltip: context.l10n.moreActions,
-                padding: EdgeInsets.zero,
-                iconSize: actionIconSize,
-                onSelected: (value) {
-                  if (value == 'theme') _toggleAppearance();
-                  if (value == 'layout') _restoreLayout();
-                  if (value == 'split') _toggleSplit();
-                  if (value == 'inspector') _openInspector();
-                  if (value == 'tab') unawaited(_showViewPicker());
-                },
-                itemBuilder: (context) => [
-                  if (phone)
-                    PopupMenuItem(
-                      height: metrics.menuRowHeight,
-                      value: 'inspector',
-                      child: Text(_inspectorOpen ? context.l10n.closeInspector : context.l10n.openInspector),
-                    ),
-                  PopupMenuItem(height: metrics.menuRowHeight, value: 'tab', child: Text(context.l10n.openViewTab)),
-                  PopupMenuItem(
-                    height: metrics.menuRowHeight,
-                    value: 'theme',
-                    child: Text(context.l10n.toggleAppearance),
-                  ),
-                  if (_hasSplitContent)
-                    PopupMenuItem(
-                      height: metrics.menuRowHeight,
-                      value: 'split',
-                      child: Text(_splitOpen ? context.l10n.closeSplitView : context.l10n.openSplitView),
-                    ),
-                  PopupMenuItem(
-                    height: metrics.menuRowHeight,
-                    value: 'layout',
-                    child: Text(context.l10n.restoreLayout),
-                  ),
-                ],
-              ),
-            ),
-            headerAction(
-              'account',
-              ShellAccountButton(
-                provider: AppScope.of(context).services.authProvider,
-                onSignIn: _openLogin,
-                onProfile: _openProfile,
-                onSignOut: () => unawaited(_signOut()),
               ),
             ),
             const SizedBox(width: 8),
@@ -1372,10 +1372,9 @@ class HomePageState extends State<HomePage> {
               itemBuilder: (context, index) {
                 final tab = _tabs[index];
                 return ReorderableDragStartListener(
-                  key: ValueKey(tab.id),
+                  key: _tabKeys.putIfAbsent(tab.id, GlobalKey.new),
                   index: index,
                   child: _DesktopTab(
-                    key: _tabKeys.putIfAbsent(tab.id, GlobalKey.new),
                     title: _tabTitle(tab),
                     icon: _tabIcon(tab),
                     selected: tab.id == _selectedTabId,
@@ -1396,8 +1395,8 @@ class HomePageState extends State<HomePage> {
           ),
           tabAction(
             key: const ValueKey('tab-add-action'),
-            tooltip: context.l10n.openViewTab,
-            onPressed: _showViewPicker,
+            tooltip: context.l10n.newTab,
+            onPressed: _openNewTab,
             icon: Icons.add,
           ),
           const SizedBox(width: 8),
@@ -1444,29 +1443,32 @@ class HomePageState extends State<HomePage> {
   }
 
   Future<void> _renameTab(ShellTabPreference tab) async {
-    final controller = TextEditingController(text: _tabTitle(tab));
-    try {
-      final title = await showDialog<String>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text(context.l10n.renameTab),
-          content: TextField(
-            autofocus: true,
-            controller: controller,
-            decoration: InputDecoration(labelText: context.l10n.tabTitleLabel),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: Text(context.l10n.cancel)),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, controller.text.trim()),
-              child: Text(context.l10n.save),
-            ),
-          ],
+    final titleField = GlobalKey<FormFieldState<String>>();
+    final title = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(context.l10n.renameTab),
+        content: TextFormField(
+          key: titleField,
+          initialValue: _tabTitle(tab),
+          autofocus: true,
+          decoration: InputDecoration(labelText: context.l10n.tabTitleLabel),
         ),
-      );
-      if (title != null && title.isNotEmpty && mounted) _navigation.updateTab(tab.copyWith(title: title));
-    } finally {
-      controller.dispose();
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: Text(context.l10n.cancel)),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, titleField.currentState?.value?.trim()),
+            child: Text(context.l10n.save),
+          ),
+        ],
+      ),
+    );
+    if (title != null && title.isNotEmpty && mounted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final latest = _navigation.workspaceContaining(tab.id)?.tabs.where((item) => item.id == tab.id).firstOrNull;
+        if (latest != null) _navigation.updateTab(latest.copyWith(title: title));
+      });
     }
   }
 
@@ -1513,22 +1515,23 @@ class HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildInspector({required bool drawer}) {
+  Widget _buildRightSidebar({required bool drawer}) {
     final content = Builder(
       builder: (context) {
         try {
           final active = _activeTab;
-          final tabBuilder = active == null ? null : _viewFor(active.registrationId)?.inspectorBuilder;
-          final inspector = active == null ? null : _runtimeFor(active).inspector;
-          if (inspector != null && inspector.sections.isNotEmpty) {
-            return ShellInspectorSections(controller: inspector);
+          final tabRegistration = active == null ? null : _viewFor(active.registrationId);
+          final tabBuilder = tabRegistration?.rightSidebarBuilder ?? tabRegistration?.inspectorBuilder;
+          final rightSidebar = active == null ? null : _runtimeFor(active).rightSidebar;
+          if (rightSidebar != null && rightSidebar.sections.isNotEmpty) {
+            return ShellRightSidebarSections(controller: rightSidebar);
           }
           if (active != null && tabBuilder != null) return tabBuilder(context, _viewContextFor(active));
-          final sectionBuilder = _activeSection?.inspectorBuilder;
+          final sectionBuilder = _activeSection?.rightSidebarBuilder ?? _activeSection?.inspectorBuilder;
           if (sectionBuilder != null) return sectionBuilder(context);
-          final globalBuilder = _config.inspectorBuilder;
+          final globalBuilder = _config.rightSidebarBuilder ?? _config.inspectorBuilder;
           if (globalBuilder != null) return globalBuilder(context);
-          return _defaultInspectorContent();
+          return _defaultRightSidebarContent();
         } catch (error) {
           return Center(child: Text(context.l10n.shellContentError('$error')));
         }
@@ -1543,11 +1546,11 @@ class HomePageState extends State<HomePage> {
             child: Row(
               children: [
                 const SizedBox(width: 12),
-                Expanded(child: Text(context.l10n.inspector, style: Theme.of(context).textTheme.titleSmall)),
+                Expanded(child: Text(context.l10n.rightSidebar, style: Theme.of(context).textTheme.titleSmall)),
                 IconButton(
-                  tooltip: context.l10n.closeInspector,
+                  tooltip: context.l10n.closeRightSidebar,
                   onPressed: () {
-                    _setInspectorOpen(false);
+                    _setRightSidebarOpen(false);
                     if (drawer) Navigator.of(context).pop();
                   },
                   icon: const Icon(Icons.close),
@@ -1562,7 +1565,7 @@ class HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _defaultInspectorContent() {
+  Widget _defaultRightSidebarContent() {
     final active = _activeTab;
     final workspace = _navigation.activeWorkspace;
     return ListView(
@@ -1602,7 +1605,7 @@ class HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _resizeHandle(double width) {
+  Widget _resizeRightSidebarHandle(double width) {
     void adjust(double delta) {
       final next = (width - delta).clamp(256.0, 440.0);
       _settingsController.update(_settingsController.settings.copyWith(inspectorWidth: next));
@@ -1610,7 +1613,7 @@ class HomePageState extends State<HomePage> {
 
     return Semantics(
       button: true,
-      label: context.l10n.resizeInspector,
+      label: context.l10n.resizeRightSidebar,
       value: '${width.round()}',
       increasedValue: '${(width + 16).clamp(256.0, 440.0).round()}',
       decreasedValue: '${(width - 16).clamp(256.0, 440.0).round()}',
@@ -1724,58 +1727,81 @@ class HomePageState extends State<HomePage> {
         final section = _activeSection;
         final sectionId = selectedActivityId;
         final sectionNodeId = 'shell-section:$sectionId';
+        final sectionLabel = section?.title(context) ?? _config.title(context);
+        final pageRoot = controller?.activePath.firstOrNull;
+        final pageDestinations = [
+          for (final destination in _destinations)
+            (id: destination.id, label: destination.title(context), icon: destination.icon),
+        ];
         final breadcrumbs = <ShellNavigationNode>[
           ShellNavigationNode(
             id: sectionNodeId,
-            label: section?.title(context) ?? _config.title(context),
+            label: sectionLabel,
             icon: section?.icon,
             onActivate: section == null ? null : () => _navigateSection(section.id),
             childrenProvider: _destinations.length > 1
-                ? () async => [
-                    for (final destination in _destinations)
-                      ShellNavigationNode(
-                        id: 'shell-section:${destination.id}',
-                        label: destination.title(context),
-                        icon: destination.icon,
-                        onActivate: () => _navigateSection(destination.id),
-                      ),
-                  ]
+                ? () async {
+                    final pageChildren = pageRoot == null
+                        ? const <ShellNavigationNode>[]
+                        : controller!.hasChildren(pageRoot.id)
+                        ? await controller.getChildren(pageRoot.id)
+                        : pageRoot.children;
+                    return [
+                      for (final destination in pageDestinations)
+                        ShellNavigationNode(
+                          id: 'shell-section:${destination.id}',
+                          label: destination.label,
+                          icon: destination.icon,
+                          onActivate: () => _navigateSection(destination.id),
+                          children: destination.id == sectionId ? pageChildren : const [],
+                        ),
+                    ];
+                  }
                 : null,
           ),
         ];
         if (activeTab case final tab?) {
-          breadcrumbs.add(
-            ShellNavigationNode(
-              id: 'shell-tab:${tab.id}',
-              label: _tabTitle(tab),
-              icon: _tabIcon(tab),
-              parentId: sectionNodeId,
-              onActivate: () => _navigateTab(tab.sectionId ?? sectionId, tab.id),
-              childrenProvider: _navigation.workspaceFor(tab.sectionId ?? sectionId).tabs.length > 1
-                  ? () async => [
-                      for (final sibling in _navigation.workspaceFor(tab.sectionId ?? sectionId).tabs)
-                        ShellNavigationNode(
-                          id: 'shell-tab:${sibling.id}',
-                          label: _tabTitle(sibling),
-                          icon: _tabIcon(sibling),
-                          parentId: sectionNodeId,
-                          onActivate: () => _navigateTab(sibling.sectionId ?? sectionId, sibling.id),
-                        ),
-                    ]
-                  : null,
-            ),
-          );
+          final tabNodeId = 'shell-tab:${tab.id}';
+          final workspace = _navigation.workspaceFor(tab.sectionId ?? sectionId);
+          final showTab = _tabTitle(tab) != sectionLabel || workspace.tabs.length > 1;
+          if (showTab) {
+            breadcrumbs.add(
+              ShellNavigationNode(
+                id: tabNodeId,
+                label: _tabTitle(tab),
+                icon: _tabIcon(tab),
+                parentId: sectionNodeId,
+                onActivate: () => _navigateTab(tab.sectionId ?? sectionId, tab.id),
+                childrenProvider: workspace.tabs.length > 1
+                    ? () async => [
+                        for (final sibling in workspace.tabs)
+                          ShellNavigationNode(
+                            id: 'shell-tab:${sibling.id}',
+                            label: _tabTitle(sibling),
+                            icon: _tabIcon(sibling),
+                            parentId: sectionNodeId,
+                            onActivate: () => _navigateTab(sibling.sectionId ?? sectionId, sibling.id),
+                          ),
+                      ]
+                    : null,
+              ),
+            );
+          }
           if (controller != null) {
-            for (var index = 0; index < controller.activePath.length; index++) {
+            final path = controller.activePath;
+            final start = path.firstOrNull?.label == sectionLabel ? 1 : 0;
+            for (var index = start; index < path.length; index++) {
               final node = controller.activePath[index];
               breadcrumbs.add(
                 ShellNavigationNode(
                   id: node.id,
                   label: node.label,
                   icon: node.icon,
-                  parentId: node.parentId ?? (index == 0 ? 'shell-tab:${tab.id}' : controller.activePath[index - 1].id),
+                  parentId: index == start
+                      ? (showTab ? tabNodeId : sectionNodeId)
+                      : node.parentId ?? path[index - 1].id,
                   onActivate: () async => controller.navigateTo(node.id),
-                  children: node.children,
+                  children: controller.hasChildren(node.id) ? const [] : node.children,
                   childrenProvider: controller.hasChildren(node.id) ? () => controller.getChildren(node.id) : null,
                   enabled: node.enabled,
                   tooltip: node.tooltip,
@@ -1864,9 +1890,9 @@ class HomePageState extends State<HomePage> {
         final visible = _destinations;
         final settings = _settingsController.settings;
         final metrics = AppTheme.metrics(context, phone: phoneLayout);
-        final showInspector = wide && _inspectorOpen;
-        final availableInspectorWidth = (width - metrics.railWidth - 400).clamp(256.0, 440.0);
-        final inspectorWidth = settings.inspectorWidth.clamp(256.0, availableInspectorWidth);
+        final showRightSidebar = wide && _rightSidebarOpen;
+        final availableRightSidebarWidth = (width - metrics.railWidth - 400).clamp(256.0, 440.0);
+        final rightSidebarWidth = settings.inspectorWidth.clamp(256.0, availableRightSidebarWidth);
         final body = _activeContent();
         final activeActivity = _destinations.where((item) => item.id == selectedActivityId).firstOrNull;
         final showActivityPanel =
@@ -1945,10 +1971,15 @@ class HomePageState extends State<HomePage> {
                     child: Scaffold(
                       key: _scaffoldKey,
                       resizeToAvoidBottomInset: true,
-                      endDrawer: Drawer(child: _buildInspector(drawer: true)),
+                      endDrawer: Drawer(
+                        child: Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: _shellSurface(_buildRightSidebar(drawer: true)),
+                        ),
+                      ),
                       onEndDrawerChanged: (isOpen) {
-                        _inspectorDrawerOpen = isOpen;
-                        if (!isOpen && _inspectorOpen) _setInspectorOpen(false);
+                        _rightSidebarDrawerOpen = isOpen;
+                        if (!isOpen && _rightSidebarOpen) _setRightSidebarOpen(false);
                       },
                       body: SafeArea(
                         bottom: false,
@@ -1956,45 +1987,60 @@ class HomePageState extends State<HomePage> {
                           children: [
                             _buildHeader(width, metrics, phone: phoneLayout),
                             Expanded(
-                              child: Row(
-                                children: [
-                                  if (!phoneLayout)
-                                    SideNavBar(
-                                      currentId: currentDestinationId,
-                                      destinations: visible,
-                                      onSelected: (id) => unawaited(selectedPage(id)),
-                                    ),
-                                  Expanded(
-                                    child: Column(
-                                      children: [
-                                        if (!phoneLayout) _buildTabStrip(metrics),
-                                        Expanded(
-                                          child: Row(
-                                            children: [
-                                              if (showActivityPanel) _buildActivityPanel(activeActivity!),
-                                              Expanded(
-                                                child: Padding(
-                                                  padding: EdgeInsets.all(wide ? 8 : 0),
-                                                  child: LayoutBuilder(
-                                                    builder: (context, constraints) => _buildSplit(
-                                                      body,
-                                                      constraints.maxWidth - (wide ? 16 : 0),
-                                                      wide: wide,
+                              child: Padding(
+                                padding: const EdgeInsets.all(8),
+                                child: Row(
+                                  children: [
+                                    if (!phoneLayout)
+                                      Padding(
+                                        padding: const EdgeInsets.only(right: 8),
+                                        child: SideNavBar(
+                                          currentId: currentDestinationId,
+                                          destinations: visible,
+                                          onSelected: (id) => unawaited(selectedPage(id)),
+                                        ),
+                                      ),
+                                    Expanded(
+                                      child: Row(
+                                        children: [
+                                          Expanded(
+                                            child: _shellSurface(
+                                              Column(
+                                                children: [
+                                                  if (!phoneLayout) _buildTabStrip(metrics),
+                                                  Expanded(
+                                                    child: Row(
+                                                      children: [
+                                                        if (showActivityPanel) _buildActivityPanel(activeActivity!),
+                                                        Expanded(
+                                                          child: Padding(
+                                                            padding: const EdgeInsets.all(8),
+                                                            child: LayoutBuilder(
+                                                              builder: (context, constraints) =>
+                                                                  _buildSplit(body, constraints.maxWidth, wide: wide),
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ],
                                                     ),
                                                   ),
-                                                ),
+                                                ],
                                               ),
-                                              if (showInspector) ...[
-                                                _resizeHandle(inspectorWidth),
-                                                SizedBox(width: inspectorWidth, child: _buildInspector(drawer: false)),
-                                              ],
-                                            ],
+                                            ),
                                           ),
-                                        ),
-                                      ],
+                                          if (showRightSidebar) ...[
+                                            _resizeRightSidebarHandle(rightSidebarWidth),
+                                            const SizedBox(width: 4),
+                                            SizedBox(
+                                              width: rightSidebarWidth,
+                                              child: _shellSurface(_buildRightSidebar(drawer: false)),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                             if (!phoneLayout) _buildStatusBar(metrics),
@@ -2004,10 +2050,15 @@ class HomePageState extends State<HomePage> {
                       bottomNavigationBar: phoneLayout
                           ? SafeArea(
                               top: false,
-                              child: BottomNavBar(
-                                currentId: currentDestinationId,
-                                destinations: visible,
-                                onSelected: (id) => unawaited(selectedPage(id)),
+                              child: Padding(
+                                padding: const EdgeInsets.all(8),
+                                child: _shellSurface(
+                                  BottomNavBar(
+                                    currentId: currentDestinationId,
+                                    destinations: visible,
+                                    onSelected: (id) => unawaited(selectedPage(id)),
+                                  ),
+                                ),
                               ),
                             )
                           : null,
@@ -2028,7 +2079,7 @@ class _ShellTabRuntime {
     required this.tab,
     required this.isRestored,
     required List<String> initialNavigationPath,
-    required bool? initialInspectorOpen,
+    required bool? initialRightSidebarOpen,
     required bool initialSplitOpen,
     required bool hasSplitPreference,
     required List<double> initialSplitWeights,
@@ -2047,8 +2098,8 @@ class _ShellTabRuntime {
       activateTab: activateTab,
       selectSection: selectSection,
     );
-    inspector = ShellInspectorController(
-      isVisible: initialInspectorOpen,
+    rightSidebar = ShellRightSidebarController(
+      isVisible: initialRightSidebarOpen,
       onVisibilityChanged: (visible) => updateTab(tab.id, (current) => current.copyWith(inspectorOpen: visible)),
     );
     status = ShellStatusController();
@@ -2070,7 +2121,7 @@ class _ShellTabRuntime {
   final ValueNotifier<ShellTabLifecycle> lifecycle;
   final ShellBreadcrumbController breadcrumbs;
   late final ShellNavigationController navigation;
-  late final ShellInspectorController inspector;
+  late final ShellRightSidebarController rightSidebar;
   late final ShellStatusController status;
   late final ShellToolbarController toolbar;
   late final ShellWorkspaceController workspace;
@@ -2078,7 +2129,7 @@ class _ShellTabRuntime {
   final GlobalKey<AnimatedEntryState> entryAnimationKey = GlobalKey<AnimatedEntryState>();
   final GlobalKey<AnimatedExitState> exitAnimationKey = GlobalKey<AnimatedExitState>();
 
-  List<ChangeNotifier> get controllers => [inspector, status, toolbar, workspace];
+  List<ChangeNotifier> get controllers => [rightSidebar, status, toolbar, workspace];
 
   ShellViewContext viewContext(ShellTabPreference tab, GlobalKey<NavigatorState> mainNavigatorKey) => ShellViewContext(
     tab: tab,
@@ -2089,7 +2140,7 @@ class _ShellTabRuntime {
     entryAnimationKey: entryAnimationKey,
     exitAnimationKey: exitAnimationKey,
     navigation: navigation,
-    inspector: inspector,
+    rightSidebar: rightSidebar,
     status: status,
     toolbar: toolbar,
     workspace: workspace,
@@ -2227,7 +2278,6 @@ class _DesktopTab extends StatefulWidget {
   final ValueChanged<Offset> onContextMenu;
 
   const _DesktopTab({
-    super.key,
     required this.title,
     required this.icon,
     required this.selected,
@@ -2347,6 +2397,67 @@ class _DesktopTabState extends State<_DesktopTab> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _OpenTabsSearchDialog extends StatefulWidget {
+  final List<ShellTabPreference> tabs;
+  final String Function(ShellTabPreference) title;
+  final String Function(ShellTabPreference) sectionTitle;
+
+  const _OpenTabsSearchDialog({required this.tabs, required this.title, required this.sectionTitle});
+
+  @override
+  State<_OpenTabsSearchDialog> createState() => _OpenTabsSearchDialogState();
+}
+
+class _OpenTabsSearchDialogState extends State<_OpenTabsSearchDialog> {
+  String _query = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final query = _query.trim().toLowerCase();
+    final matches = widget.tabs.where((tab) {
+      final searchable =
+          '${widget.title(tab)} ${widget.sectionTitle(tab)} ${tab.registrationId} ${tab.instanceId ?? ''}';
+      return searchable.toLowerCase().contains(query);
+    }).toList();
+
+    return AlertDialog(
+      title: Text(context.l10n.searchOpenTabs),
+      content: SizedBox(
+        width: 520,
+        height: 420,
+        child: Column(
+          children: [
+            TextField(
+              autofocus: true,
+              onChanged: (value) => setState(() => _query = value),
+              decoration: InputDecoration(prefixIcon: const Icon(Icons.search), hintText: context.l10n.searchOpenTabs),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: matches.isEmpty
+                  ? Center(child: Text(context.l10n.noOpenTabsMatch))
+                  : ListView.builder(
+                      itemCount: matches.length,
+                      itemBuilder: (context, index) {
+                        final tab = matches[index];
+                        return ListTile(
+                          key: ValueKey('open-tab-search-${tab.id}'),
+                          leading: const Icon(Icons.tab_outlined),
+                          title: Text(widget.title(tab), maxLines: 1, overflow: TextOverflow.ellipsis),
+                          subtitle: Text(widget.sectionTitle(tab), maxLines: 1, overflow: TextOverflow.ellipsis),
+                          onTap: () => Navigator.of(context).pop(tab),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+      actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(context.l10n.cancel))],
     );
   }
 }

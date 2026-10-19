@@ -293,7 +293,7 @@ abstract class AppLocalizations {
   /// No description provided for @inspectorEmpty.
   ///
   /// In en, this message translates to:
-  /// **'No inspector content is registered.'**
+  /// **'No right sidebar content is registered.'**
   String get inspectorEmpty;
 
   /// No description provided for @loading.
@@ -341,13 +341,13 @@ abstract class AppLocalizations {
   /// No description provided for @openInspector.
   ///
   /// In en, this message translates to:
-  /// **'Open inspector'**
+  /// **'Open right sidebar'**
   String get openInspector;
 
   /// No description provided for @closeInspector.
   ///
   /// In en, this message translates to:
-  /// **'Close inspector'**
+  /// **'Close right sidebar'**
   String get closeInspector;
 
   /// No description provided for @restoreLayout.
@@ -473,13 +473,13 @@ abstract class AppLocalizations {
   /// No description provided for @inspector.
   ///
   /// In en, this message translates to:
-  /// **'Inspector'**
+  /// **'Right sidebar'**
   String get inspector;
 
   /// No description provided for @resizeInspector.
   ///
   /// In en, this message translates to:
-  /// **'Resize inspector'**
+  /// **'Resize right sidebar'**
   String get resizeInspector;
 
   /// No description provided for @resizeSplitPane.
@@ -1165,6 +1165,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Checking account…'**
   String get checkingSession;
+
+  /// No description provided for @newTab.
+  ///
+  /// In en, this message translates to:
+  /// **'New tab'**
+  String get newTab;
+
+  /// No description provided for @searchOpenTabs.
+  ///
+  /// In en, this message translates to:
+  /// **'Search open tabs'**
+  String get searchOpenTabs;
+
+  /// No description provided for @noOpenTabsMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'No open tabs match this search.'**
+  String get noOpenTabsMatch;
+
+  /// No description provided for @rightSidebar.
+  ///
+  /// In en, this message translates to:
+  /// **'Right sidebar'**
+  String get rightSidebar;
+
+  /// No description provided for @openRightSidebar.
+  ///
+  /// In en, this message translates to:
+  /// **'Open right sidebar'**
+  String get openRightSidebar;
+
+  /// No description provided for @closeRightSidebar.
+  ///
+  /// In en, this message translates to:
+  /// **'Close right sidebar'**
+  String get closeRightSidebar;
+
+  /// No description provided for @resizeRightSidebar.
+  ///
+  /// In en, this message translates to:
+  /// **'Resize right sidebar'**
+  String get resizeRightSidebar;
+
+  /// No description provided for @page1Overview.
+  ///
+  /// In en, this message translates to:
+  /// **'Overview'**
+  String get page1Overview;
+
+  /// No description provided for @page1Items.
+  ///
+  /// In en, this message translates to:
+  /// **'Items'**
+  String get page1Items;
+
+  /// No description provided for @page1AllItems.
+  ///
+  /// In en, this message translates to:
+  /// **'All items'**
+  String get page1AllItems;
+
+  /// No description provided for @page1RecentItems.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent items'**
+  String get page1RecentItems;
+
+  /// No description provided for @page1Reports.
+  ///
+  /// In en, this message translates to:
+  /// **'Reports'**
+  String get page1Reports;
+
+  /// No description provided for @page1Summary.
+  ///
+  /// In en, this message translates to:
+  /// **'Summary'**
+  String get page1Summary;
+
+  /// No description provided for @selectedItem.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected item'**
+  String get selectedItem;
+
+  /// No description provided for @selectItemForDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Select an item to see its details here.'**
+  String get selectItemForDetails;
+
+  /// No description provided for @page1SummaryDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} items are available in this workspace.'**
+  String page1SummaryDescription(int count);
 }
 
 class _AppLocalizationsDelegate

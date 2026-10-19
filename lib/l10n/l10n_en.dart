@@ -110,7 +110,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'This tab is a neutral content slot. Register a view builder to supply app content.';
 
   @override
-  String get inspectorEmpty => 'No inspector content is registered.';
+  String get inspectorEmpty => 'No right sidebar content is registered.';
 
   @override
   String get loading => 'Loading';
@@ -136,10 +136,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get openSettings => 'Open Settings';
 
   @override
-  String get openInspector => 'Open inspector';
+  String get openInspector => 'Open right sidebar';
 
   @override
-  String get closeInspector => 'Close inspector';
+  String get closeInspector => 'Close right sidebar';
 
   @override
   String get restoreLayout => 'Restore default layout';
@@ -210,10 +210,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get closeTab => 'Close tab';
 
   @override
-  String get inspector => 'Inspector';
+  String get inspector => 'Right sidebar';
 
   @override
-  String get resizeInspector => 'Resize inspector';
+  String get resizeInspector => 'Resize right sidebar';
 
   @override
   String get resizeSplitPane => 'Resize split pane';
@@ -568,4 +568,54 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get checkingSession => 'Checking account…';
+
+  @override
+  String get newTab => 'New tab';
+
+  @override
+  String get searchOpenTabs => 'Search open tabs';
+
+  @override
+  String get noOpenTabsMatch => 'No open tabs match this search.';
+
+  @override
+  String get rightSidebar => 'Right sidebar';
+
+  @override
+  String get openRightSidebar => 'Open right sidebar';
+
+  @override
+  String get closeRightSidebar => 'Close right sidebar';
+
+  @override
+  String get resizeRightSidebar => 'Resize right sidebar';
+
+  @override
+  String get page1Overview => 'Overview';
+
+  @override
+  String get page1Items => 'Items';
+
+  @override
+  String get page1AllItems => 'All items';
+
+  @override
+  String get page1RecentItems => 'Recent items';
+
+  @override
+  String get page1Reports => 'Reports';
+
+  @override
+  String get page1Summary => 'Summary';
+
+  @override
+  String get selectedItem => 'Selected item';
+
+  @override
+  String get selectItemForDetails => 'Select an item to see its details here.';
+
+  @override
+  String page1SummaryDescription(int count) {
+    return '$count items are available in this workspace.';
+  }
 }

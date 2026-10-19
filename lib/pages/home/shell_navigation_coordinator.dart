@@ -146,23 +146,26 @@ class ShellNavigationCoordinator extends ChangeNotifier {
     Map<String, dynamic> parameters = const {},
     String? title,
     bool activateSection = true,
+    bool forceNew = false,
   }) {
     if (!canOpenView(sectionId, registrationId)) return null;
     final registration = _views[registrationId]!;
     if (instanceId != null && instanceId.isEmpty) throw ArgumentError.value(instanceId, 'instanceId');
     final snapshot = Map<String, dynamic>.from(jsonDecode(jsonEncode(parameters)) as Map);
     final workspace = workspaceFor(sectionId);
-    final existing = switch (registration.reusePolicy) {
-      ShellViewReusePolicy.never => null,
-      ShellViewReusePolicy.byRegistration =>
-        workspace.tabs.where((tab) => tab.registrationId == registrationId).firstOrNull,
-      ShellViewReusePolicy.byInstance =>
-        instanceId == null
-            ? null
-            : workspace.tabs
-                  .where((tab) => tab.registrationId == registrationId && tab.instanceId == instanceId)
-                  .firstOrNull,
-    };
+    final existing = forceNew
+        ? null
+        : switch (registration.reusePolicy) {
+            ShellViewReusePolicy.never => null,
+            ShellViewReusePolicy.byRegistration =>
+              workspace.tabs.where((tab) => tab.registrationId == registrationId).firstOrNull,
+            ShellViewReusePolicy.byInstance =>
+              instanceId == null
+                  ? null
+                  : workspace.tabs
+                        .where((tab) => tab.registrationId == registrationId && tab.instanceId == instanceId)
+                        .firstOrNull,
+          };
     if (existing != null) {
       selectTab(sectionId, existing.id, activateSection: activateSection);
       return existing.id;
@@ -258,7 +261,7 @@ class ShellNavigationCoordinator extends ChangeNotifier {
     );
   }
 
-  void setSectionInspectorOpen(String sectionId, {required bool? isOpen}) {
+  void setSectionRightSidebarOpen(String sectionId, {required bool? isOpen}) {
     final workspace = workspaceFor(sectionId);
     if (workspace.inspectorOpen == isOpen) return;
     _replaceWorkspace(
@@ -270,6 +273,9 @@ class ShellNavigationCoordinator extends ChangeNotifier {
       ),
     );
   }
+
+  void setSectionInspectorOpen(String sectionId, {required bool? isOpen}) =>
+      setSectionRightSidebarOpen(sectionId, isOpen: isOpen);
 
   void updateTab(ShellTabPreference tab) {
     final sectionId = tab.sectionId ?? _selectedSectionId;
