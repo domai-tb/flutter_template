@@ -29,8 +29,9 @@ Future<void> showShellNotifications(
 class ShellNotificationsAction extends StatelessWidget {
   final ShellNotificationService service;
   final bool phone;
+  final bool compact;
 
-  const ShellNotificationsAction({super.key, required this.service, required this.phone});
+  const ShellNotificationsAction({super.key, required this.service, required this.phone, this.compact = false});
 
   @override
   Widget build(BuildContext context) {
@@ -42,8 +43,16 @@ class ShellNotificationsAction extends StatelessWidget {
         icon: Badge(
           isLabelVisible: service.unreadCount > 0,
           label: Text(service.unreadCount > 99 ? '99+' : '${service.unreadCount}'),
-          child: const Icon(Icons.notifications_none),
+          child: Icon(Icons.notifications_none, size: compact ? 16 : null),
         ),
+        style: compact
+            ? IconButton.styleFrom(
+                minimumSize: const Size.square(24),
+                maximumSize: const Size.square(24),
+                padding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
+              )
+            : null,
       ),
     );
 

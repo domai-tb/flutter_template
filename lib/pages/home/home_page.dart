@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, TargetPlatform;
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, listEquals, TargetPlatform;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
@@ -15,6 +15,7 @@ import 'package:flutter_template/pages/home/shell_navigation_coordinator.dart';
 import 'package:flutter_template/pages/home/widgets/bottom_nav_bar.dart';
 import 'package:flutter_template/pages/home/widgets/page_navigation_animation.dart';
 import 'package:flutter_template/pages/home/widgets/shell_notification_center.dart';
+import 'package:flutter_template/pages/home/widgets/shell_status_bar.dart';
 import 'package:flutter_template/pages/home/widgets/side_nav_bar.dart';
 import 'package:flutter_template/pages/page6/page6_settings_page.dart';
 
@@ -38,6 +39,7 @@ class HomePageState extends State<HomePage> {
   final Map<String, GlobalKey<AnimatedEntryState>> entryAnimationKeys = {};
   final Map<String, GlobalKey> _tabKeys = {};
   final Map<String, ShellStatusProvider> _statusProviders = {};
+  final Set<ShellStatusProvider> _sharedStatusProviders = {};
   final Map<String, _ShellTabRuntime> _tabRuntimes = {};
 
   late final ShellConfig _config;
@@ -365,8 +367,22 @@ class HomePageState extends State<HomePage> {
       ) ??
       false;
 
-  _ShellTabRuntime _runtimeFor(ShellTabPreference tab) =>
-      _tabRuntimes.putIfAbsent(tab.id, () => _ShellTabRuntime(isRestored: _restoringSettings));
+  _ShellTabRuntime _runtimeFor(ShellTabPreference tab) => _tabRuntimes.putIfAbsent(tab.id, () {
+    final runtime = _ShellTabRuntime(isRestored: _restoringSettings, initialNavigationPath: tab.navigationPath);
+    runtime.breadcrumbs.addListener(() => _handleBreadcrumbChanged(tab, runtime.breadcrumbs));
+    return runtime;
+  });
+
+  void _handleBreadcrumbChanged(ShellTabPreference tab, ShellBreadcrumbController breadcrumbs) {
+    if (!mounted) return;
+    final currentTab = _navigation
+        .workspaceContaining(tab.id)
+        ?.tabs
+        .where((candidate) => candidate.id == tab.id)
+        .firstOrNull;
+    if (currentTab == null || listEquals(currentTab.navigationPath, breadcrumbs.activePathIds)) return;
+    _navigation.updateTabNavigationPath(currentTab.sectionId ?? selectedActivityId, tab.id, breadcrumbs.activePathIds);
+  }
 
   ShellViewContext _viewContextFor(ShellTabPreference tab) =>
       _runtimeFor(tab).viewContext(tab, widget.mainNavigatorKey);
@@ -519,9 +535,17 @@ class HomePageState extends State<HomePage> {
       modules: supplied.modules,
       contexts: supplied.contexts,
       commands: supplied.commands,
+      globalStatusProviders: supplied.globalStatusProviders,
       inspectorBuilder: supplied.inspectorBuilder,
       splitPaneBuilder: supplied.splitPaneBuilder,
     );
+    _sharedStatusProviders.addAll(supplied.globalStatusProviders);
+    _sharedStatusProviders.addAll(
+      supplied.destinations.map((destination) => destination.statusProvider).whereType<ShellStatusProvider>(),
+    );
+    for (final provider in _sharedStatusProviders) {
+      provider.addListener(_handleStatusChanged);
+    }
     _navigation = ShellNavigationCoordinator(sections: _config.destinations, views: views);
     _navigation.addListener(_handleNavigationChanged);
     for (final destination in _config.destinations) {
@@ -588,6 +612,9 @@ class HomePageState extends State<HomePage> {
     for (final provider in _statusProviders.values) {
       provider.removeListener(_handleStatusChanged);
       provider.dispose();
+    }
+    for (final provider in _sharedStatusProviders) {
+      provider.removeListener(_handleStatusChanged);
     }
     for (final runtime in _tabRuntimes.values) {
       runtime.dispose();
@@ -983,10 +1010,8 @@ class HomePageState extends State<HomePage> {
                   icon: Icon(_inspectorOpen ? Icons.vertical_split : Icons.vertical_split_outlined),
                 ),
               ),
-            headerAction(
-              'notifications',
-              ShellNotificationsAction(service: notificationService, phone: _isPhoneLayout),
-            ),
+            if (_isPhoneLayout)
+              headerAction('notifications', ShellNotificationsAction(service: notificationService, phone: true)),
             headerAction(
               'search',
               IconButton(
@@ -1493,87 +1518,121 @@ class HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildStatusBar(AppShellMetrics metrics, double width) {
-    final items =
-        <ShellStatusItem>[
-            if (_activeSection case final section?)
-              ShellStatusItem(id: 'section-${section.id}', label: section.title(context), icon: section.icon),
-            if (_activeTab case final tab?)
-              ShellStatusItem(id: 'tab-${tab.id}', label: _tabTitle(tab), icon: _tabIcon(tab)),
-            ...?_activeSection?.statusItemsBuilder?.call(context),
-            ...?_activeStatusProvider?.items,
-          ].where((item) => item.isVisible?.call() ?? true).toList()
-          ..sort((left, right) => right.priority.compareTo(left.priority));
-    final visibleCount = items.isEmpty ? 0 : (width / 150).floor().clamp(1, items.length);
-    final visible = items.take(visibleCount).toList();
-    final overflow = items.skip(visibleCount).toList();
-    final theme = Theme.of(context);
-    return Container(
-      key: const ValueKey('shell-status-bar'),
-      height: metrics.statusHeight,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
-        border: Border(top: BorderSide(color: theme.dividerColor)),
-      ),
-      child: Row(
-        children: [
-          for (final item in visible)
-            Flexible(
-              child: Tooltip(
-                message: item.tooltip ?? item.label,
-                child: Semantics(
-                  button: item.onTap != null,
-                  label: '${_statusSeverityLabel(item.severity)} ${item.label}'.trim(),
-                  child: TextButton.icon(
-                    onPressed: item.onTap,
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 6),
-                      minimumSize: Size(0, metrics.statusHeight),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      visualDensity: VisualDensity.compact,
-                    ),
-                    icon: item.icon == null
-                        ? const SizedBox.shrink()
-                        : Icon(item.icon, size: 14, color: _statusColor(item.severity)),
-                    label: Text(
-                      item.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.labelSmall?.copyWith(color: _statusColor(item.severity)),
-                    ),
-                  ),
+  Widget _buildStatusBar(AppShellMetrics metrics) {
+    final activeTab = _activeTab;
+    final controller = activeTab == null ? null : _runtimeFor(activeTab).breadcrumbs;
+    return AnimatedBuilder(
+      animation: controller ?? _navigation,
+      builder: (context, _) {
+        final section = _activeSection;
+        final sectionId = selectedActivityId;
+        final sectionNodeId = 'shell-section:$sectionId';
+        final breadcrumbs = <ShellNavigationNode>[
+          ShellNavigationNode(
+            id: sectionNodeId,
+            label: section?.title(context) ?? _config.title(context),
+            icon: section?.icon,
+            onActivate: section == null ? null : () => _navigation.selectSection(section.id),
+            childrenProvider: _destinations.length > 1
+                ? () async => [
+                    for (final destination in _destinations)
+                      ShellNavigationNode(
+                        id: 'shell-section:${destination.id}',
+                        label: destination.title(context),
+                        icon: destination.icon,
+                        onActivate: () => _navigation.selectSection(destination.id),
+                      ),
+                  ]
+                : null,
+          ),
+        ];
+        if (activeTab case final tab?) {
+          breadcrumbs.add(
+            ShellNavigationNode(
+              id: 'shell-tab:${tab.id}',
+              label: _tabTitle(tab),
+              icon: _tabIcon(tab),
+              parentId: sectionNodeId,
+              onActivate: () => _navigation.selectTab(tab.sectionId ?? sectionId, tab.id),
+              childrenProvider: _tabs.length > 1
+                  ? () async => [
+                      for (final sibling in _tabs)
+                        ShellNavigationNode(
+                          id: 'shell-tab:${sibling.id}',
+                          label: _tabTitle(sibling),
+                          icon: _tabIcon(sibling),
+                          parentId: sectionNodeId,
+                          onActivate: () => _navigation.selectTab(sibling.sectionId ?? sectionId, sibling.id),
+                        ),
+                    ]
+                  : null,
+            ),
+          );
+          if (controller != null) {
+            for (final node in controller.activePath) {
+              breadcrumbs.add(
+                ShellNavigationNode(
+                  id: node.id,
+                  label: node.label,
+                  icon: node.icon,
+                  parentId: node.parentId,
+                  onActivate: () => controller.navigateTo(node.id),
+                  children: node.children,
+                  childrenProvider: controller.hasChildren(node.id) ? () => controller.getChildren(node.id) : null,
+                  enabled: node.enabled,
+                  tooltip: node.tooltip,
+                  accessibilityLabel: node.accessibilityLabel,
                 ),
-              ),
+              );
+            }
+          }
+        } else {
+          breadcrumbs.add(
+            ShellNavigationNode(
+              id: 'shell-empty-workspace:$sectionId',
+              label: context.l10n.noTabsOpen,
+              parentId: sectionNodeId,
+              enabled: false,
             ),
-          if (overflow.isNotEmpty)
-            PopupMenuButton<String>(
-              tooltip: context.l10n.moreActions,
-              padding: EdgeInsets.zero,
-              onSelected: (id) => overflow.where((item) => item.id == id).firstOrNull?.onTap?.call(),
-              itemBuilder: (context) => overflow
-                  .map((item) => PopupMenuItem(value: item.id, height: metrics.menuRowHeight, child: Text(item.label)))
-                  .toList(),
-              icon: const Icon(Icons.more_horiz, size: 16),
-            ),
-        ],
-      ),
+          );
+        }
+
+        Future<void> navigate(ShellNavigationNode node) async {
+          if (controller?.containsNode(node.id) ?? false) {
+            await controller!.navigateTo(node.id);
+          } else {
+            await node.onActivate?.call();
+          }
+        }
+
+        final tabItems = [...?_activeStatusProvider?.items].where((item) => item.isVisible?.call() ?? true).toList();
+        final sectionItems = [
+          ...?section?.statusItemsBuilder?.call(context),
+          ...?section?.statusProvider?.items,
+        ].where((item) => item.isVisible?.call() ?? true).toList();
+        final globalItems = [for (final provider in _config.globalStatusProviders) ...provider.items]
+            .where((item) => item.isVisible?.call() ?? true)
+            .toList();
+        final notificationService = AppScope.of(context).services.shellNotifications;
+
+        return ShellStatusBar(
+          height: metrics.statusHeight,
+          menuRowHeight: metrics.menuRowHeight,
+          breadcrumbs: breadcrumbs,
+          tabItems: tabItems,
+          sectionItems: sectionItems,
+          globalItems: globalItems,
+          onNavigate: navigate,
+          notificationControl: ShellNotificationsAction(
+            key: const ValueKey('status-notifications'),
+            service: notificationService,
+            phone: false,
+            compact: true,
+          ),
+        );
+      },
     );
   }
-
-  Color _statusColor(ShellStatusSeverity severity) => switch (severity) {
-    ShellStatusSeverity.normal => Theme.of(context).colorScheme.onSurfaceVariant,
-    ShellStatusSeverity.success => Colors.green,
-    ShellStatusSeverity.warning => Colors.orange,
-    ShellStatusSeverity.error => Theme.of(context).colorScheme.error,
-  };
-
-  String _statusSeverityLabel(ShellStatusSeverity severity) => switch (severity) {
-    ShellStatusSeverity.normal => '',
-    ShellStatusSeverity.success => context.l10n.notificationSuccess,
-    ShellStatusSeverity.warning => context.l10n.notificationWarning,
-    ShellStatusSeverity.error => context.l10n.notificationError,
-  };
 
   @override
   Widget build(BuildContext context) {
@@ -1723,7 +1782,7 @@ class HomePageState extends State<HomePage> {
                                 ],
                               ),
                             ),
-                            if (!_isPhoneLayout) _buildStatusBar(metrics, width),
+                            if (!_isPhoneLayout) _buildStatusBar(metrics),
                           ],
                         ),
                       ),
@@ -1750,11 +1809,13 @@ class HomePageState extends State<HomePage> {
 }
 
 class _ShellTabRuntime {
-  _ShellTabRuntime({required this.isRestored})
-    : lifecycle = ValueNotifier(isRestored ? ShellTabLifecycle.restored : ShellTabLifecycle.opened);
+  _ShellTabRuntime({required this.isRestored, required List<String> initialNavigationPath})
+    : lifecycle = ValueNotifier(isRestored ? ShellTabLifecycle.restored : ShellTabLifecycle.opened),
+      breadcrumbs = ShellBreadcrumbController(initialPath: initialNavigationPath);
 
   final bool isRestored;
   final ValueNotifier<ShellTabLifecycle> lifecycle;
+  final ShellBreadcrumbController breadcrumbs;
   final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
   final GlobalKey<AnimatedEntryState> entryAnimationKey = GlobalKey<AnimatedEntryState>();
   final GlobalKey<AnimatedExitState> exitAnimationKey = GlobalKey<AnimatedExitState>();
@@ -1763,12 +1824,16 @@ class _ShellTabRuntime {
     tab: tab,
     isRestored: isRestored,
     lifecycle: lifecycle,
+    breadcrumbs: breadcrumbs,
     mainNavigatorKey: mainNavigatorKey,
     entryAnimationKey: entryAnimationKey,
     exitAnimationKey: exitAnimationKey,
   );
 
-  void dispose() => lifecycle.dispose();
+  void dispose() {
+    lifecycle.dispose();
+    breadcrumbs.dispose();
+  }
 }
 
 class _ShellCommand {

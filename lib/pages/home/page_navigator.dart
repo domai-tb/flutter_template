@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_template/core/settings.dart';
 
 import 'package:flutter_template/l10n/l10n_x.dart';
@@ -118,6 +119,190 @@ typedef ShellViewActionsBuilder = List<ShellViewAction> Function(BuildContext co
 typedef ShellSectionStatusItemsBuilder = List<ShellStatusItem> Function(BuildContext context);
 typedef ShellDestinationAction = FutureOr<void> Function(BuildContext context);
 typedef ShellCommandAction = FutureOr<void> Function(BuildContext context);
+typedef ShellNavigationAction = FutureOr<void> Function();
+typedef ShellNavigationChildrenProvider = FutureOr<List<ShellNavigationNode>> Function();
+
+class ShellNavigationNode {
+  final String id;
+  final String label;
+  final IconData? icon;
+  final String? parentId;
+  final ShellNavigationAction? onActivate;
+  final List<ShellNavigationNode> children;
+  final ShellNavigationChildrenProvider? childrenProvider;
+  final bool enabled;
+  final String? tooltip;
+  final String? accessibilityLabel;
+
+  const ShellNavigationNode({
+    required this.id,
+    required this.label,
+    this.icon,
+    this.parentId,
+    this.onActivate,
+    this.children = const [],
+    this.childrenProvider,
+    this.enabled = true,
+    this.tooltip,
+    this.accessibilityLabel,
+  });
+}
+
+/// A tab-owned navigation path. Only stable node IDs are persisted by the shell.
+class ShellBreadcrumbController extends ChangeNotifier {
+  ShellBreadcrumbController({Iterable<String> initialPath = const []}) : _pathIds = List.of(initialPath);
+
+  final Map<String, ShellNavigationNode> _nodes = {};
+  List<String> _pathIds;
+  int _revision = 0;
+  bool _notifyScheduled = false;
+  bool _disposed = false;
+
+  List<ShellNavigationNode> get activePath =>
+      _pathIds.map((id) => _nodes[id]).whereType<ShellNavigationNode>().toList();
+  List<String> get activePathIds => List.unmodifiable(_pathIds);
+  bool containsNode(String id) => _nodes.containsKey(id);
+
+  void registerNode(ShellNavigationNode node) => registerNodes([node]);
+
+  void registerNodes(Iterable<ShellNavigationNode> nodes) {
+    var changed = false;
+    for (final node in nodes) {
+      final previous = _nodes[node.id];
+      changed = previous == null || !_sameNode(previous, node) || changed;
+      _nodes[node.id] = node;
+    }
+    if (changed) {
+      _revision++;
+      _notifyChanged();
+    }
+  }
+
+  void unregisterNode(String id) {
+    if (!_nodes.containsKey(id)) return;
+    final removed = <String>{id};
+    var changed = true;
+    while (changed) {
+      changed = false;
+      for (final node in _nodes.values) {
+        if (node.parentId case final parentId? when removed.contains(parentId)) {
+          changed = removed.add(node.id) || changed;
+        }
+      }
+    }
+    for (final nodeId in removed) {
+      _nodes.remove(nodeId);
+    }
+    final index = _pathIds.indexWhere(removed.contains);
+    if (index >= 0) _pathIds = _pathIds.take(index).toList();
+    _revision++;
+    _notifyChanged();
+  }
+
+  void setPath(Iterable<ShellNavigationNode> path) {
+    final nodes = path.toList();
+    final ids = nodes.map((node) => node.id).toList();
+    var changed = !listEquals(ids, _pathIds);
+    for (final node in nodes) {
+      final previous = _nodes[node.id];
+      changed = previous == null || !_sameNode(previous, node) || changed;
+      _nodes[node.id] = node;
+    }
+    if (!changed) return;
+    _pathIds = ids;
+    _revision++;
+    _notifyChanged();
+  }
+
+  void restorePath(Iterable<String> ids) {
+    final path = List<String>.of(ids);
+    if (listEquals(path, _pathIds)) return;
+    _pathIds = path;
+    _revision++;
+    _notifyChanged();
+  }
+
+  bool hasChildren(String id) {
+    final node = _nodes[id];
+    return node != null &&
+        (node.children.isNotEmpty ||
+            node.childrenProvider != null ||
+            _nodes.values.any((child) => child.parentId == id));
+  }
+
+  Future<List<ShellNavigationNode>> getChildren(String id) async {
+    final node = _nodes[id];
+    if (node == null || !node.enabled) return const [];
+    final provided = await node.childrenProvider?.call() ?? const [];
+    final children = <String, ShellNavigationNode>{
+      for (final child in node.children) child.id: _childOf(child, id),
+      for (final child in _nodes.values.where((child) => child.parentId == id)) child.id: child,
+      for (final child in provided) child.id: _childOf(child, id),
+    };
+    _nodes.addAll(children);
+    return children.values.where((child) => child.enabled).toList();
+  }
+
+  Future<void> navigateTo(String nodeId) async {
+    final node = _nodes[nodeId];
+    if (node == null || !node.enabled) return;
+    final path = <ShellNavigationNode>[];
+    final visited = <String>{};
+    ShellNavigationNode? current = node;
+    while (current != null && visited.add(current.id)) {
+      path.insert(0, current);
+      current = current.parentId == null ? null : _nodes[current.parentId];
+    }
+    final revision = _revision;
+    await node.onActivate?.call();
+    if (_revision == revision) setPath(path);
+  }
+
+  bool _sameNode(ShellNavigationNode left, ShellNavigationNode right) =>
+      left.id == right.id &&
+      left.label == right.label &&
+      left.icon == right.icon &&
+      left.parentId == right.parentId &&
+      left.enabled == right.enabled &&
+      left.tooltip == right.tooltip &&
+      left.accessibilityLabel == right.accessibilityLabel &&
+      left.children.map((node) => '${node.id}\u0000${node.label}').join('\u0001') ==
+          right.children.map((node) => '${node.id}\u0000${node.label}').join('\u0001');
+
+  ShellNavigationNode _childOf(ShellNavigationNode child, String parentId) => child.parentId == null
+      ? ShellNavigationNode(
+          id: child.id,
+          label: child.label,
+          icon: child.icon,
+          parentId: parentId,
+          onActivate: child.onActivate,
+          children: child.children,
+          childrenProvider: child.childrenProvider,
+          enabled: child.enabled,
+          tooltip: child.tooltip,
+          accessibilityLabel: child.accessibilityLabel,
+        )
+      : child;
+
+  void _notifyChanged() {
+    if (SchedulerBinding.instance.schedulerPhase != SchedulerPhase.persistentCallbacks) {
+      notifyListeners();
+      return;
+    }
+    if (_notifyScheduled) return;
+    _notifyScheduled = true;
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      _notifyScheduled = false;
+      if (!_disposed) notifyListeners();
+    });
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+}
 
 class ShellViewContext {
   final ShellTabPreference tab;
@@ -126,6 +311,7 @@ class ShellViewContext {
   final GlobalKey<NavigatorState> mainNavigatorKey;
   final GlobalKey<AnimatedEntryState> entryAnimationKey;
   final GlobalKey<AnimatedExitState> exitAnimationKey;
+  final ShellBreadcrumbController breadcrumbs;
 
   const ShellViewContext({
     required this.tab,
@@ -134,6 +320,7 @@ class ShellViewContext {
     required this.mainNavigatorKey,
     required this.entryAnimationKey,
     required this.exitAnimationKey,
+    required this.breadcrumbs,
   });
 
   String get instanceId => tab.instanceId ?? tab.id;
@@ -160,6 +347,8 @@ class ShellStatusItem {
   final String? tooltip;
   final VoidCallback? onTap;
   final bool Function()? isVisible;
+  final double? progress;
+  final WidgetBuilder? detailsBuilder;
 
   const ShellStatusItem({
     required this.id,
@@ -170,6 +359,8 @@ class ShellStatusItem {
     this.tooltip,
     this.onTap,
     this.isVisible,
+    this.progress,
+    this.detailsBuilder,
   });
 }
 
@@ -194,6 +385,7 @@ class ShellDestination {
   final WidgetBuilder? panelBuilder;
   final WidgetBuilder? inspectorBuilder;
   final ShellSectionStatusItemsBuilder? statusItemsBuilder;
+  final ShellStatusProvider? statusProvider;
   final ShellDestinationAction? onSelected;
 
   const ShellDestination({
@@ -210,6 +402,7 @@ class ShellDestination {
     this.panelBuilder,
     this.inspectorBuilder,
     this.statusItemsBuilder,
+    this.statusProvider,
     this.onSelected,
   });
 }
@@ -292,6 +485,7 @@ class ShellConfig {
   final List<ShellModule> modules;
   final List<ShellContext> contexts;
   final List<ShellCommandRegistration> commands;
+  final List<ShellStatusProvider> globalStatusProviders;
   final WidgetBuilder? inspectorBuilder;
   final WidgetBuilder? splitPaneBuilder;
 
@@ -302,6 +496,7 @@ class ShellConfig {
     this.modules = const [],
     this.contexts = const [],
     this.commands = const [],
+    this.globalStatusProviders = const [],
     this.inspectorBuilder,
     this.splitPaneBuilder,
   });

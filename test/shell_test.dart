@@ -14,6 +14,7 @@ import 'package:flutter_template/pages/home/home_page.dart';
 import 'package:flutter_template/pages/home/shell_navigation_coordinator.dart';
 import 'package:flutter_template/pages/home/widgets/bottom_nav_bar.dart';
 import 'package:flutter_template/pages/home/page_navigator.dart';
+import 'package:flutter_template/pages/home/widgets/shell_status_bar.dart';
 import 'package:flutter_template/pages/page6/page6_settings_page.dart';
 import 'package:flutter_template/widgets/app_segmented_triple_control.dart';
 
@@ -66,6 +67,26 @@ void main() {
     expect(settings.useSystemDarkmode, isFalse);
     expect(settings.useDarkmode, isTrue);
     expect(settings.useSystemTextScaling, isTrue);
+  });
+
+  test('breadcrumb controller ignores unavailable nodes and preserves tree ancestry', () async {
+    final controller = ShellBreadcrumbController();
+    addTearDown(controller.dispose);
+    final parent = ShellNavigationNode(
+      id: 'parent',
+      label: 'Parent',
+      childrenProvider: () async => const [ShellNavigationNode(id: 'child', label: 'Child')],
+    );
+    controller.registerNode(parent);
+    await controller.navigateTo('missing');
+    expect(controller.activePath, isEmpty);
+
+    final child = (await controller.getChildren('parent')).single;
+    await controller.navigateTo(child.id);
+    expect(controller.activePath.map((node) => node.id), ['parent', 'child']);
+
+    controller.unregisterNode('parent');
+    expect(controller.activePath, isEmpty);
   });
 
   test('notification history is bounded and evicts read entries first', () {
@@ -130,6 +151,9 @@ void main() {
       expect(find.text('Desktop'), findsNothing);
       expect(find.text('Ready'), findsNothing);
       expect(find.byType(BottomNavBar), findsNothing);
+      expect(find.byIcon(Icons.notifications_none), findsOneWidget);
+      expect(find.byKey(const ValueKey('header-action-notifications')), findsNothing);
+      expect(tester.getRect(find.byKey(const ValueKey('status-notifications'))).right, closeTo(size.width - 8, 2));
       if (size.width <= 720) expect(find.byType(ReorderableListView), findsOneWidget);
     }
     await tester.tap(find.byTooltip('Open inspector'));
@@ -141,6 +165,162 @@ void main() {
     tester.view.physicalSize = const Size(1440, 900);
     await tester.pumpAndSettle();
     expect(tester.getRect(find.byKey(const ValueKey('shell-status-bar'))).bottom, 900);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
+
+  testWidgets('breadcrumbs navigate within a tab, persist, and collapse deep paths', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1440, 900);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(_app(_breadcrumbConfig()));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Breadcrumb content navigation-1'), findsOneWidget);
+    expect(find.text('Section A'), findsOneWidget);
+    expect(find.text('Workspace navigation-1'), findsWidgets);
+    final page = tester.widget<_BreadcrumbTestView>(find.byType(_BreadcrumbTestView));
+    expect(page.controller.activePath.map((node) => node.label), [
+      'Configuration navigation-1',
+      'Network navigation-1',
+    ]);
+    final statusBar = tester.widget<ShellStatusBar>(find.byType(ShellStatusBar));
+    expect(statusBar.breadcrumbs.map((node) => node.label), contains('Configuration navigation-1'));
+    expect(find.text('Configuration navigation-1'), findsOneWidget);
+    expect(find.text('Network navigation-1'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('breadcrumb-menu-configuration-navigation-1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Appearance navigation-1'));
+    await tester.pumpAndSettle();
+    expect(find.text('Appearance navigation-1'), findsOneWidget);
+    expect(ic.sl<SettingsController>().settings.shellWorkspaces.first.tabs.single.navigationPath, [
+      'configuration-navigation-1',
+      'appearance-navigation-1',
+    ]);
+
+    await tester.tap(find.byKey(const ValueKey('breadcrumb-node-configuration-navigation-1')));
+    await tester.pumpAndSettle();
+    expect(find.text('Appearance navigation-1'), findsNothing);
+    expect(find.text('Configuration navigation-1'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('breadcrumb-page-network-navigation-1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('breadcrumb-page-detail-navigation-1')));
+    await tester.pumpAndSettle();
+    expect(find.text('Detail navigation-1'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('tab-add-action')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Workspace navigation'));
+    await tester.pumpAndSettle();
+    final coordinator = ShellWorkspace.of(tester.element(find.text('Breadcrumb content navigation-2')));
+    final tabs = ic
+        .sl<SettingsController>()
+        .settings
+        .shellWorkspaces
+        .firstWhere((workspace) => workspace.sectionId == 'section-a')
+        .tabs;
+    expect(tabs, hasLength(2));
+    await tester.tap(find.byKey(const ValueKey('breadcrumb-page-appearance-navigation-2')));
+    await tester.pumpAndSettle();
+    expect(find.text('Appearance navigation-2'), findsOneWidget);
+    coordinator.selectTab('section-a', tabs.first.id);
+    await tester.pumpAndSettle();
+    expect(find.text('Detail navigation-1'), findsOneWidget);
+    expect(find.text('Appearance navigation-2'), findsNothing);
+    coordinator.closeTab('section-a', tabs.last.id, closable: true);
+    await tester.pumpAndSettle();
+    expect(find.text('Detail navigation-1'), findsOneWidget);
+    expect(ic.sl<SettingsController>().settings.shellWorkspaces.first.tabs, hasLength(1));
+
+    tester.view.physicalSize = const Size(360, 800);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('breadcrumb-overflow')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('breadcrumb-overflow')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Network navigation-1'));
+    await tester.pumpAndSettle();
+    expect(find.text('Detail navigation-1'), findsNothing);
+    expect(find.text('Network navigation-1'), findsOneWidget);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
+
+  testWidgets('global, section, and tab status providers compose with the active workspace', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1280, 720);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final global = _MutableStatusProvider('Global online');
+    final sectionA = _MutableStatusProvider('Section A status');
+    final sectionB = _MutableStatusProvider('Section B status');
+    addTearDown(global.dispose);
+    addTearDown(sectionA.dispose);
+    addTearDown(sectionB.dispose);
+
+    await tester.pumpWidget(_app(_breadcrumbConfig(global: global, sectionA: sectionA, sectionB: sectionB)));
+    await tester.pumpAndSettle();
+    expect(find.text('Global online'), findsOneWidget);
+    expect(find.text('Section A status'), findsOneWidget);
+    expect(find.text('Tab navigation-1'), findsOneWidget);
+
+    global.setLabel('Global warning');
+    await tester.pumpAndSettle();
+    expect(find.text('Global warning'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('activity-rail-section-b')));
+    await tester.pumpAndSettle();
+    expect(find.text('Global warning'), findsOneWidget);
+    expect(find.text('Section A status'), findsNothing);
+    expect(find.text('Section B status'), findsOneWidget);
+    expect(find.text('Section B'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('activity-rail-section-a')));
+    await tester.pumpAndSettle();
+    expect(find.text('Section A status'), findsOneWidget);
+    expect(find.text('Section B status'), findsNothing);
+    expect(find.text('Configuration navigation-1'), findsOneWidget);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
+
+  testWidgets('status overflow preserves a critical global error and the notification control', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(720, 900);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final provider = _OverflowStatusProvider();
+    addTearDown(provider.dispose);
+
+    await tester.pumpWidget(_app(_breadcrumbConfig(global: provider)));
+    await tester.pumpAndSettle();
+
+    final footer = find.byKey(const ValueKey('shell-status-bar'));
+    expect(find.descendant(of: footer, matching: find.text('Critical global error')), findsOneWidget);
+    expect(find.byKey(const ValueKey('status-overflow')), findsOneWidget);
+    expect(find.byIcon(Icons.notifications_none), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('status-overflow')));
+    await tester.pumpAndSettle();
+    expect(find.text('Background task 07'), findsOneWidget);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
+
+  testWidgets('bottom notification action updates unread badge and opens its center', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1280, 720);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(_app(_testConfig()));
+    await tester.pumpAndSettle();
+    final service = ic.sl<AppServices>().shellNotifications;
+    expect(find.byIcon(Icons.notifications_none), findsOneWidget);
+    expect(find.text('1'), findsNothing);
+    service.add(severity: ShellNotificationSeverity.warning, title: 'Saved event');
+    await tester.pumpAndSettle();
+    expect(find.text('1'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Open notifications'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('notifications-popover')), findsOneWidget);
+    expect(find.text('Saved event'), findsOneWidget);
+    expect(find.byKey(const ValueKey('header-action-notifications')), findsNothing);
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
   testWidgets('touch navigation hides the desktop footer', (tester) async {
@@ -164,8 +344,8 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(_app(_testConfig()));
 
-    const ids = ['inspector', 'notifications', 'search', 'more'];
-    const icons = [Icons.vertical_split_outlined, Icons.notifications_none, Icons.search, Icons.more_vert];
+    const ids = ['inspector', 'search', 'more'];
+    const icons = [Icons.vertical_split_outlined, Icons.search, Icons.more_vert];
     for (final size in [const Size(720, 900), const Size(1280, 720), const Size(1440, 900)]) {
       tester.view.physicalSize = size;
       await tester.pumpAndSettle();
@@ -184,7 +364,14 @@ void main() {
         expect(iconRects[index].center.dy, closeTo(iconRects[index + 1].center.dy, 1));
       }
       expect(size.width - cellRects.last.right, closeTo(8, 1));
-      expect(find.byKey(const ValueKey('header-action-notifications')), findsOneWidget);
+      expect(find.byKey(const ValueKey('header-action-notifications')), findsNothing);
+      expect(find.byKey(const ValueKey('status-notifications')), findsOneWidget);
+      expect(find.byTooltip('Open notifications'), findsOneWidget);
+      expect(find.byIcon(Icons.notifications_none), findsOneWidget);
+      expect(
+        tester.getRect(find.byIcon(Icons.notifications_none)).center.dy,
+        greaterThan(tester.getRect(find.byKey(const ValueKey('shell-status-bar'))).top),
+      );
       expect(find.byKey(const ValueKey('header-action-search')), findsOneWidget);
       expect(find.byKey(const ValueKey('header-action-more')), findsOneWidget);
       expect(find.byTooltip('Find open tab'), findsOneWidget);
@@ -222,7 +409,8 @@ void main() {
     await tester.pumpWidget(_app(_testConfig()));
     await tester.pumpAndSettle();
 
-    expect(tester.getSize(find.byKey(const ValueKey('header-action-notifications'))), const Size(36, 36));
+    expect(find.byKey(const ValueKey('header-action-notifications')), findsNothing);
+    expect(find.byKey(const ValueKey('status-notifications')), findsOneWidget);
     final tabOverflow = tester.getRect(find.byKey(const ValueKey('tab-overflow-action')));
     final tabAdd = tester.getRect(find.byKey(const ValueKey('tab-add-action')));
     expect(tabOverflow.size, const Size(36, 36));
@@ -380,7 +568,7 @@ void main() {
     final footer = find.byKey(const ValueKey('shell-status-bar'));
     expect(footer, findsOneWidget);
     expect(tester.getRect(footer).bottom, 900);
-    expect(find.text('No views are open.'), findsOneWidget);
+    expect(find.text('No views are open.'), findsAtLeastNWidgets(2));
     expect(find.text('Ready'), findsNothing);
 
     final home = tester.state<HomePageState>(find.byType(HomePage));
@@ -442,7 +630,7 @@ void main() {
     final popover = tester.getRect(find.byKey(const ValueKey('notifications-popover')));
     final notificationButton = tester.getRect(find.byTooltip('Open notifications'));
     expect(popover.size, const Size(360, 400));
-    expect(popover.top, greaterThanOrEqualTo(notificationButton.bottom));
+    expect(popover.bottom, lessThanOrEqualTo(notificationButton.top));
     expect(popover.right, lessThanOrEqualTo(1440));
     expect(find.text('Preview event'), findsOneWidget);
     await tester.tap(find.text('Preview event'));
@@ -763,6 +951,39 @@ ShellConfig _testConfig({Map<String, _TestStatusProvider>? providers}) => ShellC
   splitPaneBuilder: (_) => const Center(child: Text('Split test content')),
 );
 
+ShellConfig _breadcrumbConfig({
+  ShellStatusProvider? global,
+  ShellStatusProvider? sectionA,
+  ShellStatusProvider? sectionB,
+}) => ShellConfig(
+  title: (_) => 'Navigation test shell',
+  destinations: [
+    ShellDestination(
+      id: 'section-a',
+      title: (_) => 'Section A',
+      icon: Icons.dashboard_outlined,
+      defaultViewId: 'navigation',
+      statusProvider: sectionA,
+    ),
+    ShellDestination(
+      id: 'section-b',
+      title: (_) => 'Section B',
+      icon: Icons.settings_outlined,
+      defaultViewId: 'navigation',
+      statusProvider: sectionB,
+    ),
+  ],
+  views: [
+    ShellViewRegistration(
+      id: 'navigation',
+      title: (_, instanceId) => 'Workspace $instanceId',
+      viewBuilder: (_, view) => _BreadcrumbTestView(controller: view.breadcrumbs, instanceId: view.instanceId),
+      statusProviderFactory: (instanceId) => _MutableStatusProvider('Tab $instanceId'),
+    ),
+  ],
+  globalStatusProviders: global == null ? const [] : [global],
+);
+
 Widget _app(ShellConfig? config, {RouteInformation? routeInformation}) {
   final settings = ic.sl<SettingsController>();
   return AppScope(
@@ -852,4 +1073,126 @@ class _TestStatusProvider extends ShellStatusProvider {
     disposed = true;
     super.dispose();
   }
+}
+
+class _MutableStatusProvider extends ShellStatusProvider {
+  String label;
+
+  _MutableStatusProvider(this.label);
+
+  @override
+  List<ShellStatusItem> get items => [
+    ShellStatusItem(
+      id: label,
+      label: label,
+      severity: label.contains('warning') ? ShellStatusSeverity.warning : ShellStatusSeverity.normal,
+    ),
+  ];
+
+  void setLabel(String value) {
+    label = value;
+    notifyListeners();
+  }
+}
+
+class _OverflowStatusProvider extends ShellStatusProvider {
+  @override
+  List<ShellStatusItem> get items => [
+    for (var index = 0; index < 8; index++)
+      ShellStatusItem(id: 'task-$index', label: 'Background task 0$index', priority: 100 - index),
+    const ShellStatusItem(
+      id: 'critical-error',
+      label: 'Critical global error',
+      priority: -100,
+      severity: ShellStatusSeverity.error,
+    ),
+  ];
+}
+
+class _BreadcrumbTestView extends StatefulWidget {
+  final ShellBreadcrumbController controller;
+  final String instanceId;
+
+  const _BreadcrumbTestView({required this.controller, required this.instanceId});
+
+  @override
+  State<_BreadcrumbTestView> createState() => _BreadcrumbTestViewState();
+}
+
+class _BreadcrumbTestViewState extends State<_BreadcrumbTestView> {
+  ShellNavigationNode get _configuration => ShellNavigationNode(
+    id: 'configuration-${widget.instanceId}',
+    label: 'Configuration ${widget.instanceId}',
+    childrenProvider: () async => [_appearance],
+  );
+
+  ShellNavigationNode get _network => ShellNavigationNode(
+    id: 'network-${widget.instanceId}',
+    label: 'Network ${widget.instanceId}',
+    parentId: _configuration.id,
+  );
+
+  ShellNavigationNode get _appearance => ShellNavigationNode(
+    id: 'appearance-${widget.instanceId}',
+    label: 'Appearance ${widget.instanceId}',
+    parentId: _configuration.id,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _publishInitialPath();
+  }
+
+  @override
+  void didUpdateWidget(covariant _BreadcrumbTestView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller || oldWidget.instanceId != widget.instanceId) {
+      _publishInitialPath();
+    }
+  }
+
+  void _publishInitialPath() {
+    final configuration = _configuration;
+    final network = _network;
+    widget.controller.registerNodes([configuration, network, _appearance]);
+    widget.controller.setPath([configuration, network]);
+  }
+
+  void _showAppearance() => widget.controller.setPath([_configuration, _appearance]);
+
+  void _showNetwork() => widget.controller.setPath([_configuration, _network]);
+
+  void _showDetail() {
+    final detail = ShellNavigationNode(
+      id: 'detail-${widget.instanceId}',
+      label: 'Detail ${widget.instanceId}',
+      parentId: _network.id,
+    );
+    widget.controller.registerNode(detail);
+    widget.controller.setPath([_configuration, _network, detail]);
+  }
+
+  @override
+  Widget build(BuildContext context) => Column(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      Text('Breadcrumb content ${widget.instanceId}'),
+      TextButton(
+        key: ValueKey('breadcrumb-page-network-${widget.instanceId}'),
+        onPressed: _showNetwork,
+        child: const Text('Show network'),
+      ),
+      TextButton(
+        key: ValueKey('breadcrumb-page-appearance-${widget.instanceId}'),
+        onPressed: _showAppearance,
+        child: const Text('Show appearance'),
+      ),
+      TextButton(
+        key: ValueKey('breadcrumb-page-detail-${widget.instanceId}'),
+        onPressed: _showDetail,
+        child: const Text('Show detail'),
+      ),
+    ],
+  );
 }

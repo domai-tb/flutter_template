@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter/widgets.dart';
+import 'package:flutter/foundation.dart';
+
 import 'package:flutter_template/core/settings.dart';
 import 'package:flutter_template/pages/home/page_navigator.dart';
 
@@ -206,6 +208,22 @@ class ShellNavigationCoordinator extends ChangeNotifier {
       activateSection: activateSection,
     );
     _touch(sectionId, tabId);
+  }
+
+  void updateTabNavigationPath(String sectionId, String tabId, List<String> path) {
+    final workspace = workspaceFor(sectionId);
+    final index = workspace.tabs.indexWhere((tab) => tab.id == tabId);
+    if (index < 0 || listEquals(workspace.tabs[index].navigationPath, path)) return;
+    final tabs = List<ShellTabPreference>.of(workspace.tabs);
+    tabs[index] = tabs[index].copyWith(navigationPath: path);
+    _replaceWorkspace(
+      ShellSectionWorkspace(
+        sectionId: sectionId,
+        tabs: tabs,
+        activeTabId: workspace.activeTabId,
+        inspectorOpen: workspace.inspectorOpen,
+      ),
+    );
   }
 
   void setSectionInspectorOpen(String sectionId, {required bool? isOpen}) {
