@@ -53,6 +53,10 @@ void main() {
     await tester.tap(find.byTooltip('Open inspector'));
     await tester.pumpAndSettle();
     expect(find.text('No tab is active.'), findsOneWidget);
+    await tester.drag(find.byIcon(Icons.drag_indicator), const Offset(-32, 0));
+    await tester.pumpAndSettle();
+    final resizedInspectorWidth = settings.settings.inspectorWidth;
+    expect(resizedInspectorWidth, greaterThan(320));
     final b1 = home.openView('editor', sectionId: 'activity-b', instanceId: 'b1', parameters: {'document': 'B1'})!;
     final b2 = home.openView('editor', sectionId: 'activity-b', instanceId: 'b2', parameters: {'document': 'B2'})!;
     await tester.pumpAndSettle();
@@ -72,6 +76,7 @@ void main() {
     expect(_workspace(settings, 'activity-a').activeTabId, a2);
     expect(_workspace(settings, 'activity-b').activeTabId, b1);
     expect(_workspace(settings, 'activity-b').tabs.map((tab) => tab.id), [b1, b2]);
+    expect(settings.settings.inspectorWidth, resizedInspectorWidth);
 
     await home.selectedPage('activity-a');
     await tester.pumpAndSettle();
@@ -119,6 +124,108 @@ void main() {
     await tester.pumpAndSettle();
     expect(_workspace(restoredSettings, 'activity-a').tabs.map((tab) => tab.id), [a4, a2, a3]);
     expect(_workspace(restoredSettings, 'activity-b').tabs.map((tab) => tab.id), [b1]);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
+
+  test('coordinator supports large workspaces and explicit reuse policies', () {
+    ShellDestination section(String id) => ShellDestination(
+      id: id,
+      title: (_) => id,
+      icon: Icons.home,
+      allowedViewIds: const {'new', 'registration', 'instance'},
+    );
+    ShellViewRegistration view(String id, ShellViewReusePolicy policy) => ShellViewRegistration(
+      id: id,
+      title: (_, instanceId) => instanceId,
+      reusePolicy: policy,
+      viewBuilder: (_, _) => const SizedBox.shrink(),
+    );
+
+    final navigation = ShellNavigationCoordinator(
+      sections: [section('a'), section('b'), section('c')],
+      views: [
+        view('new', ShellViewReusePolicy.never),
+        view('registration', ShellViewReusePolicy.byRegistration),
+        view('instance', ShellViewReusePolicy.byInstance),
+      ],
+    );
+    addTearDown(navigation.dispose);
+
+    final firstNew = navigation.openTab('a', 'new');
+    final secondNew = navigation.openTab('a', 'new');
+    expect(secondNew, isNot(firstNew));
+
+    final byRegistration = navigation.openTab('a', 'registration', instanceId: 'resource-a');
+    expect(navigation.openTab('a', 'registration', instanceId: 'resource-b'), byRegistration);
+    expect(
+      navigation.openTab('b', 'registration', instanceId: 'resource-a', activateSection: false),
+      isNot(byRegistration),
+    );
+
+    final firstInstance = navigation.openTab('a', 'instance', instanceId: 'item-1');
+    expect(navigation.openTab('a', 'instance', instanceId: 'item-1'), firstInstance);
+    expect(navigation.openTab('a', 'instance', instanceId: 'item-2'), isNot(firstInstance));
+
+    for (var index = 0; index < 50; index++) {
+      navigation.openTab('b', 'new', instanceId: 'large-$index', activateSection: false);
+    }
+    expect(navigation.workspaceFor('a').tabs, hasLength(5));
+    expect(navigation.workspaceFor('b').tabs, hasLength(51));
+    expect(navigation.workspaceFor('a').tabs.where((tab) => tab.registrationId == 'new'), hasLength(2));
+    expect(navigation.workspaceFor('b').tabs.where((tab) => tab.registrationId == 'new'), hasLength(50));
+    expect(navigation.workspaceFor('c').tabs, isEmpty);
+    expect(navigation.selectedSectionId, 'a');
+  });
+
+  test('restoration retains unavailable section and view records', () {
+    final config = _config();
+    final navigation = ShellNavigationCoordinator(sections: config.destinations, views: config.views);
+    addTearDown(navigation.dispose);
+
+    navigation.restoreWorkspaces([
+      const ShellWorkspacePreference(
+        sectionId: 'activity-a',
+        tabs: [ShellTabPreference(id: 'known-tab', sectionId: 'activity-a', registrationId: 'editor')],
+        activeTabId: 'known-tab',
+      ),
+      const ShellWorkspacePreference(
+        sectionId: 'retired-section',
+        tabs: [
+          ShellTabPreference(
+            id: 'retired-tab',
+            sectionId: 'retired-section',
+            registrationId: 'removed-view',
+            parameters: {'opaque': 'preserve'},
+          ),
+        ],
+        activeTabId: 'retired-tab',
+      ),
+    ], selectedSectionId: 'activity-a');
+
+    final saved = Settings(
+      shellWorkspaces: navigation.workspaces.map((workspace) => workspace.toPreference()).toList(),
+    );
+    final restored = Settings.fromJson(saved.toJson());
+    final retired = restored.shellWorkspaces.singleWhere((workspace) => workspace.sectionId == 'retired-section');
+
+    expect(navigation.selectedSectionId, 'activity-a');
+    expect(navigation.workspaceFor('activity-a').tabs.single.id, 'known-tab');
+    expect(retired.activeTabId, 'retired-tab');
+    expect(retired.tabs.single.registrationId, 'removed-view');
+    expect(retired.tabs.single.parameters, {'opaque': 'preserve'});
+  });
+
+  testWidgets('narrow desktop keeps the generic Inspector available in a drawer', (tester) async {
+    await _pumpShell(tester, config: _config(), size: const Size(960, 700));
+    expect(find.byTooltip('Open inspector'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Open inspector'));
+    await tester.pumpAndSettle();
+    expect(find.text('No tab is active.'), findsOneWidget);
+    final drawer = find.ancestor(of: find.text('No tab is active.'), matching: find.byType(Drawer));
+    await tester.tap(find.descendant(of: drawer, matching: find.byTooltip('Close inspector')));
+    await tester.pumpAndSettle();
+    expect(find.text('No tab is active.'), findsNothing);
+    expect(ic.sl<SettingsController>().settings.inspectorOpen, isFalse);
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
   testWidgets('flat saved tabs migrate by destination and retain unavailable registrations', (tester) async {
