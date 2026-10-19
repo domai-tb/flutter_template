@@ -457,6 +457,42 @@ class AppLocalizationsDe extends AppLocalizations {
   String get enter_totp => 'Bitte gib deinen Einmalcode (TOTP) ein.';
 
   @override
+  String get inspectorWorkspace => 'Arbeitsbereich';
+
+  @override
+  String get inspectorSelection => 'Auswahl';
+
+  @override
+  String get inspectorSection => 'Bereich';
+
+  @override
+  String get inspectorOpenTabs => 'Offene Tabs';
+
+  @override
+  String get inspectorView => 'Ansicht';
+
+  @override
+  String get inspectorInstance => 'Instanz';
+
+  @override
+  String get inspectorEmptyState => 'Kein Tab ist aktiv.';
+
+  @override
+  String get renameTab => 'Tab umbenennen';
+
+  @override
+  String get tabTitleLabel => 'Tab-Name';
+
+  @override
+  String get save => 'Speichern';
+
+  @override
+  String get openSectionPanel => 'Bereichsfenster öffnen';
+
+  @override
+  String get closeSectionPanel => 'Bereichsfenster schließen';
+
+  @override
   String get closeUnsavedTabTitle => 'Geänderte Ansicht schließen?';
 
   @override

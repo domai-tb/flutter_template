@@ -11,6 +11,7 @@ import 'package:flutter_template/core/shell_notifications.dart';
 import 'package:flutter_template/core/themes.dart';
 import 'package:flutter_template/l10n/l10n.dart';
 import 'package:flutter_template/pages/home/home_page.dart';
+import 'package:flutter_template/pages/home/shell_navigation_coordinator.dart';
 import 'package:flutter_template/pages/home/widgets/bottom_nav_bar.dart';
 import 'package:flutter_template/pages/home/page_navigator.dart';
 import 'package:flutter_template/pages/page6/page6_settings_page.dart';
@@ -85,7 +86,7 @@ void main() {
     expect(service.unreadCount, ShellNotificationService.capacity);
   });
 
-  testWidgets('deep links open registered tabs without changing the selected activity', (tester) async {
+  testWidgets('deep links activate the registered section workspace', (tester) async {
     final settings = ic.sl<SettingsController>();
     settings.update(
       settings.settings.copyWith(
@@ -97,8 +98,13 @@ void main() {
     await tester.pumpWidget(_app(null, routeInformation: RouteInformation(uri: Uri.parse('/page2'))));
     await tester.pumpAndSettle();
 
-    expect(tester.state<HomePageState>(find.byType(HomePage)).currentDestinationId, 'page1');
-    expect(settings.settings.selectedShellTabId, 'page2-1');
+    expect(tester.state<HomePageState>(find.byType(HomePage)).currentDestinationId, 'page2');
+    expect(settings.settings.selectedActivityId, 'page2');
+    final page1Workspace = settings.settings.shellWorkspaces.firstWhere((workspace) => workspace.sectionId == 'page1');
+    final page2Workspace = settings.settings.shellWorkspaces.firstWhere((workspace) => workspace.sectionId == 'page2');
+    expect(page1Workspace.tabs.map((tab) => tab.registrationId), ['page1']);
+    expect(page2Workspace.tabs.single.registrationId, 'page2');
+    expect(page2Workspace.activeTabId, settings.settings.selectedShellTabId);
     expect(settings.settings.shellTabs.map((tab) => tab.registrationId), ['page1', 'page2']);
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
@@ -159,7 +165,7 @@ void main() {
     await tester.pumpWidget(_app(_testConfig()));
 
     const ids = ['inspector', 'notifications', 'search', 'more'];
-    const icons = [Icons.vertical_split, Icons.notifications_none, Icons.search, Icons.more_vert];
+    const icons = [Icons.vertical_split_outlined, Icons.notifications_none, Icons.search, Icons.more_vert];
     for (final size in [const Size(720, 900), const Size(1280, 720), const Size(1440, 900)]) {
       tester.view.physicalSize = size;
       await tester.pumpAndSettle();
@@ -254,12 +260,12 @@ void main() {
     expect(home.currentDestinationId, 'page1');
 
     await tester.tap(find.descendant(of: rows[1], matching: find.byType(InkWell)));
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(home.currentDestinationId, 'page2');
     expect(find.byKey(const ValueKey('activity-rail-indicator-page2')), findsOneWidget);
     final selectedModuleId = ic.sl<SettingsController>().settings.selectedModuleId;
     await tester.tap(rows[5]);
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(home.currentDestinationId, 'page6');
     expect(ic.sl<SettingsController>().settings.selectedModuleId, selectedModuleId);
     expect(find.byKey(const ValueKey('activity-rail-indicator-page6')), findsOneWidget);
@@ -359,7 +365,7 @@ void main() {
     expect(tester.takeException(), isNull);
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
-  testWidgets('registered views open independently from activities and contribute tab status', (tester) async {
+  testWidgets('registered views open in the selected section and contribute tab status', (tester) async {
     final providers = <String, _TestStatusProvider>{};
     final config = _testConfig(providers: providers);
     tester.view.physicalSize = const Size(1440, 900);
@@ -378,52 +384,41 @@ void main() {
     expect(find.text('Ready'), findsNothing);
 
     final home = tester.state<HomePageState>(find.byType(HomePage));
-    final activityId = home.currentDestinationId;
-    final testTabId = home.openView('test');
+    final firstTabId = home.openView('registered-view', sectionId: 'test', instanceId: 'one')!;
     await tester.pumpAndSettle();
-    expect(testTabId, 'test-1');
-    expect(find.text('Registered page'), findsOneWidget);
-    expect(home.currentDestinationId, activityId);
-
-    await home.selectedPage('test');
-    await home.selectedPage('test');
-    await tester.pumpAndSettle();
-    expect(settings.settings.selectedShellTabId, testTabId);
-    expect(settings.settings.shellTabs.map((tab) => tab.id), ['test-1']);
-
-    await tester.tap(find.byTooltip('Open view'));
-    await tester.pumpAndSettle();
-    expect(find.text('Registered view'), findsWidgets);
-    await tester.tap(find.text('Registered view').last);
-    await tester.pumpAndSettle();
+    expect(firstTabId, 'test::registered-view::1');
     expect(find.text('Registered view content'), findsOneWidget);
-    expect(find.text('Status registered-view-1'), findsOneWidget);
-    expect(find.descendant(of: footer, matching: find.text('Status registered-view-1')), findsOneWidget);
-    providers['registered-view-1']!.update('Status updated view A');
+    expect(find.text('Status one'), findsOneWidget);
+
+    final navigation = ShellWorkspace.of(tester.element(find.text('Registered view content')));
+    final secondTabId = home.openView('registered-view', sectionId: 'test', instanceId: 'two')!;
+    await tester.pumpAndSettle();
+    expect(secondTabId, 'test::registered-view::2');
+    expect(find.text('Status two'), findsOneWidget);
+
+    navigation.selectTab('test', firstTabId);
+    await tester.pumpAndSettle();
+    expect(find.text('Status one'), findsOneWidget);
+    expect(settings.settings.selectedActivityId, 'test');
+
+    await home.selectedPage('test');
+    await tester.pumpAndSettle();
+    expect(settings.settings.selectedShellTabId, firstTabId);
+    expect(find.text('Registered view content'), findsOneWidget);
+    expect(find.text('Status one'), findsOneWidget);
+
+    providers['one']!.update('Status updated view A');
     await tester.pump();
     expect(find.descendant(of: footer, matching: find.text('Status updated view A')), findsOneWidget);
-    providers['registered-view-1']!.update('Status registered-view-1');
+    providers['one']!.update('Status one');
     await tester.pump();
 
-    await home.selectedPage('test');
+    navigation.closeTab('test', firstTabId, closable: true);
     await tester.pumpAndSettle();
-    expect(footer, findsOneWidget);
-    expect(find.text('Status registered-view-1'), findsOneWidget);
-    await tester.tap(find.byTooltip('Open view'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Registered view').last);
-    await tester.pumpAndSettle();
-    expect(find.text('Status registered-view-2'), findsOneWidget);
-    await tester.tap(find.text('Registered view 1'));
-    await tester.pumpAndSettle();
-    expect(find.text('Status registered-view-1'), findsOneWidget);
-    expect(settings.settings.shellTabs.map((tab) => tab.id), ['test-1', 'registered-view-1', 'registered-view-2']);
-
-    await tester.tap(find.byTooltip('Close').last);
-    await tester.pumpAndSettle();
-    expect(providers['registered-view-1']!.disposed, isTrue);
-    expect(settings.settings.shellTabs.map((tab) => tab.id), ['test-1', 'registered-view-2']);
-    expect(find.text('Status registered-view-1'), findsNothing);
+    expect(providers['one']!.disposed, isTrue);
+    expect(settings.settings.shellWorkspaces.single.tabs.map((tab) => tab.id), [secondTabId]);
+    expect(find.text('Status one'), findsNothing);
+    expect(find.text('Status two'), findsOneWidget);
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
   testWidgets('notification actions read and clear events', (tester) async {
@@ -531,7 +526,14 @@ void main() {
       _app(
         ShellConfig(
           title: (_) => 'Error test',
-          destinations: const [],
+          destinations: const [
+            ShellDestination(
+              id: 'errors',
+              title: _errorSectionTitle,
+              icon: Icons.error_outline,
+              allowedViewIds: {'broken'},
+            ),
+          ],
           views: [
             ShellViewRegistration(
               id: 'broken',
@@ -542,7 +544,7 @@ void main() {
         ),
       ),
     );
-    tester.state<HomePageState>(find.byType(HomePage)).openView('broken');
+    tester.state<HomePageState>(find.byType(HomePage)).openView('broken', sectionId: 'errors');
     await tester.pumpAndSettle();
     expect(find.textContaining('intentional'), findsOneWidget);
     expect(find.byTooltip('More actions'), findsOneWidget);
@@ -719,6 +721,8 @@ void main() {
     expect(ic.sl<SettingsController>().settings.splitRatio, 0.5);
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 }
+
+String _errorSectionTitle(BuildContext _) => 'Errors';
 
 ShellConfig _testConfig({Map<String, _TestStatusProvider>? providers}) => ShellConfig(
   title: (_) => 'Test shell',

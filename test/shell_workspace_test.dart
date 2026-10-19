@@ -24,144 +24,192 @@ void main() {
 
   tearDown(() async => ic.sl.reset());
 
-  testWidgets('views open independently, retain state, and close in isolation', (tester) async {
-    await _pumpShell(tester);
-    final home = tester.state<HomePageState>(find.byType(HomePage));
-
-    final first = home.openView('editor', instanceId: 'one', parameters: {'document': 'alpha'});
-    final second = home.openView('editor', instanceId: 'two', parameters: {'document': 'beta'});
-    await tester.pumpAndSettle();
-    expect(first, 'editor-1');
-    expect(second, 'editor-2');
-    expect(find.text('Document beta'), findsOneWidget);
-    expect(home.openView('editor', instanceId: 'one'), first);
-    await tester.pump();
-    expect(find.text('Document alpha'), findsOneWidget);
-    expect(home.openView('editor', instanceId: 'two'), second);
-    await tester.pump();
-    expect(find.text('Document beta'), findsOneWidget);
-
-    await tester.tap(find.text('Open help from editor'));
-    await tester.pumpAndSettle();
-    expect(find.text('Help view'), findsOneWidget);
-    expect(home.openView('help'), 'help-1');
-    await tester.pump();
-    expect(ic.sl<SettingsController>().settings.shellTabs, hasLength(3));
-    expect(home.currentDestinationId, 'activity-a');
-
-    await tester.tap(find.byTooltip('Editor one'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('increment-one')));
-    await tester.tap(find.byKey(const ValueKey('increment-one')));
-    await tester.tap(find.byTooltip('Editor two'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('increment-two')));
-
-    await home.selectedPage('activity-b');
-    await tester.pumpAndSettle();
-    expect(home.currentDestinationId, 'activity-b');
-    expect(ic.sl<SettingsController>().settings.selectedShellTabId, second);
-    expect(find.text('Document beta'), findsOneWidget);
-    expect(find.text('Count: 1'), findsOneWidget);
-
-    await tester.tap(find.byTooltip('Editor one'));
-    await tester.pumpAndSettle();
-    expect(find.text('Document alpha'), findsOneWidget);
-    expect(find.text('Count: 2'), findsOneWidget);
-
-    final secondTab = tester.getCenter(find.byTooltip('Editor two'));
-    tester.binding.handlePointerEvent(
-      PointerDownEvent(pointer: 42, kind: PointerDeviceKind.mouse, position: secondTab, buttons: kMiddleMouseButton),
-    );
-    tester.binding.handlePointerEvent(PointerUpEvent(pointer: 42, kind: PointerDeviceKind.mouse, position: secondTab));
-    await tester.pumpAndSettle();
-    expect(ic.sl<SettingsController>().settings.shellTabs.map((tab) => tab.id), ['editor-1', 'help-1']);
-    expect(find.text('Document alpha'), findsOneWidget);
-    expect(find.text('Count: 2'), findsOneWidget);
-  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
-
-  testWidgets('workspace reordering and keyboard tab actions survive an application restart', (tester) async {
+  testWidgets('sections keep independent tabs, active selection, and live state', (tester) async {
     final config = _config();
     await _pumpShell(tester, config: config);
     final home = tester.state<HomePageState>(find.byType(HomePage));
-    home.openView('editor', instanceId: 'one', parameters: {'document': 'alpha'});
-    await tester.pump();
-    home.openView('editor', instanceId: 'two', parameters: {'document': 'beta'});
-    await tester.pump();
-    home.openView('help');
+    final settings = ic.sl<SettingsController>();
+
+    final a1 = home.openView('editor', sectionId: 'activity-a', instanceId: 'a1', parameters: {'document': 'A1'})!;
+    final a2 = home.openView('editor', sectionId: 'activity-a', instanceId: 'a2', parameters: {'document': 'A2'})!;
+    final a3 = home.openView('editor', sectionId: 'activity-a', instanceId: 'a3', parameters: {'document': 'A3'})!;
+    await tester.pumpAndSettle();
+    var navigation = _navigation(tester, 'A3');
+    expect(_workspace(settings, 'activity-a').tabs.map((tab) => tab.id), [a1, a2, a3]);
+    expect({a1, a2, a3}.length, 3);
+    expect(_workspace(settings, 'activity-a').tabs.every((tab) => tab.sectionId == 'activity-a'), isTrue);
+    navigation.selectTab('activity-a', a2);
+    expect(navigation.selectedSectionId, 'activity-a');
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('increment-a2')));
+    await tester.tap(find.byKey(const ValueKey('increment-a2')));
     await tester.pump();
 
-    ShellWorkspace.of(tester.element(find.text('Help view'))).reorder(2, 1);
-    await tester.pump();
-    expect(ic.sl<SettingsController>().settings.shellTabs.map((tab) => tab.id), ['editor-1', 'help-1', 'editor-2']);
+    await home.selectedPage('activity-b');
+    await tester.pumpAndSettle();
+    expect(navigation.selectedSectionId, 'activity-b');
+    expect(_workspace(settings, 'activity-b').tabs, isEmpty);
+    expect(find.text('Document A2'), findsNothing);
+    await tester.tap(find.byTooltip('Open inspector'));
+    await tester.pumpAndSettle();
+    expect(find.text('No tab is active.'), findsOneWidget);
+    final b1 = home.openView('editor', sectionId: 'activity-b', instanceId: 'b1', parameters: {'document': 'B1'})!;
+    final b2 = home.openView('editor', sectionId: 'activity-b', instanceId: 'b2', parameters: {'document': 'B2'})!;
+    await tester.pumpAndSettle();
+    navigation = _navigation(tester, 'B2');
+    navigation.selectTab('activity-b', b1);
+    await tester.pumpAndSettle();
+    expect(find.text('Document B1'), findsOneWidget);
+    expect(find.text('Inspector b1'), findsOneWidget);
+    expect(_workspace(settings, 'activity-b').tabs.every((tab) => tab.sectionId == 'activity-b'), isTrue);
+
+    await home.selectedPage('activity-a');
+    await tester.pumpAndSettle();
+    expect(navigation.selectedSectionId, 'activity-a');
+    expect(find.text('Document A2'), findsOneWidget);
+    expect(find.text('Inspector a2'), findsOneWidget);
+    expect(find.text('Count: 2'), findsOneWidget);
+    expect(_workspace(settings, 'activity-a').activeTabId, a2);
+    expect(_workspace(settings, 'activity-b').activeTabId, b1);
+    expect(_workspace(settings, 'activity-b').tabs.map((tab) => tab.id), [b1, b2]);
+
+    await home.selectedPage('activity-a');
+    await tester.pumpAndSettle();
+    expect(find.text('Document A2'), findsOneWidget);
+    final a4 = home.openView('editor', sectionId: 'activity-a', instanceId: 'a4', parameters: {'document': 'A4'})!;
+    await tester.pumpAndSettle();
+    expect(_workspace(settings, 'activity-a').tabs, hasLength(4));
+    expect(_workspace(settings, 'activity-b').tabs, hasLength(2));
+
+    navigation = _navigation(tester, 'A4');
+    navigation.reorderTabs('activity-a', 3, 0);
+    navigation.selectTab('activity-a', a2);
+    navigation.closeTab('activity-a', a1, closable: true);
+    await tester.pumpAndSettle();
+    expect(_workspace(settings, 'activity-a').tabs.map((tab) => tab.id), [a4, a2, a3]);
+    expect(_workspace(settings, 'activity-a').activeTabId, a2);
+    expect(_workspace(settings, 'activity-b').tabs.map((tab) => tab.id), [b1, b2]);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
     final restoredSettings = await SettingsController.load();
     addTearDown(restoredSettings.dispose);
-    expect(restoredSettings.settings.shellTabs.map((tab) => tab.id), ['editor-1', 'help-1', 'editor-2']);
-
     await tester.pumpWidget(_app(config, settings: restoredSettings));
-    await tester.pump(const Duration(milliseconds: 100));
-    expect(restoredSettings.settings.selectedShellTabId, 'help-1');
-    expect(find.text('Help view'), findsOneWidget);
-    Focus.of(tester.element(find.byType(AnnotatedRegion<SystemUiOverlayStyle>))).requestFocus();
-    await tester.pump();
-    await tester.tap(find.byTooltip('Editor one'));
-    await tester.pump();
-    expect(find.text('Document alpha'), findsOneWidget);
+    await tester.pumpAndSettle();
+    expect(_workspace(restoredSettings, 'activity-a').tabs.map((tab) => tab.id), [a4, a2, a3]);
+    expect(_workspace(restoredSettings, 'activity-a').activeTabId, a2);
+    expect(_workspace(restoredSettings, 'activity-b').tabs.map((tab) => tab.id), [b1, b2]);
+    expect(_workspace(restoredSettings, 'activity-b').activeTabId, b1);
+    expect(find.text('Document A2'), findsOneWidget);
     expect(find.text('Restored: true'), findsOneWidget);
 
+    final restoredHome = tester.state<HomePageState>(find.byType(HomePage));
+    await restoredHome.selectedPage('activity-b');
+    await tester.pumpAndSettle();
+    Focus.of(tester.element(find.byType(AnnotatedRegion<SystemUiOverlayStyle>))).requestFocus();
+    await tester.pump();
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
-    await tester.pump();
-    expect(restoredSettings.settings.selectedShellTabId, 'help-1');
-
-    expect(FocusManager.instance.primaryFocus?.context?.widget, isNot(isA<EditableText>()));
+    await tester.pumpAndSettle();
+    expect(_workspace(restoredSettings, 'activity-b').activeTabId, b2);
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.keyW);
     await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
     await tester.pumpAndSettle();
-    expect(restoredSettings.settings.shellTabs.map((tab) => tab.id), ['editor-1', 'editor-2']);
+    expect(_workspace(restoredSettings, 'activity-a').tabs.map((tab) => tab.id), [a4, a2, a3]);
+    expect(_workspace(restoredSettings, 'activity-b').tabs.map((tab) => tab.id), [b1]);
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
-  testWidgets('unavailable restored views remain isolated from registered tabs', (tester) async {
+  testWidgets('flat saved tabs migrate by destination and retain unavailable registrations', (tester) async {
     final settings = ic.sl<SettingsController>();
     settings.update(
       settings.settings.copyWith(
         shellTabs: const [
-          ShellTabPreference(id: 'missing-1', registrationId: 'removed-plugin-view'),
+          ShellTabPreference(id: 'unknown-tab', registrationId: 'removed-view'),
           ShellTabPreference(
-            id: 'editor-1',
+            id: 'saved-editor',
             registrationId: 'editor',
             instanceId: 'saved',
             parameters: {'document': 'saved'},
+            destinationId: 'activity-b',
           ),
         ],
-        selectedShellTabId: 'missing-1',
+        selectedShellTabId: 'unknown-tab',
+        selectedActivityId: 'activity-a',
       ),
     );
     await _pumpShell(tester);
 
-    final unavailable = tester.widget<ShellContentSlot>(find.byType(ShellContentSlot));
-    expect(unavailable.state, ShellSlotState.unavailable);
-    expect(settings.settings.shellTabs, hasLength(2));
+    expect(settings.settings.shellWorkspaces, isNotEmpty);
+    expect(_workspace(settings, 'activity-a').tabs.single.registrationId, 'removed-view');
+    expect(_workspace(settings, 'activity-b').tabs.single.parameters['document'], 'saved');
     expect(tester.takeException(), isNull);
 
-    await tester.tap(find.byTooltip('Editor saved'));
+    final home = tester.state<HomePageState>(find.byType(HomePage));
+    await home.selectedPage('activity-b');
     await tester.pumpAndSettle();
     expect(find.text('Document saved'), findsOneWidget);
-    expect(settings.settings.shellTabs.map((tab) => tab.id), ['missing-1', 'editor-1']);
+    expect(_workspace(settings, 'activity-b').tabs.single.instanceId, 'saved');
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
-  testWidgets('command palette, toolbar, inspector, and status follow the active view', (tester) async {
+  testWidgets('all default sections open content and keep the generic inspector available', (tester) async {
+    await _pumpShell(tester, config: defaultShellConfig());
+    final home = tester.state<HomePageState>(find.byType(HomePage));
+    final settings = ic.sl<SettingsController>();
+
+    for (final item in PageItem.values) {
+      await home.selectedPage(item.name);
+      await tester.pumpAndSettle();
+      expect(_workspace(settings, item.name).tabs, isNotEmpty, reason: '${item.name} should have its default view');
+      final workspace = _workspace(settings, item.name);
+      expect(workspace.tabs.singleWhere((tab) => tab.id == workspace.activeTabId).registrationId, item.name);
+      expect(
+        find.byKey(ValueKey('workspace-tab-${workspace.activeTabId}')),
+        findsOneWidget,
+        reason: '${item.name} should mount its configured content',
+      );
+      expect(
+        find.text(pageItemPresentation(tester.element(find.byType(HomePage)), item).title),
+        findsAtLeastNWidgets(1),
+      );
+    }
+
+    final active = settings.settings.selectedActivityId!;
+    await home.selectedPage(active);
+    await tester.pumpAndSettle();
+    expect(_workspace(settings, active).tabs, isNotEmpty);
+    expect(find.byTooltip('Open inspector'), findsOneWidget);
+    await tester.tap(find.byTooltip('Open inspector'));
+    await tester.pumpAndSettle();
+    expect(find.text('Workspace'), findsOneWidget);
+
+    await home.selectedPage('page1');
+    await tester.pumpAndSettle();
+    expect(settings.settings.inspectorOpen, isTrue);
+    expect(find.text('Workspace'), findsOneWidget);
+    final page1 = _workspace(settings, 'page1');
+    expect(find.byKey(ValueKey('workspace-tab-${page1.activeTabId}')), findsOneWidget);
+
+    home.openView('page1', sectionId: 'page1');
+    home.openView('page1', sectionId: 'page1');
+    home.openView('page2', sectionId: 'page2');
+    await tester.pumpAndSettle();
+    final page1Tabs = _workspace(settings, 'page1').tabs;
+    final page2Tabs = _workspace(settings, 'page2').tabs;
+    expect(page1Tabs, hasLength(3));
+    expect(page1Tabs.map((tab) => tab.id).toSet(), hasLength(3));
+    expect(page2Tabs, hasLength(2));
+    expect(page2Tabs.map((tab) => tab.id).toSet(), hasLength(2));
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
+
+  testWidgets('commands, contextual inspector, status, and middle click follow the active section tab', (tester) async {
     final actions = <String>[];
     final providers = <String, _WorkspaceStatusProvider>{};
     final config = _config(onAction: actions.add, providers: providers);
     await _pumpShell(tester, config: config);
     final home = tester.state<HomePageState>(find.byType(HomePage));
-    final editorId = home.openView('editor', instanceId: 'one', parameters: {'document': 'alpha'});
+    final editorId = home.openView('editor', instanceId: 'one', parameters: {'document': 'alpha'})!;
     await tester.pumpAndSettle();
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
@@ -171,11 +219,11 @@ void main() {
     await tester.tap(find.text('Open view: Help'));
     await tester.pumpAndSettle();
     expect(find.text('Help view'), findsOneWidget);
-    expect(ic.sl<SettingsController>().settings.selectedShellTabId, 'help-1');
+    expect(find.text('Status one'), findsNothing);
+    expect(ic.sl<SettingsController>().settings.selectedShellTabId, isNot(editorId));
 
     await tester.tap(find.byTooltip('Editor one'));
     await tester.pumpAndSettle();
-    expect(ic.sl<SettingsController>().settings.selectedShellTabId, editorId);
     expect(find.text('Status one'), findsOneWidget);
     await tester.tap(find.byTooltip('Pin editor one'));
     expect(actions, ['one']);
@@ -183,15 +231,18 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Inspector one'), findsOneWidget);
 
-    await tester.tap(find.text('Open help from editor'));
+    final editorTab = tester.getCenter(find.byTooltip('Editor one').first);
+    tester.binding.handlePointerEvent(
+      PointerDownEvent(pointer: 42, kind: PointerDeviceKind.mouse, position: editorTab, buttons: kMiddleMouseButton),
+    );
+    tester.binding.handlePointerEvent(PointerUpEvent(pointer: 42, kind: PointerDeviceKind.mouse, position: editorTab));
     await tester.pumpAndSettle();
-    expect(ic.sl<SettingsController>().settings.selectedShellTabId, 'help-1');
-    expect(find.text('Status one'), findsNothing);
-    expect(find.text('Inspector one'), findsNothing);
+    expect(ic.sl<SettingsController>().settings.shellTabs.any((tab) => tab.id == editorId), isFalse);
+    expect(find.text('Help view'), findsOneWidget);
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
-  testWidgets('mobile switches tabs from the header while keeping activity navigation usable', (tester) async {
-    await _pumpShell(tester, size: const Size(390, 844));
+  testWidgets('mobile switches tabs within the selected section without a desktop tab strip', (tester) async {
+    await _pumpShell(tester, config: _config(), size: const Size(390, 844));
     final home = tester.state<HomePageState>(find.byType(HomePage));
     home.openView('editor', instanceId: 'one', parameters: {'document': 'alpha'});
     home.openView('editor', instanceId: 'two', parameters: {'document': 'beta'});
@@ -204,51 +255,51 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Editor one'));
     await tester.pumpAndSettle();
-    expect(ic.sl<SettingsController>().settings.selectedShellTabId, 'editor-1');
     expect(find.text('Document alpha'), findsOneWidget);
   }, variant: TargetPlatformVariant.only(TargetPlatform.android));
 }
 
-ShellConfig _config({void Function(String instanceId)? onAction, Map<String, _WorkspaceStatusProvider>? providers}) =>
-    ShellConfig(
-      title: (_) => 'Workspace test',
-      destinations: const [
-        ShellDestination(id: 'activity-a', title: _activityTitleA, icon: Icons.home),
-        ShellDestination(id: 'activity-b', title: _activityTitleB, icon: Icons.folder),
-      ],
-      views: [
-        ShellViewRegistration(
-          id: 'editor',
-          title: (_, instanceId) => 'Editor $instanceId',
-          icon: Icons.description_outlined,
-          viewBuilder: (context, view) => _EditorView(
-            instanceId: view.instanceId,
-            document: view.parameters['document'] as String? ?? '',
-            isRestored: view.isRestored,
-          ),
-          toolbarActionsBuilder: (_, view) => [
-            ShellViewAction(
-              id: 'pin',
-              label: 'Pin editor ${view.instanceId}',
-              icon: Icons.push_pin_outlined,
-              onPressed: () => onAction?.call(view.instanceId),
-            ),
-          ],
-          inspectorBuilder: (_, view) => Text('Inspector ${view.instanceId}'),
-          statusProviderFactory: (id) {
-            final provider = _WorkspaceStatusProvider(id);
-            providers?[id] = provider;
-            return provider;
-          },
-        ),
-        ShellViewRegistration(
-          id: 'help',
-          title: (_, _) => 'Help',
-          reusePolicy: ShellViewReusePolicy.byRegistration,
-          viewBuilder: (_, _) => const Center(child: Text('Help view')),
+ShellConfig _config({
+  void Function(String instanceId)? onAction,
+  Map<String, _WorkspaceStatusProvider>? providers,
+}) => ShellConfig(
+  title: (_) => 'Workspace test',
+  destinations: const [
+    ShellDestination(id: 'activity-a', title: _activityTitleA, icon: Icons.home, allowedViewIds: {'editor', 'help'}),
+    ShellDestination(id: 'activity-b', title: _activityTitleB, icon: Icons.folder, allowedViewIds: {'editor', 'help'}),
+  ],
+  views: [
+    ShellViewRegistration(
+      id: 'editor',
+      title: (_, instanceId) => 'Editor $instanceId',
+      icon: Icons.description_outlined,
+      viewBuilder: (context, view) => _EditorView(
+        instanceId: view.instanceId,
+        document: view.parameters['document'] as String? ?? '',
+        isRestored: view.isRestored,
+      ),
+      toolbarActionsBuilder: (_, view) => [
+        ShellViewAction(
+          id: 'pin',
+          label: 'Pin editor ${view.instanceId}',
+          icon: Icons.push_pin_outlined,
+          onPressed: () => onAction?.call(view.instanceId),
         ),
       ],
-    );
+      inspectorBuilder: (_, view) => Text('Inspector ${view.instanceId}'),
+      statusProviderFactory: (id) {
+        final provider = _WorkspaceStatusProvider(id);
+        providers?[id] = provider;
+        return provider;
+      },
+    ),
+    ShellViewRegistration(
+      id: 'help',
+      title: (_, _) => 'Help',
+      viewBuilder: (_, _) => const Center(child: Text('Help view')),
+    ),
+  ],
+);
 
 String _activityTitleA(BuildContext _) => 'Activity A';
 String _activityTitleB(BuildContext _) => 'Activity B';
@@ -283,6 +334,12 @@ Widget _app(ShellConfig config, {SettingsController? settings}) {
     ),
   );
 }
+
+ShellWorkspacePreference _workspace(SettingsController settings, String sectionId) =>
+    settings.settings.shellWorkspaces.firstWhere((workspace) => workspace.sectionId == sectionId);
+
+ShellNavigationCoordinator _navigation(WidgetTester tester, String document) =>
+    ShellWorkspace.of(tester.element(find.text('Document $document')));
 
 class _EditorView extends StatefulWidget {
   final String instanceId;

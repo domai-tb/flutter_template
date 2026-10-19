@@ -938,6 +938,78 @@ abstract class AppLocalizations {
   /// **'Please enter your TOTP.'**
   String get enter_totp;
 
+  /// No description provided for @inspectorWorkspace.
+  ///
+  /// In en, this message translates to:
+  /// **'Workspace'**
+  String get inspectorWorkspace;
+
+  /// No description provided for @inspectorSelection.
+  ///
+  /// In en, this message translates to:
+  /// **'Selection'**
+  String get inspectorSelection;
+
+  /// No description provided for @inspectorSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Section'**
+  String get inspectorSection;
+
+  /// No description provided for @inspectorOpenTabs.
+  ///
+  /// In en, this message translates to:
+  /// **'Open tabs'**
+  String get inspectorOpenTabs;
+
+  /// No description provided for @inspectorView.
+  ///
+  /// In en, this message translates to:
+  /// **'View'**
+  String get inspectorView;
+
+  /// No description provided for @inspectorInstance.
+  ///
+  /// In en, this message translates to:
+  /// **'Instance'**
+  String get inspectorInstance;
+
+  /// No description provided for @inspectorEmptyState.
+  ///
+  /// In en, this message translates to:
+  /// **'No tab is active.'**
+  String get inspectorEmptyState;
+
+  /// No description provided for @renameTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename tab'**
+  String get renameTab;
+
+  /// No description provided for @tabTitleLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Tab name'**
+  String get tabTitleLabel;
+
+  /// No description provided for @save.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get save;
+
+  /// No description provided for @openSectionPanel.
+  ///
+  /// In en, this message translates to:
+  /// **'Open section panel'**
+  String get openSectionPanel;
+
+  /// No description provided for @closeSectionPanel.
+  ///
+  /// In en, this message translates to:
+  /// **'Close section panel'**
+  String get closeSectionPanel;
+
   /// No description provided for @closeUnsavedTabTitle.
   ///
   /// In en, this message translates to:

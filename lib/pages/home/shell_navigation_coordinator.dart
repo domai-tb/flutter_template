@@ -4,24 +4,89 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_template/core/settings.dart';
 import 'package:flutter_template/pages/home/page_navigator.dart';
 
+class ShellSectionWorkspace {
+  final String sectionId;
+  final List<ShellTabPreference> tabs;
+  final String? activeTabId;
+  final bool? inspectorOpen;
+
+  ShellSectionWorkspace({
+    required this.sectionId,
+    List<ShellTabPreference> tabs = const [],
+    this.activeTabId,
+    this.inspectorOpen,
+  }) : tabs = List.unmodifiable(tabs);
+
+  ShellTabPreference? get activeTab => tabs.where((tab) => tab.id == activeTabId).firstOrNull;
+
+  ShellWorkspacePreference toPreference() => ShellWorkspacePreference(
+    sectionId: sectionId,
+    tabs: tabs,
+    activeTabId: activeTabId,
+    inspectorOpen: inspectorOpen,
+  );
+}
+
 class ShellNavigationCoordinator extends ChangeNotifier {
-  ShellNavigationCoordinator({Iterable<ShellViewRegistration> views = const []}) {
+  ShellNavigationCoordinator({
+    Iterable<ShellDestination> sections = const [],
+    Iterable<ShellViewRegistration> views = const [],
+  }) {
+    for (final section in sections) {
+      _sections[section.id] = section;
+      _workspaces[section.id] = ShellSectionWorkspace(sectionId: section.id);
+    }
     for (final view in views) {
       _views.putIfAbsent(view.id, () => view);
     }
+    _selectedSectionId = _sections.keys.firstOrNull;
   }
 
+  final Map<String, ShellDestination> _sections = {};
   final Map<String, ShellViewRegistration> _views = {};
-  List<ShellTabPreference> _tabs = const [];
-  String? _activeId;
-  final List<String> _recentlyUsed = [];
+  final Map<String, ShellSectionWorkspace> _workspaces = {};
+  final Map<String, List<String>> _recentlyUsed = {};
+  String? _selectedSectionId;
 
-  List<ShellTabPreference> get tabs => List.unmodifiable(_tabs);
+  List<ShellDestination> get sections => List.unmodifiable(_sections.values);
   List<ShellViewRegistration> get views => List.unmodifiable(_views.values);
-  String? get activeId => _activeId;
-  ShellTabPreference? get activeTab => _tabs.where((tab) => tab.id == _activeId).firstOrNull;
+  List<ShellSectionWorkspace> get workspaces => List.unmodifiable(_workspaces.values);
+  String? get selectedSectionId => _selectedSectionId;
+  ShellSectionWorkspace get activeWorkspace => workspaceFor(_selectedSectionId ?? '');
+  List<ShellTabPreference> get tabs => activeWorkspace.tabs;
+  List<ShellTabPreference> get allTabs => List.unmodifiable(_workspaces.values.expand((workspace) => workspace.tabs));
+  String? get activeId => activeWorkspace.activeTabId;
+  ShellTabPreference? get activeTab => activeWorkspace.activeTab;
+
+  ShellDestination? sectionFor(String id) => _sections[id];
+
+  ShellSectionWorkspace workspaceFor(String sectionId) =>
+      _workspaces[sectionId] ?? ShellSectionWorkspace(sectionId: sectionId);
+
+  ShellSectionWorkspace getWorkspace(String sectionId) => workspaceFor(sectionId);
+
+  ShellTabPreference? getActiveTab(String sectionId) => workspaceFor(sectionId).activeTab;
 
   ShellViewRegistration? registrationFor(String id) => _views[id];
+
+  bool canOpenView(String sectionId, String registrationId) {
+    final section = _sections[sectionId];
+    final view = _views[registrationId];
+    return section != null &&
+        view?.hasBuilder == true &&
+        (section.allowedViewIds == null || section.allowedViewIds!.contains(registrationId));
+  }
+
+  List<ShellViewRegistration> viewsForSection(String sectionId) =>
+      List.unmodifiable(_views.values.where((view) => canOpenView(sectionId, view.id)));
+
+  void registerSection(ShellDestination section) {
+    if (_sections.containsKey(section.id)) throw ArgumentError.value(section.id, 'section.id', 'already registered');
+    _sections[section.id] = section;
+    _workspaces.putIfAbsent(section.id, () => ShellSectionWorkspace(sectionId: section.id));
+    _selectedSectionId ??= section.id;
+    notifyListeners();
+  }
 
   void registerView(ShellViewRegistration view) {
     if (_views.containsKey(view.id)) throw ArgumentError.value(view.id, 'view.id', 'already registered');
@@ -34,156 +99,345 @@ class ShellNavigationCoordinator extends ChangeNotifier {
     notifyListeners();
   }
 
-  String? openView(
+  void selectSection(String sectionId) {
+    if (!_sections.containsKey(sectionId) || _selectedSectionId == sectionId) return;
+    _selectedSectionId = sectionId;
+    notifyListeners();
+  }
+
+  String? openTab(
+    String sectionId,
     String registrationId, {
     String? instanceId,
     Map<String, dynamic> parameters = const {},
     String? title,
+    bool activateSection = true,
   }) {
-    final registration = _views[registrationId];
-    if (registration == null || !registration.hasBuilder) return null;
+    if (!canOpenView(sectionId, registrationId)) return null;
+    final registration = _views[registrationId]!;
     if (instanceId != null && instanceId.isEmpty) throw ArgumentError.value(instanceId, 'instanceId');
     final snapshot = Map<String, dynamic>.from(jsonDecode(jsonEncode(parameters)) as Map);
-    final existing = _tabs.where(
-      (tab) =>
-          tab.registrationId == registrationId &&
-          (instanceId != null && tab.instanceId == instanceId ||
-              instanceId == null && registration.reusePolicy == ShellViewReusePolicy.byRegistration),
-    );
-    final tab = existing.firstOrNull;
-    if (tab != null) {
-      select(tab.id);
-      return tab.id;
+    final workspace = workspaceFor(sectionId);
+    final existing = switch (registration.reusePolicy) {
+      ShellViewReusePolicy.never => null,
+      ShellViewReusePolicy.byRegistration =>
+        workspace.tabs.where((tab) => tab.registrationId == registrationId).firstOrNull,
+      ShellViewReusePolicy.byInstance =>
+        instanceId == null
+            ? null
+            : workspace.tabs
+                  .where((tab) => tab.registrationId == registrationId && tab.instanceId == instanceId)
+                  .firstOrNull,
+    };
+    if (existing != null) {
+      selectTab(sectionId, existing.id, activateSection: activateSection);
+      return existing.id;
     }
 
     var index = 1;
-    while (_tabs.any((tab) => tab.id == '$registrationId-$index')) {
+    String idFor(int value) => '$sectionId::$registrationId::$value';
+    while (allTabs.any((tab) => tab.id == idFor(index))) {
       index++;
     }
-    final next = ShellTabPreference(
-      id: '$registrationId-$index',
+    var resolvedInstanceId = instanceId ?? '$registrationId-$index';
+    var duplicate = 1;
+    while (workspace.tabs.any((tab) => tab.instanceId == resolvedInstanceId)) {
+      duplicate++;
+      resolvedInstanceId = '${instanceId ?? registrationId}-$duplicate';
+    }
+    final tab = ShellTabPreference(
+      id: idFor(index),
+      sectionId: sectionId,
       registrationId: registrationId,
-      instanceId: instanceId,
+      instanceId: resolvedInstanceId,
       parameters: snapshot,
       title: title,
       destinationId: registration.destinationId,
       contextId: registration.contextId,
       moduleId: registration.moduleId,
     );
-    _tabs = [..._tabs, next];
-    _select(next.id);
-    return next.id;
+    _setWorkspace(
+      sectionId,
+      ShellSectionWorkspace(
+        sectionId: sectionId,
+        tabs: [...workspace.tabs, tab],
+        activeTabId: tab.id,
+        inspectorOpen: workspace.inspectorOpen,
+      ),
+      activateSection: activateSection,
+    );
+    _touch(sectionId, tab.id);
+    return tab.id;
   }
 
-  void restore(List<ShellTabPreference> tabs, String? activeId) {
-    final unique = <ShellTabPreference>[];
-    final seen = <String>{};
-    for (final tab in tabs) {
-      if (seen.add(tab.id)) unique.add(tab);
-    }
-    final nextActiveId = unique.any((tab) => tab.id == activeId) ? activeId : unique.firstOrNull?.id;
-    if (_sameTabs(unique, _tabs) && nextActiveId == _activeId) return;
-    _tabs = unique;
-    _activeId = nextActiveId;
-    _recentlyUsed
-      ..clear()
-      ..addAll([?nextActiveId, ...unique.reversed.map((tab) => tab.id).where((id) => id != nextActiveId)]);
-    notifyListeners();
+  String? openView(
+    String registrationId, {
+    String? sectionId,
+    String? instanceId,
+    Map<String, dynamic> parameters = const {},
+    String? title,
+    bool activateSection = true,
+  }) {
+    final target = sectionId ?? _views[registrationId]?.destinationId ?? _selectedSectionId;
+    if (target == null) return null;
+    return openTab(
+      target,
+      registrationId,
+      instanceId: instanceId,
+      parameters: parameters,
+      title: title,
+      activateSection: activateSection,
+    );
   }
 
-  void select(String id) {
-    if (_tabs.any((tab) => tab.id == id)) _select(id);
+  void selectTab(String sectionId, String tabId, {bool activateSection = true}) {
+    final workspace = workspaceFor(sectionId);
+    if (!workspace.tabs.any((tab) => tab.id == tabId)) return;
+    final sectionChanged = activateSection && _selectedSectionId != sectionId;
+    if (workspace.activeTabId == tabId && !sectionChanged) return;
+    _setWorkspace(
+      sectionId,
+      ShellSectionWorkspace(
+        sectionId: sectionId,
+        tabs: workspace.tabs,
+        activeTabId: tabId,
+        inspectorOpen: workspace.inspectorOpen,
+      ),
+      activateSection: activateSection,
+    );
+    _touch(sectionId, tabId);
+  }
+
+  void setSectionInspectorOpen(String sectionId, {required bool? isOpen}) {
+    final workspace = workspaceFor(sectionId);
+    if (workspace.inspectorOpen == isOpen) return;
+    _replaceWorkspace(
+      ShellSectionWorkspace(
+        sectionId: sectionId,
+        tabs: workspace.tabs,
+        activeTabId: workspace.activeTabId,
+        inspectorOpen: isOpen,
+      ),
+    );
   }
 
   void updateTab(ShellTabPreference tab) {
-    final index = _tabs.indexWhere((item) => item.id == tab.id);
+    final sectionId = tab.sectionId ?? _selectedSectionId;
+    if (sectionId == null) return;
+    final workspace = workspaceFor(sectionId);
+    final index = workspace.tabs.indexWhere((item) => item.id == tab.id);
     if (index < 0) return;
-    _tabs = [..._tabs]..[index] = tab;
+    final tabs = [...workspace.tabs]..[index] = tab.copyWith(sectionId: sectionId);
+    _replaceWorkspace(
+      ShellSectionWorkspace(
+        sectionId: sectionId,
+        tabs: tabs,
+        activeTabId: workspace.activeTabId,
+        inspectorOpen: workspace.inspectorOpen,
+      ),
+    );
+  }
+
+  void closeTab(String sectionId, String tabId, {required bool closable}) {
+    if (!closable) return;
+    final workspace = workspaceFor(sectionId);
+    final index = workspace.tabs.indexWhere((tab) => tab.id == tabId);
+    if (index < 0) return;
+    final tabs = [...workspace.tabs]..removeAt(index);
+    final recent = _recentlyUsed.putIfAbsent(sectionId, () => []);
+    recent.remove(tabId);
+    var activeId = workspace.activeTabId;
+    if (activeId == tabId) {
+      activeId = recent.where((candidate) => tabs.any((tab) => tab.id == candidate)).firstOrNull;
+      if (activeId == null && tabs.isNotEmpty) activeId = tabs[index.clamp(0, tabs.length - 1)].id;
+      if (activeId != null) _touch(sectionId, activeId);
+    }
+    _replaceWorkspace(
+      ShellSectionWorkspace(
+        sectionId: sectionId,
+        tabs: tabs,
+        activeTabId: activeId,
+        inspectorOpen: workspace.inspectorOpen,
+      ),
+    );
+  }
+
+  void closeOthers(String sectionId, String tabId, {required bool Function(String id) canClose}) {
+    final workspace = workspaceFor(sectionId);
+    final tabs = workspace.tabs.where((tab) => tab.id == tabId || !canClose(tab.id)).toList();
+    final recent = _recentlyUsed.putIfAbsent(sectionId, () => []);
+    recent.removeWhere((candidate) => !tabs.any((tab) => tab.id == candidate));
+    final activeId = tabs.any((tab) => tab.id == tabId)
+        ? tabId
+        : tabs.any((tab) => tab.id == workspace.activeTabId)
+        ? workspace.activeTabId
+        : tabs.firstOrNull?.id;
+    if (activeId != null) _touch(sectionId, activeId);
+    _replaceWorkspace(
+      ShellSectionWorkspace(
+        sectionId: sectionId,
+        tabs: tabs,
+        activeTabId: activeId,
+        inspectorOpen: workspace.inspectorOpen,
+      ),
+    );
+  }
+
+  void closeRight(String sectionId, String tabId, {required bool Function(String id) canClose}) {
+    final workspace = workspaceFor(sectionId);
+    final index = workspace.tabs.indexWhere((tab) => tab.id == tabId);
+    if (index < 0) return;
+    final removed = workspace.tabs.skip(index + 1).where((tab) => canClose(tab.id)).map((tab) => tab.id).toSet();
+    if (removed.isEmpty) return;
+    final tabs = workspace.tabs.where((tab) => !removed.contains(tab.id)).toList();
+    _recentlyUsed.putIfAbsent(sectionId, () => []).removeWhere(removed.contains);
+    final activeId = tabs.any((tab) => tab.id == workspace.activeTabId) ? workspace.activeTabId : tabId;
+    _replaceWorkspace(
+      ShellSectionWorkspace(
+        sectionId: sectionId,
+        tabs: tabs,
+        activeTabId: activeId,
+        inspectorOpen: workspace.inspectorOpen,
+      ),
+    );
+  }
+
+  void reorderTabs(String sectionId, int oldIndex, int newIndex) {
+    final workspace = workspaceFor(sectionId);
+    if (oldIndex < 0 || oldIndex >= workspace.tabs.length || newIndex < 0 || newIndex >= workspace.tabs.length) return;
+    if (oldIndex == newIndex) return;
+    final tabs = [...workspace.tabs];
+    final tab = tabs.removeAt(oldIndex);
+    tabs.insert(newIndex, tab);
+    _replaceWorkspace(
+      ShellSectionWorkspace(
+        sectionId: sectionId,
+        tabs: tabs,
+        activeTabId: workspace.activeTabId,
+        inspectorOpen: workspace.inspectorOpen,
+      ),
+    );
+  }
+
+  void moveTab(String sectionId, String tabId, int offset) {
+    final tabs = workspaceFor(sectionId).tabs;
+    final index = tabs.indexWhere((tab) => tab.id == tabId);
+    final target = index + offset;
+    if (index < 0 || target < 0 || target >= tabs.length) return;
+    reorderTabs(sectionId, index, target);
+  }
+
+  void restoreWorkspaces(Iterable<ShellWorkspacePreference> preferences, {String? selectedSectionId}) {
+    final next = <String, ShellSectionWorkspace>{
+      for (final section in _sections.values) section.id: ShellSectionWorkspace(sectionId: section.id),
+    };
+    final seenTabs = <String>{};
+    final seenSections = <String>{};
+    final seenInstances = <String, Set<String>>{};
+    for (final preference in preferences) {
+      if (!seenSections.add(preference.sectionId)) continue;
+      final sectionInstances = seenInstances.putIfAbsent(preference.sectionId, () => {});
+      final tabs = <ShellTabPreference>[];
+      for (final item in preference.tabs) {
+        if (!seenTabs.add(item.id)) continue;
+        final tab = item.sectionId == preference.sectionId ? item : item.copyWith(sectionId: preference.sectionId);
+        var instanceId = tab.instanceId ?? 'restored-${tab.id}';
+        var duplicate = 1;
+        while (!sectionInstances.add(instanceId)) {
+          duplicate++;
+          instanceId = '${tab.instanceId ?? 'restored-${tab.id}'}-$duplicate';
+        }
+        tabs.add(tab.instanceId == instanceId ? tab : tab.copyWith(instanceId: instanceId));
+      }
+      final activeId = tabs.any((tab) => tab.id == preference.activeTabId)
+          ? preference.activeTabId
+          : tabs.firstOrNull?.id;
+      next[preference.sectionId] = ShellSectionWorkspace(
+        sectionId: preference.sectionId,
+        tabs: tabs,
+        activeTabId: activeId,
+        inspectorOpen: preference.inspectorOpen,
+      );
+    }
+    final activeSection = _sections.containsKey(selectedSectionId) ? selectedSectionId : _sections.keys.firstOrNull;
+    if (_sameWorkspaces(next, _workspaces) && _selectedSectionId == activeSection) return;
+    _workspaces
+      ..clear()
+      ..addAll(next);
+    _selectedSectionId = activeSection;
+    _recentlyUsed.clear();
+    for (final workspace in _workspaces.values) {
+      _recentlyUsed[workspace.sectionId] = [
+        if (workspace.activeTabId != null) workspace.activeTabId!,
+        ...workspace.tabs.reversed.map((tab) => tab.id).where((id) => id != workspace.activeTabId),
+      ];
+    }
     notifyListeners();
+  }
+
+  // Compatibility API for consumers migrating from the original flat workspace.
+  void restore(List<ShellTabPreference> tabs, String? activeId) {
+    final sectionId = _selectedSectionId ?? _sections.keys.firstOrNull;
+    if (sectionId == null) return;
+    restoreWorkspaces([
+      ShellWorkspacePreference(
+        sectionId: sectionId,
+        tabs: tabs.map((tab) => tab.copyWith(sectionId: tab.sectionId ?? sectionId)).toList(),
+        activeTabId: activeId,
+      ),
+    ], selectedSectionId: sectionId);
+  }
+
+  // Compatibility aliases operate on the selected section only.
+  void select(String id) {
+    final sectionId = _selectedSectionId;
+    if (sectionId != null) selectTab(sectionId, id);
   }
 
   void close(String id, {required bool closable}) {
-    if (!closable) return;
-    final index = _tabs.indexWhere((tab) => tab.id == id);
-    if (index < 0) return;
-    _tabs = [..._tabs]..removeAt(index);
-    _recentlyUsed.remove(id);
-    if (_activeId == id) {
-      _activeId = _recentlyUsed.where((candidate) => _tabs.any((tab) => tab.id == candidate)).firstOrNull;
-      if (_activeId == null && _tabs.isNotEmpty) _activeId = _tabs[index.clamp(0, _tabs.length - 1)].id;
-      if (_activeId != null) _touch(_activeId!);
-    }
-    notifyListeners();
-  }
-
-  void closeOthers(String id, {required bool Function(String id) canClose}) {
-    _tabs = _tabs.where((tab) => tab.id == id || !canClose(tab.id)).toList();
-    _recentlyUsed.removeWhere((candidate) => !_tabs.any((tab) => tab.id == candidate));
-    if (_tabs.any((tab) => tab.id == id)) {
-      _activeId = id;
-      _touch(id);
-    } else if (!_tabs.any((tab) => tab.id == _activeId)) {
-      _activeId = _tabs.firstOrNull?.id;
-    }
-    notifyListeners();
-  }
-
-  void closeRight(String id, {required bool Function(String id) canClose}) {
-    final index = _tabs.indexWhere((tab) => tab.id == id);
-    if (index < 0) return;
-    final removed = _tabs.skip(index + 1).where((tab) => canClose(tab.id)).map((tab) => tab.id).toSet();
-    if (removed.isEmpty) return;
-    _tabs = _tabs.where((tab) => !removed.contains(tab.id)).toList();
-    _recentlyUsed.removeWhere(removed.contains);
-    if (!_tabs.any((tab) => tab.id == _activeId)) _activeId = id;
-    notifyListeners();
+    final sectionId = workspaceContaining(id)?.sectionId;
+    if (sectionId != null) closeTab(sectionId, id, closable: closable);
   }
 
   void reorder(int oldIndex, int newIndex) {
-    if (oldIndex < 0 || oldIndex >= _tabs.length || newIndex < 0 || newIndex >= _tabs.length || oldIndex == newIndex) {
-      return;
-    }
-    final tabs = [..._tabs];
-    final tab = tabs.removeAt(oldIndex);
-    tabs.insert(newIndex, tab);
-    _tabs = tabs;
-    notifyListeners();
+    final sectionId = _selectedSectionId;
+    if (sectionId != null) reorderTabs(sectionId, oldIndex, newIndex);
   }
 
   void move(String id, int offset) {
-    final index = _tabs.indexWhere((tab) => tab.id == id);
-    final target = index + offset;
-    if (index < 0 || target < 0 || target >= _tabs.length) return;
-    reorder(index, target);
+    final sectionId = workspaceContaining(id)?.sectionId;
+    if (sectionId != null) moveTab(sectionId, id, offset);
   }
 
-  void _select(String id) {
-    _activeId = id;
-    _touch(id);
+  ShellSectionWorkspace? workspaceContaining(String tabId) =>
+      _workspaces.values.where((workspace) => workspace.tabs.any((tab) => tab.id == tabId)).firstOrNull;
+
+  void _setWorkspace(String sectionId, ShellSectionWorkspace workspace, {required bool activateSection}) {
+    _workspaces[sectionId] = workspace;
+    if (activateSection) _selectedSectionId = sectionId;
     notifyListeners();
   }
 
-  void _touch(String id) {
-    _recentlyUsed.remove(id);
-    _recentlyUsed.insert(0, id);
+  void _replaceWorkspace(ShellSectionWorkspace workspace) {
+    _workspaces[workspace.sectionId] = workspace;
+    notifyListeners();
   }
 
-  bool _sameTabs(List<ShellTabPreference> left, List<ShellTabPreference> right) {
+  void _touch(String sectionId, String tabId) {
+    final recent = _recentlyUsed.putIfAbsent(sectionId, () => []);
+    recent.remove(tabId);
+    recent.insert(0, tabId);
+  }
+
+  bool _sameWorkspaces(Map<String, ShellSectionWorkspace> left, Map<String, ShellSectionWorkspace> right) {
     if (left.length != right.length) return false;
-    for (var index = 0; index < left.length; index++) {
-      final a = left[index];
-      final b = right[index];
-      if (a.id != b.id ||
-          a.registrationId != b.registrationId ||
-          a.instanceId != b.instanceId ||
-          jsonEncode(a.parameters) != jsonEncode(b.parameters) ||
-          a.title != b.title ||
-          a.isDirty != b.isDirty ||
-          a.destinationId != b.destinationId ||
-          a.contextId != b.contextId ||
-          a.moduleId != b.moduleId ||
-          a.inspectorOpen != b.inspectorOpen ||
-          a.splitOpen != b.splitOpen) {
+    for (final entry in left.entries) {
+      final other = right[entry.key];
+      if (other == null ||
+          entry.value.activeTabId != other.activeTabId ||
+          entry.value.inspectorOpen != other.inspectorOpen ||
+          jsonEncode(entry.value.tabs.map((tab) => tab.toJson()).toList()) !=
+              jsonEncode(other.tabs.map((tab) => tab.toJson()).toList())) {
         return false;
       }
     }

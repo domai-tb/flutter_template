@@ -450,6 +450,42 @@ class AppLocalizationsEn extends AppLocalizations {
   String get enter_totp => 'Please enter your TOTP.';
 
   @override
+  String get inspectorWorkspace => 'Workspace';
+
+  @override
+  String get inspectorSelection => 'Selection';
+
+  @override
+  String get inspectorSection => 'Section';
+
+  @override
+  String get inspectorOpenTabs => 'Open tabs';
+
+  @override
+  String get inspectorView => 'View';
+
+  @override
+  String get inspectorInstance => 'Instance';
+
+  @override
+  String get inspectorEmptyState => 'No tab is active.';
+
+  @override
+  String get renameTab => 'Rename tab';
+
+  @override
+  String get tabTitleLabel => 'Tab name';
+
+  @override
+  String get save => 'Save';
+
+  @override
+  String get openSectionPanel => 'Open section panel';
+
+  @override
+  String get closeSectionPanel => 'Close section panel';
+
+  @override
   String get closeUnsavedTabTitle => 'Close modified view?';
 
   @override

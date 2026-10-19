@@ -50,15 +50,19 @@ class HomePageState extends State<HomePage> {
   bool _handlingPlatformRoute = false;
   bool _restoringSettings = false;
   bool _activityPanelOpen = true;
+  bool _inspectorDrawerOpen = false;
   String? _lastPushedRouteId;
   String? _lastLifecycleActiveId;
 
   bool get _isPhoneLayout =>
       defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS;
   List<ShellTabPreference> get _tabs => _navigation.tabs;
+  List<ShellTabPreference> get _allTabs => _navigation.allTabs;
   String? get _selectedTabId => _navigation.activeId;
   ShellTabPreference? get _activeTab => _navigation.activeTab;
   String get selectedActivityId {
+    final activeSection = _navigation.selectedSectionId;
+    if (_destinations.any((destination) => destination.id == activeSection)) return activeSection!;
     final selected = _settingsController.settings.selectedActivityId;
     return _destinations.any((destination) => destination.id == selected)
         ? selected!
@@ -93,13 +97,7 @@ class HomePageState extends State<HomePage> {
 
   List<ShellModule> get _modules => _selectedContext?.modules ?? _config.modules;
   ShellStatusProvider? get _activeStatusProvider => _activeTab == null ? null : _statusProviders[_activeTab!.id];
-  ShellViewBuilder? get _activeInspectorBuilder {
-    final builder = _activeTab == null ? null : _viewFor(_activeTab!.registrationId)?.inspectorBuilder;
-    if (builder != null) return builder;
-    final globalBuilder = _config.inspectorBuilder;
-    return globalBuilder == null ? null : (context, _) => globalBuilder(context);
-  }
-
+  ShellDestination? get _activeSection => _navigation.sectionFor(selectedActivityId);
   ShellViewBuilder? get _activeSplitBuilder {
     final builder = _activeTab == null ? null : _viewFor(_activeTab!.registrationId)?.splitPaneBuilder;
     if (builder != null) return builder;
@@ -107,12 +105,56 @@ class HomePageState extends State<HomePage> {
     return globalBuilder == null ? null : (context, _) => globalBuilder(context);
   }
 
-  bool get _inspectorOpen => _activeTab?.inspectorOpen ?? _settingsController.settings.inspectorOpen;
+  bool get _inspectorOpen =>
+      _activeTab?.inspectorOpen ??
+      _navigation.activeWorkspace.inspectorOpen ??
+      _settingsController.settings.inspectorOpen;
   bool get _splitOpen => _activeTab?.splitOpen ?? _settingsController.settings.splitOpen;
 
-  List<ShellTabPreference> _validTabs(Settings settings) {
-    final seen = <String>{};
-    return settings.shellTabs.where((tab) => seen.add(tab.id)).toList();
+  List<ShellWorkspacePreference> _workspacePreferences(Settings settings) {
+    if (settings.shellWorkspaces.isNotEmpty) return settings.shellWorkspaces;
+    final sectionIds = _config.destinations.map((destination) => destination.id).toSet();
+    if (settings.shellTabs.isEmpty || sectionIds.isEmpty) return const [];
+    final fallback = sectionIds.contains(settings.selectedActivityId)
+        ? settings.selectedActivityId!
+        : _config.destinations.first.id;
+    final grouped = <String, List<ShellTabPreference>>{};
+    for (final tab in settings.shellTabs) {
+      final sectionId = [
+        tab.sectionId,
+        tab.destinationId,
+      ].whereType<String>().firstWhere(sectionIds.contains, orElse: () => fallback);
+      grouped.putIfAbsent(sectionId, () => []).add(tab.copyWith(sectionId: sectionId));
+    }
+    return [
+      for (final entry in grouped.entries)
+        ShellWorkspacePreference(
+          sectionId: entry.key,
+          tabs: entry.value,
+          activeTabId: entry.value.any((tab) => tab.id == settings.selectedShellTabId)
+              ? settings.selectedShellTabId
+              : entry.value.firstOrNull?.id,
+        ),
+    ];
+  }
+
+  String? _defaultViewId(String sectionId) {
+    final section = _navigation.sectionFor(sectionId);
+    final configured = section?.defaultViewId;
+    if (configured != null && _navigation.canOpenView(sectionId, configured)) return configured;
+    final associated = _navigation
+        .viewsForSection(sectionId)
+        .where((view) => view.destinationId == sectionId)
+        .firstOrNull;
+    return associated?.id;
+  }
+
+  void _ensureSectionDefaultView(String sectionId, {bool activateSection = true}) {
+    if (_navigation.workspaceFor(sectionId).tabs.isNotEmpty) return;
+    final registrationId = _defaultViewId(sectionId);
+    if (registrationId != null) {
+      _navigation.openTab(sectionId, registrationId, activateSection: activateSection);
+    }
   }
 
   ShellViewRegistration? _viewFor(String registrationId) => _navigation.registrationFor(registrationId);
@@ -125,9 +167,12 @@ class HomePageState extends State<HomePage> {
     final destination = _destinations.where((item) => item.id == id).firstOrNull;
     if (destination == null) return false;
     final wasSelected = selectedActivityId == id;
-    setState(() => _activityPanelOpen = destination.panelBuilder != null && (!wasSelected || !_activityPanelOpen));
-    _settingsController.update(_settingsController.settings.copyWith(selectedActivityId: id));
-    if (destination.openViewId case final viewId?) _navigation.openView(viewId);
+    if (!wasSelected) {
+      setState(() => _activityPanelOpen = destination.panelBuilder != null);
+    }
+    _navigation.selectSection(id);
+    _ensureSectionDefaultView(id);
+    if (destination.openViewId case final viewId?) _navigation.openTab(id, viewId);
     if (destination.commandId case final commandId?) {
       final command = _config.commands.where((item) => item.id == commandId).firstOrNull;
       if (command != null) {
@@ -141,6 +186,11 @@ class HomePageState extends State<HomePage> {
     }
     _announce(destination.title(context));
     return true;
+  }
+
+  void _toggleActivityPanel() {
+    setState(() => _activityPanelOpen = !_activityPanelOpen);
+    if (_isPhoneLayout && _activityPanelOpen) _scaffoldKey.currentState?.openDrawer();
   }
 
   void _updateBrowserRoute(String path) {
@@ -160,7 +210,10 @@ class HomePageState extends State<HomePage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       if (route != null) {
-        _navigation.openView(route.id, instanceId: 'route');
+        final sectionId = route.destinationId != null && _navigation.sectionFor(route.destinationId!) != null
+            ? route.destinationId!
+            : selectedActivityId;
+        _navigation.openTab(sectionId, route.id, instanceId: 'route');
         _handlingPlatformRoute = false;
       } else {
         unawaited(selectedPage(activityId!).whenComplete(() => _handlingPlatformRoute = false));
@@ -178,7 +231,8 @@ class HomePageState extends State<HomePage> {
   }
 
   Widget _activeContent() {
-    if (_tabs.isEmpty || _activeTab == null) {
+    final sections = _config.destinations;
+    if (sections.isEmpty) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -190,11 +244,39 @@ class HomePageState extends State<HomePage> {
         ),
       );
     }
-    final index = _tabs.indexWhere((tab) => tab.id == _activeTab!.id);
+    final index = sections.indexWhere((section) => section.id == selectedActivityId).clamp(0, sections.length - 1);
+    return IndexedStack(index: index, children: [for (final section in sections) _sectionContent(section.id)]);
+  }
+
+  Widget _sectionContent(String sectionId) {
+    final workspace = _navigation.workspaceFor(sectionId);
+    final index = workspace.tabs.indexWhere((tab) => tab.id == workspace.activeTabId);
+    if (index < 0) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(context.l10n.noTabsOpen),
+            if (_navigation.viewsForSection(sectionId).isNotEmpty) ...[
+              const SizedBox(height: 8),
+              FilledButton(onPressed: _showViewPicker, child: Text(context.l10n.openViewTab)),
+            ],
+          ],
+        ),
+      );
+    }
     return IndexedStack(
+      key: ValueKey('section-tabs-$sectionId'),
       index: index,
       children: [
-        for (final tab in _tabs) TickerMode(enabled: tab.id == _selectedTabId, child: _registeredViewContent(tab)),
+        for (final tab in workspace.tabs)
+          KeyedSubtree(
+            key: ValueKey('workspace-tab-${tab.id}'),
+            child: TickerMode(
+              enabled: sectionId == selectedActivityId && tab.id == workspace.activeTabId,
+              child: _registeredViewContent(tab),
+            ),
+          ),
       ],
     );
   }
@@ -221,16 +303,27 @@ class HomePageState extends State<HomePage> {
 
   String? openView(
     String registrationId, {
+    String? sectionId,
     String? instanceId,
     Map<String, dynamic> parameters = const {},
     String? title,
-  }) => _navigation.openView(registrationId, instanceId: instanceId, parameters: parameters, title: title);
+    bool activateSection = true,
+  }) => _navigation.openView(
+    registrationId,
+    sectionId: sectionId,
+    instanceId: instanceId,
+    parameters: parameters,
+    title: title,
+    activateSection: activateSection,
+  );
 
-  void _openRegisteredView(ShellViewRegistration registration) => _navigation.openView(registration.id);
+  void _openRegisteredView(ShellViewRegistration registration) =>
+      _navigation.openView(registration.id, sectionId: registration.destinationId);
 
   Future<void> _closeTab(ShellTabPreference tab) async {
     final registration = _viewFor(tab.registrationId);
     if (registration?.closeable == false) return;
+    final sectionId = tab.sectionId ?? selectedActivityId;
     final runtime = _tabRuntimes[tab.id];
     final wasActive = tab.id == _selectedTabId;
     runtime?.lifecycle.value = ShellTabLifecycle.closing;
@@ -243,12 +336,13 @@ class HomePageState extends State<HomePage> {
       }
       return;
     }
-    _navigation.close(tab.id, closable: true);
+    _navigation.closeTab(sectionId, tab.id, closable: true);
   }
 
-  void _reorderTabs(int oldIndex, int newIndex) => _navigation.reorder(oldIndex, newIndex);
+  void _reorderTabs(int oldIndex, int newIndex) => _navigation.reorderTabs(selectedActivityId, oldIndex, newIndex);
 
-  void _moveTab(ShellTabPreference tab, int offset) => _navigation.move(tab.id, offset);
+  void _moveTab(ShellTabPreference tab, int offset) =>
+      _navigation.moveTab(tab.sectionId ?? selectedActivityId, tab.id, offset);
 
   String _tabTitle(ShellTabPreference tab) {
     final registration = _viewFor(tab.registrationId);
@@ -278,13 +372,13 @@ class HomePageState extends State<HomePage> {
       _runtimeFor(tab).viewContext(tab, widget.mainNavigatorKey);
 
   void _syncTabRuntimes() {
-    final tabIds = _tabs.map((tab) => tab.id).toSet();
+    final tabIds = _allTabs.map((tab) => tab.id).toSet();
     for (final id in _tabRuntimes.keys.where((id) => !tabIds.contains(id)).toList()) {
       final runtime = _tabRuntimes.remove(id)!;
       runtime.lifecycle.value = ShellTabLifecycle.closed;
       runtime.dispose();
     }
-    for (final tab in _tabs) {
+    for (final tab in _allTabs) {
       _runtimeFor(tab);
     }
     if (_lastLifecycleActiveId != _selectedTabId) {
@@ -301,12 +395,8 @@ class HomePageState extends State<HomePage> {
   void _handleSettingsChanged() {
     if (!mounted || !_settingsWired) return;
     final settings = _settingsController.settings;
-    final valid = _validTabs(settings);
-    final selectedId = valid.any((tab) => tab.id == settings.selectedShellTabId)
-        ? settings.selectedShellTabId
-        : valid.firstOrNull?.id;
     _restoringSettings = true;
-    _navigation.restore(valid, selectedId);
+    _navigation.restoreWorkspaces(_workspacePreferences(settings), selectedSectionId: settings.selectedActivityId);
     _restoringSettings = false;
     setState(() {
       _splitRatio = settings.splitRatio;
@@ -322,11 +412,13 @@ class HomePageState extends State<HomePage> {
     setState(() {});
     final active = _activeTab;
     final settings = _settingsController.settings;
+    final workspaces = _navigation.workspaces.map((workspace) => workspace.toPreference()).toList();
     _settingsController.update(
       settings.copyWith(
-        shellTabs: _tabs,
+        shellWorkspaces: workspaces,
+        shellTabs: _allTabs,
         selectedShellTabId: _selectedTabId ?? '',
-        inspectorOpen: active?.inspectorOpen ?? settings.inspectorOpen,
+        selectedActivityId: _navigation.selectedSectionId ?? settings.selectedActivityId,
         splitOpen: active?.splitOpen ?? settings.splitOpen,
       ),
     );
@@ -357,14 +449,14 @@ class HomePageState extends State<HomePage> {
 
   void _syncStatusProviders() {
     for (final id in _statusProviders.keys.where((id) {
-      final tab = _tabs.where((tab) => tab.id == id).firstOrNull;
+      final tab = _allTabs.where((tab) => tab.id == id).firstOrNull;
       return tab == null || _viewFor(tab.registrationId)?.statusProviderFactory == null;
     }).toList()) {
       final provider = _statusProviders.remove(id)!;
       provider.removeListener(_handleStatusChanged);
       provider.dispose();
     }
-    for (final tab in _tabs) {
+    for (final tab in _allTabs) {
       final factory = _viewFor(tab.registrationId)?.statusProviderFactory;
       if (factory != null && !_statusProviders.containsKey(tab.id)) {
         final provider = factory(tab.instanceId ?? tab.id);
@@ -391,6 +483,7 @@ class HomePageState extends State<HomePage> {
           id: 'settings',
           title: (buildContext, _) => buildContext.l10n.settingsTitle,
           viewBuilder: (_, _) => const Page6SettingsPage(),
+          destinationId: 'page6',
           icon: Icons.settings_outlined,
           reusePolicy: ShellViewReusePolicy.byRegistration,
         ),
@@ -429,7 +522,7 @@ class HomePageState extends State<HomePage> {
       inspectorBuilder: supplied.inspectorBuilder,
       splitPaneBuilder: supplied.splitPaneBuilder,
     );
-    _navigation = ShellNavigationCoordinator(views: views);
+    _navigation = ShellNavigationCoordinator(sections: _config.destinations, views: views);
     _navigation.addListener(_handleNavigationChanged);
     for (final destination in _config.destinations) {
       navigatorKeys[destination.id] = GlobalKey<NavigatorState>();
@@ -452,25 +545,26 @@ class HomePageState extends State<HomePage> {
     final uri = routeUri != null && (routeUri.pathSegments.isNotEmpty || routeUri.fragment.isNotEmpty)
         ? routeUri
         : Uri.base;
-    final validTabs = _validTabs(settings);
-    final selectedId = validTabs.any((tab) => tab.id == settings.selectedShellTabId)
-        ? settings.selectedShellTabId
-        : validTabs.firstOrNull?.id;
+    final workspacePreferences = _workspacePreferences(settings);
     _restoringSettings = true;
-    _navigation.restore(validTabs, selectedId);
+    _navigation.restoreWorkspaces(workspacePreferences, selectedSectionId: settings.selectedActivityId);
+    if (selectedActivityId.isNotEmpty) _ensureSectionDefaultView(selectedActivityId, activateSection: false);
     _restoringSettings = false;
     _lastPushedRouteId = _activeTab == null ? null : _viewFor(_activeTab!.registrationId)?.routePath;
     _splitRatio = settings.splitRatio;
     _settingsWired = true;
     _syncTabRuntimes();
     _syncStatusProviders();
-    if (selectedId != null) _scrollTabIntoView(selectedId);
-    if (validTabs.length != settings.shellTabs.length ||
-        selectedId != settings.selectedShellTabId ||
-        settings.selectedActivityId == null) {
+    if (_selectedTabId case final selectedId?) _scrollTabIntoView(selectedId);
+    if (settings.shellWorkspaces.isEmpty ||
+        _navigation.workspaces.length != settings.shellWorkspaces.length ||
+        _allTabs.length != settings.shellTabs.length ||
+        _selectedTabId != settings.selectedShellTabId ||
+        selectedActivityId != settings.selectedActivityId) {
       final migrated = settings.copyWith(
-        shellTabs: validTabs,
-        selectedShellTabId: selectedId ?? '',
+        shellWorkspaces: _navigation.workspaces.map((workspace) => workspace.toPreference()).toList(),
+        shellTabs: _allTabs,
+        selectedShellTabId: _selectedTabId ?? '',
         selectedActivityId: selectedActivityId.isEmpty ? null : selectedActivityId,
       );
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -529,13 +623,21 @@ class HomePageState extends State<HomePage> {
   }
 
   void _toggleInspector() {
-    final settings = _settingsController.settings;
+    _setInspectorOpen(!_inspectorOpen);
+  }
+
+  void _setInspectorOpen(bool isOpen) {
     final tab = _activeTab;
-    if (tab == null) {
-      _settingsController.update(settings.copyWith(inspectorOpen: !settings.inspectorOpen));
-    } else {
-      _navigation.updateTab(tab.copyWith(inspectorOpen: !_inspectorOpen));
+    if (tab?.inspectorOpen != null) {
+      _navigation.updateTab(tab!.copyWith(inspectorOpen: isOpen));
+      return;
     }
+    final workspace = _navigation.activeWorkspace;
+    if (workspace.inspectorOpen != null) {
+      _navigation.setSectionInspectorOpen(selectedActivityId, isOpen: isOpen);
+      return;
+    }
+    _settingsController.update(_settingsController.settings.copyWith(inspectorOpen: isOpen));
   }
 
   void _toggleSplit() {
@@ -585,9 +687,25 @@ class HomePageState extends State<HomePage> {
 
   void _restoreLayout() {
     final settings = _settingsController.settings;
-    final tabs = _tabs.map((tab) => tab.copyWith(inspectorOpen: false, splitOpen: false)).toList();
+    final workspaces = [
+      for (final workspace in _navigation.workspaces)
+        ShellWorkspacePreference(
+          sectionId: workspace.sectionId,
+          tabs: workspace.tabs.map((tab) => tab.copyWith(inspectorOpen: false, splitOpen: false)).toList(),
+          activeTabId: workspace.activeTabId,
+          inspectorOpen: false,
+        ),
+    ];
+    _navigation.restoreWorkspaces(workspaces, selectedSectionId: selectedActivityId);
     _settingsController.update(
-      settings.copyWith(inspectorOpen: false, inspectorWidth: 320, splitOpen: false, splitRatio: 0.5, shellTabs: tabs),
+      settings.copyWith(
+        inspectorOpen: false,
+        inspectorWidth: 320,
+        splitOpen: false,
+        splitRatio: 0.5,
+        shellWorkspaces: workspaces,
+        shellTabs: _allTabs,
+      ),
     );
     _announce(context.l10n.restoreLayout);
   }
@@ -599,13 +717,12 @@ class HomePageState extends State<HomePage> {
     final commands = <_ShellCommand>[
       if (_config.destinations.any((item) => item.id == 'settings' || item.id == 'page6'))
         _ShellCommand(id: 'settings', title: context.l10n.openSettings, shortcut: '', run: _openSettings),
-      if (_activeInspectorBuilder != null)
-        _ShellCommand(
-          id: 'inspector',
-          title: _inspectorOpen ? context.l10n.closeInspector : context.l10n.openInspector,
-          shortcut: '',
-          run: _toggleInspector,
-        ),
+      _ShellCommand(
+        id: 'inspector',
+        title: _inspectorOpen ? context.l10n.closeInspector : context.l10n.openInspector,
+        shortcut: '',
+        run: _openInspector,
+      ),
       if (_activeSplitBuilder != null)
         _ShellCommand(
           id: 'split',
@@ -630,13 +747,13 @@ class HomePageState extends State<HomePage> {
           run: () async => command.run(context),
         ),
     ];
-    for (final view in _navigation.views.where((view) => view.hasBuilder)) {
+    for (final view in _navigation.viewsForSection(selectedActivityId)) {
       commands.add(
         _ShellCommand(
           id: 'open-view-${view.id}',
           title: context.l10n.openView(view.title(context, view.id)),
           shortcut: '',
-          run: () => _openRegisteredView(view),
+          run: () => _navigation.openTab(selectedActivityId, view.id),
         ),
       );
     }
@@ -646,7 +763,7 @@ class HomePageState extends State<HomePage> {
           id: 'tab-${tab.id}',
           title: '${context.l10n.switchView}: ${_tabTitle(tab)}',
           shortcut: '',
-          run: () => _navigation.select(tab.id),
+          run: () => _navigation.selectTab(selectedActivityId, tab.id),
         ),
       );
     }
@@ -701,7 +818,7 @@ class HomePageState extends State<HomePage> {
   }
 
   void _selectTabIndex(int index) {
-    if (index >= 0 && index < _tabs.length) _navigation.select(_tabs[index].id);
+    if (index >= 0 && index < _tabs.length) _navigation.selectTab(selectedActivityId, _tabs[index].id);
   }
 
   void _selectRelativeTab(int offset) {
@@ -716,12 +833,13 @@ class HomePageState extends State<HomePage> {
   }
 
   Future<void> _showViewPicker() async {
-    final views = _navigation.views.where((view) => view.hasBuilder).toList();
+    final views = _navigation.viewsForSection(selectedActivityId);
+    if (views.isEmpty) return;
     final selected = await showDialog<ShellViewRegistration>(
       context: context,
       builder: (_) => _ViewPickerDialog(views: views, title: _viewTitle),
     );
-    if (selected != null) _openRegisteredView(selected);
+    if (selected != null) _navigation.openTab(selectedActivityId, selected.id);
   }
 
   String _viewTitle(ShellViewRegistration registration) {
@@ -734,16 +852,15 @@ class HomePageState extends State<HomePage> {
   }
 
   void _openInspector() {
-    if (_activeInspectorBuilder == null) return;
     final width = MediaQuery.sizeOf(context).width;
     if (width < 1200) {
-      final active = _activeTab;
-      if (active != null) {
-        _navigation.updateTab(active.copyWith(inspectorOpen: true));
+      if (_inspectorDrawerOpen) {
+        _setInspectorOpen(false);
+        _scaffoldKey.currentState?.closeEndDrawer();
       } else {
-        _settingsController.update(_settingsController.settings.copyWith(inspectorOpen: true));
+        _setInspectorOpen(true);
+        _scaffoldKey.currentState?.openEndDrawer();
       }
-      _scaffoldKey.currentState?.openEndDrawer();
     } else {
       _toggleInspector();
     }
@@ -837,7 +954,7 @@ class HomePageState extends State<HomePage> {
                   tooltip: context.l10n.switchView,
                   padding: EdgeInsets.zero,
                   iconSize: actionIconSize,
-                  onSelected: _navigation.select,
+                  onSelected: (id) => _navigation.selectTab(selectedActivityId, id),
                   itemBuilder: (context) => _tabs
                       .map(
                         (tab) =>
@@ -847,13 +964,23 @@ class HomePageState extends State<HomePage> {
                   icon: const Icon(Icons.tab),
                 ),
               ),
-            if (_activeInspectorBuilder != null)
+            if (!_isPhoneLayout)
+              if (_activeSection?.panelBuilder != null)
+                headerAction(
+                  'activity-panel',
+                  IconButton(
+                    tooltip: _activityPanelOpen ? context.l10n.closeSectionPanel : context.l10n.openSectionPanel,
+                    onPressed: _toggleActivityPanel,
+                    icon: const Icon(Icons.menu_open),
+                  ),
+                ),
+            if (!_isPhoneLayout)
               headerAction(
                 'inspector',
                 IconButton(
-                  tooltip: context.l10n.openInspector,
+                  tooltip: _inspectorOpen ? context.l10n.closeInspector : context.l10n.openInspector,
                   onPressed: _openInspector,
-                  icon: const Icon(Icons.vertical_split),
+                  icon: Icon(_inspectorOpen ? Icons.vertical_split : Icons.vertical_split_outlined),
                 ),
               ),
             headerAction(
@@ -878,10 +1005,24 @@ class HomePageState extends State<HomePage> {
                   if (value == 'theme') _toggleAppearance();
                   if (value == 'layout') _restoreLayout();
                   if (value == 'split') _toggleSplit();
+                  if (value == 'inspector') _openInspector();
+                  if (value == 'activity-panel') _toggleActivityPanel();
                   if (value == 'settings') unawaited(_openSettings());
                   if (value == 'tab') unawaited(_showViewPicker());
                 },
                 itemBuilder: (context) => [
+                  if (_isPhoneLayout && _activeSection?.panelBuilder != null)
+                    PopupMenuItem(
+                      height: metrics.menuRowHeight,
+                      value: 'activity-panel',
+                      child: Text(_activityPanelOpen ? context.l10n.closeSectionPanel : context.l10n.openSectionPanel),
+                    ),
+                  if (_isPhoneLayout)
+                    PopupMenuItem(
+                      height: metrics.menuRowHeight,
+                      value: 'inspector',
+                      child: Text(_inspectorOpen ? context.l10n.closeInspector : context.l10n.openInspector),
+                    ),
                   if (_config.destinations.any((item) => item.id == 'settings' || item.id == 'page6'))
                     PopupMenuItem(
                       height: metrics.menuRowHeight,
@@ -998,7 +1139,7 @@ class HomePageState extends State<HomePage> {
                     icon: _tabIcon(tab),
                     selected: tab.id == _selectedTabId,
                     closable: _viewFor(tab.registrationId)?.closeable ?? true,
-                    onSelect: () => _navigation.select(tab.id),
+                    onSelect: () => _navigation.selectTab(selectedActivityId, tab.id),
                     onClose: () => unawaited(_closeTab(tab)),
                     onContextMenu: (position) => _showTabMenu(tab, position),
                   ),
@@ -1030,6 +1171,7 @@ class HomePageState extends State<HomePage> {
       context: context,
       position: RelativeRect.fromLTRB(position.dx, position.dy, position.dx, position.dy),
       items: [
+        PopupMenuItem(value: 'rename', height: 32, child: Text(context.l10n.renameTab)),
         PopupMenuItem(value: 'close', height: 32, child: Text(context.l10n.closeTab)),
         PopupMenuItem(value: 'closeOthers', height: 32, child: Text(context.l10n.closeOtherTabs)),
         PopupMenuItem(value: 'closeRight', height: 32, child: Text(context.l10n.closeTabsToRight)),
@@ -1043,9 +1185,10 @@ class HomePageState extends State<HomePage> {
         ),
       ],
     );
+    if (action == 'rename') await _renameTab(tab);
     if (action == 'close') await _closeTab(tab);
     if (action == 'closeOthers') {
-      _navigation.select(tab.id);
+      _navigation.selectTab(tab.sectionId ?? selectedActivityId, tab.id);
       for (final other in _tabs.where((item) => item.id != tab.id).toList()) {
         await _closeTab(other);
       }
@@ -1059,12 +1202,39 @@ class HomePageState extends State<HomePage> {
     if (action == 'right') _moveTab(tab, 1);
   }
 
+  Future<void> _renameTab(ShellTabPreference tab) async {
+    final controller = TextEditingController(text: _tabTitle(tab));
+    try {
+      final title = await showDialog<String>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(context.l10n.renameTab),
+          content: TextField(
+            autofocus: true,
+            controller: controller,
+            decoration: InputDecoration(labelText: context.l10n.tabTitleLabel),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: Text(context.l10n.cancel)),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, controller.text.trim()),
+              child: Text(context.l10n.save),
+            ),
+          ],
+        ),
+      );
+      if (title != null && title.isNotEmpty && mounted) _navigation.updateTab(tab.copyWith(title: title));
+    } finally {
+      controller.dispose();
+    }
+  }
+
   Future<void> _showTabOverflow() async {
     final id = await showDialog<String>(
       context: context,
       builder: (_) => _TabOverflowDialog(tabs: _tabs, title: _tabTitle),
     );
-    if (id != null) _navigation.select(id);
+    if (id != null) _navigation.selectTab(selectedActivityId, id);
   }
 
   Widget _buildDrawer() {
@@ -1116,7 +1286,7 @@ class HomePageState extends State<HomePage> {
                   const SizedBox(width: 12),
                   Expanded(child: Text(destination.title(context), maxLines: 1, overflow: TextOverflow.ellipsis)),
                   IconButton(
-                    tooltip: context.l10n.closeTab,
+                    tooltip: context.l10n.closeSectionPanel,
                     onPressed: () => setState(() => _activityPanelOpen = false),
                     icon: const Icon(Icons.close, size: 16),
                     visualDensity: VisualDensity.compact,
@@ -1133,14 +1303,17 @@ class HomePageState extends State<HomePage> {
   }
 
   Widget _buildInspector({required bool drawer}) {
-    final builder = _activeInspectorBuilder;
-    if (builder == null) return const SizedBox.shrink();
     final content = Builder(
       builder: (context) {
         try {
           final active = _activeTab;
-          if (active != null) return builder(context, _viewContextFor(active));
-          return _config.inspectorBuilder?.call(context) ?? const SizedBox.shrink();
+          final tabBuilder = active == null ? null : _viewFor(active.registrationId)?.inspectorBuilder;
+          if (active != null && tabBuilder != null) return tabBuilder(context, _viewContextFor(active));
+          final sectionBuilder = _activeSection?.inspectorBuilder;
+          if (sectionBuilder != null) return sectionBuilder(context);
+          final globalBuilder = _config.inspectorBuilder;
+          if (globalBuilder != null) return globalBuilder(context);
+          return _defaultInspectorContent();
         } catch (error) {
           return Center(child: Text(context.l10n.shellContentError('$error')));
         }
@@ -1159,12 +1332,7 @@ class HomePageState extends State<HomePage> {
                 IconButton(
                   tooltip: context.l10n.closeInspector,
                   onPressed: () {
-                    final active = _activeTab;
-                    if (active != null) {
-                      _navigation.updateTab(active.copyWith(inspectorOpen: false));
-                    } else {
-                      _settingsController.update(_settingsController.settings.copyWith(inspectorOpen: false));
-                    }
+                    _setInspectorOpen(false);
                     if (drawer) Navigator.of(context).pop();
                   },
                   icon: const Icon(Icons.close),
@@ -1176,6 +1344,46 @@ class HomePageState extends State<HomePage> {
           Expanded(child: content),
         ],
       ),
+    );
+  }
+
+  Widget _defaultInspectorContent() {
+    final active = _activeTab;
+    final workspace = _navigation.activeWorkspace;
+    return ListView(
+      padding: EdgeInsets.zero,
+      children: [
+        ExpansionTile(
+          initiallyExpanded: true,
+          title: Text(context.l10n.inspectorWorkspace),
+          children: [
+            ListTile(
+              dense: true,
+              title: Text(context.l10n.inspectorSection),
+              subtitle: Text(_activeSection?.title(context) ?? ''),
+            ),
+            ListTile(
+              dense: true,
+              title: Text(context.l10n.inspectorOpenTabs),
+              subtitle: Text('${workspace.tabs.length}'),
+            ),
+          ],
+        ),
+        ExpansionTile(
+          initiallyExpanded: true,
+          title: Text(context.l10n.inspectorSelection),
+          children: active == null
+              ? [ListTile(dense: true, title: Text(context.l10n.inspectorEmptyState))]
+              : [
+                  ListTile(dense: true, title: Text(context.l10n.inspectorView), subtitle: Text(_tabTitle(active))),
+                  ListTile(
+                    dense: true,
+                    title: Text(context.l10n.inspectorInstance),
+                    subtitle: Text(active.instanceId ?? active.id),
+                  ),
+                ],
+        ),
+      ],
     );
   }
 
@@ -1287,9 +1495,14 @@ class HomePageState extends State<HomePage> {
 
   Widget _buildStatusBar(AppShellMetrics metrics, double width) {
     final items =
-        (_activeStatusProvider?.items ?? const <ShellStatusItem>[])
-            .where((item) => item.isVisible?.call() ?? true)
-            .toList()
+        <ShellStatusItem>[
+            if (_activeSection case final section?)
+              ShellStatusItem(id: 'section-${section.id}', label: section.title(context), icon: section.icon),
+            if (_activeTab case final tab?)
+              ShellStatusItem(id: 'tab-${tab.id}', label: _tabTitle(tab), icon: _tabIcon(tab)),
+            ...?_activeSection?.statusItemsBuilder?.call(context),
+            ...?_activeStatusProvider?.items,
+          ].where((item) => item.isVisible?.call() ?? true).toList()
           ..sort((left, right) => right.priority.compareTo(left.priority));
     final visibleCount = items.isEmpty ? 0 : (width / 150).floor().clamp(1, items.length);
     final visible = items.take(visibleCount).toList();
@@ -1391,7 +1604,7 @@ class HomePageState extends State<HomePage> {
         final visible = _destinations;
         final settings = _settingsController.settings;
         final metrics = AppTheme.metrics(context, phone: _isPhoneLayout);
-        final showInspector = wide && _inspectorOpen && _activeInspectorBuilder != null;
+        final showInspector = wide && _inspectorOpen;
         final availableInspectorWidth = (width - metrics.railWidth - 400).clamp(256.0, 440.0);
         final inspectorWidth = settings.inspectorWidth.clamp(256.0, availableInspectorWidth);
         final body = _activeContent();
@@ -1473,7 +1686,11 @@ class HomePageState extends State<HomePage> {
                       key: _scaffoldKey,
                       resizeToAvoidBottomInset: true,
                       drawer: compact ? _buildDrawer() : null,
-                      endDrawer: _activeInspectorBuilder == null ? null : Drawer(child: _buildInspector(drawer: true)),
+                      endDrawer: Drawer(child: _buildInspector(drawer: true)),
+                      onEndDrawerChanged: (isOpen) {
+                        _inspectorDrawerOpen = isOpen;
+                        if (!isOpen && _inspectorOpen) _setInspectorOpen(false);
+                      },
                       body: SafeArea(
                         bottom: false,
                         child: Column(

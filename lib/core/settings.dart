@@ -43,6 +43,7 @@ class ShellTabPreference {
   static const Object _noChange = Object();
 
   final String id;
+  final String? sectionId;
   final String registrationId;
   final String? instanceId;
   final Map<String, dynamic> parameters;
@@ -57,6 +58,7 @@ class ShellTabPreference {
   const ShellTabPreference({
     required this.id,
     required this.registrationId,
+    this.sectionId,
     this.instanceId,
     this.parameters = const {},
     this.title,
@@ -69,6 +71,7 @@ class ShellTabPreference {
   });
 
   ShellTabPreference copyWith({
+    Object? sectionId = _noChange,
     String? instanceId,
     Map<String, dynamic>? parameters,
     Object? title = _noChange,
@@ -82,6 +85,7 @@ class ShellTabPreference {
     return ShellTabPreference(
       id: id,
       registrationId: registrationId,
+      sectionId: identical(sectionId, _noChange) ? this.sectionId : sectionId as String?,
       instanceId: instanceId ?? this.instanceId,
       parameters: parameters ?? this.parameters,
       title: identical(title, _noChange) ? this.title : title as String?,
@@ -98,6 +102,7 @@ class ShellTabPreference {
     return ShellTabPreference(
       id: json['id'] as String,
       registrationId: json['registrationId'] as String,
+      sectionId: json['sectionId'] is String ? json['sectionId'] as String : null,
       instanceId: json['instanceId'] is String ? json['instanceId'] as String : null,
       parameters: json['parameters'] is Map ? Map<String, dynamic>.from(json['parameters'] as Map) : const {},
       title: json['title'] is String ? json['title'] as String : null,
@@ -113,6 +118,7 @@ class ShellTabPreference {
   Map<String, dynamic> toJson() => {
     'id': id,
     'registrationId': registrationId,
+    if (sectionId != null) 'sectionId': sectionId,
     if (instanceId != null) 'instanceId': instanceId,
     if (parameters.isNotEmpty) 'parameters': parameters,
     if (title != null) 'title': title,
@@ -123,6 +129,50 @@ class ShellTabPreference {
     if (inspectorOpen != null) 'inspectorOpen': inspectorOpen,
     if (splitOpen != null) 'splitOpen': splitOpen,
   };
+}
+
+class ShellWorkspacePreference {
+  final String sectionId;
+  final List<ShellTabPreference> tabs;
+  final String? activeTabId;
+  final bool? inspectorOpen;
+
+  const ShellWorkspacePreference({required this.sectionId, this.tabs = const [], this.activeTabId, this.inspectorOpen});
+
+  factory ShellWorkspacePreference.fromJson(Map<String, dynamic> json) {
+    final sectionId = json['sectionId'] as String;
+    return ShellWorkspacePreference(
+      sectionId: sectionId,
+      tabs: _readShellTabs(json['tabs'], sectionId: sectionId),
+      activeTabId: json['activeTabId'] is String ? json['activeTabId'] as String : null,
+      inspectorOpen: json['inspectorOpen'] is bool ? json['inspectorOpen'] as bool : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'sectionId': sectionId,
+    'tabs': tabs.map((tab) => tab.toJson()).toList(),
+    'activeTabId': activeTabId,
+    if (inspectorOpen != null) 'inspectorOpen': inspectorOpen,
+  };
+}
+
+List<ShellTabPreference> _readShellTabs(Object? value, {String? sectionId}) {
+  if (value is! List) return const [];
+  return value
+      .whereType<Map>()
+      .map((item) {
+        final id = item['id'];
+        final registrationId = item['registrationId'];
+        if (id is! String || registrationId is! String) return null;
+        if (!Settings.isStableId(id, maxLength: 256) || !Settings.isStableId(registrationId, maxLength: 128)) {
+          return null;
+        }
+        final tab = ShellTabPreference.fromJson(Map<String, dynamic>.from(item));
+        return sectionId == null ? tab : tab.copyWith(sectionId: sectionId);
+      })
+      .whereType<ShellTabPreference>()
+      .toList();
 }
 
 class Settings {
@@ -145,6 +195,7 @@ class Settings {
   final double splitRatio;
   final bool splitOpen;
   final List<ShellTabPreference> shellTabs;
+  final List<ShellWorkspacePreference> shellWorkspaces;
   final String selectedShellTabId;
   final String? selectedActivityId;
   final String? selectedContextId;
@@ -166,6 +217,7 @@ class Settings {
     this.splitRatio = 0.5,
     this.splitOpen = false,
     this.shellTabs = _defaultTabs,
+    this.shellWorkspaces = const [],
     this.selectedShellTabId = '',
     this.selectedActivityId,
     this.selectedContextId,
@@ -188,6 +240,7 @@ class Settings {
     double? splitRatio,
     bool? splitOpen,
     List<ShellTabPreference>? shellTabs,
+    List<ShellWorkspacePreference>? shellWorkspaces,
     String? selectedShellTabId,
     Object? selectedActivityId = _noChange,
     Object? selectedContextId = _noChange,
@@ -209,6 +262,7 @@ class Settings {
       splitRatio: splitRatio ?? this.splitRatio,
       splitOpen: splitOpen ?? this.splitOpen,
       shellTabs: shellTabs ?? this.shellTabs,
+      shellWorkspaces: shellWorkspaces ?? this.shellWorkspaces,
       selectedShellTabId: selectedShellTabId ?? this.selectedShellTabId,
       selectedActivityId: identical(selectedActivityId, _noChange)
           ? this.selectedActivityId
@@ -238,27 +292,25 @@ class Settings {
       'splitRatio',
       'splitOpen',
       'shellTabs',
+      'shellWorkspaces',
       'selectedShellTabId',
       'selectedActivityId',
       'selectedContextId',
       'selectedModuleId',
     };
-    final tabJson = json['shellTabs'];
-    final tabs = tabJson is List
-        ? tabJson
+    final tabs = _readShellTabs(json['shellTabs']);
+    final workspaceJson = json['shellWorkspaces'];
+    final workspaces = workspaceJson is List
+        ? workspaceJson
               .whereType<Map>()
               .map((item) {
-                final id = item['id'];
-                final registrationId = item['registrationId'];
-                if (id is! String || registrationId is! String) return null;
-                if (!_isStableId(id, maxLength: 256) || !_isStableId(registrationId, maxLength: 128)) {
-                  return null;
-                }
-                return ShellTabPreference.fromJson(Map<String, dynamic>.from(item));
+                final sectionId = item['sectionId'];
+                if (sectionId is! String || !isStableId(sectionId, maxLength: 128)) return null;
+                return ShellWorkspacePreference.fromJson(Map<String, dynamic>.from(item));
               })
-              .whereType<ShellTabPreference>()
+              .whereType<ShellWorkspacePreference>()
               .toList()
-        : _defaultTabs;
+        : const <ShellWorkspacePreference>[];
     final width = json['inspectorWidth'];
     final ratio = json['splitRatio'];
     bool readBool(String key, {required bool fallback}) {
@@ -288,6 +340,7 @@ class Settings {
       splitRatio: ratio is num && ratio.isFinite ? ratio.toDouble().clamp(0.3, 0.7) : 0.5,
       splitOpen: readBool('splitOpen', fallback: false),
       shellTabs: tabs,
+      shellWorkspaces: workspaces,
       selectedShellTabId: json['selectedShellTabId'] is String ? json['selectedShellTabId'] as String : '',
       selectedActivityId: json['selectedActivityId'] is String ? json['selectedActivityId'] as String : null,
       selectedContextId: json['selectedContextId'] is String ? json['selectedContextId'] as String : null,
@@ -296,7 +349,7 @@ class Settings {
     );
   }
 
-  static bool _isStableId(String value, {required int maxLength}) =>
+  static bool isStableId(String value, {required int maxLength}) =>
       value.isNotEmpty &&
       value.length <= maxLength &&
       value.trim() == value &&
@@ -305,7 +358,7 @@ class Settings {
   Map<String, dynamic> toJson() {
     return {
       ...extraSettings,
-      'schemaVersion': 5,
+      'schemaVersion': 6,
       'useSystemDarkmode': useSystemDarkmode,
       'useDarkmode': useDarkmode,
       'useSystemTextScaling': useSystemTextScaling,
@@ -320,6 +373,7 @@ class Settings {
       'splitRatio': splitRatio.clamp(0.3, 0.7),
       'splitOpen': splitOpen,
       'shellTabs': shellTabs.map((tab) => tab.toJson()).toList(),
+      'shellWorkspaces': shellWorkspaces.map((workspace) => workspace.toJson()).toList(),
       'selectedShellTabId': selectedShellTabId,
       'selectedActivityId': selectedActivityId,
       'selectedContextId': selectedContextId,

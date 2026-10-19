@@ -102,7 +102,7 @@ PageItemPresentation pageItemPresentation(BuildContext context, PageItem item) {
   }
 }
 
-enum ShellViewReusePolicy { never, byRegistration }
+enum ShellViewReusePolicy { never, byRegistration, byInstance }
 
 enum ShellTabLifecycle { restored, opened, activated, deactivated, closing, closed }
 
@@ -115,6 +115,7 @@ typedef ShellDestinationBuilder = Widget Function(
 );
 typedef ShellTabCloseGuard = FutureOr<bool> Function(BuildContext context, ShellTabPreference tab);
 typedef ShellViewActionsBuilder = List<ShellViewAction> Function(BuildContext context, ShellViewContext view);
+typedef ShellSectionStatusItemsBuilder = List<ShellStatusItem> Function(BuildContext context);
 typedef ShellDestinationAction = FutureOr<void> Function(BuildContext context);
 typedef ShellCommandAction = FutureOr<void> Function(BuildContext context);
 
@@ -184,11 +185,15 @@ class ShellDestination {
   final IconData icon;
   final IconData? inactiveIcon;
   final bool lockedVisible;
+  final String? defaultViewId;
+  final Set<String>? allowedViewIds;
   @Deprecated('Move view content to ShellViewRegistration.')
   final ShellDestinationBuilder? builder;
   final String? openViewId;
   final String? commandId;
   final WidgetBuilder? panelBuilder;
+  final WidgetBuilder? inspectorBuilder;
+  final ShellSectionStatusItemsBuilder? statusItemsBuilder;
   final ShellDestinationAction? onSelected;
 
   const ShellDestination({
@@ -197,10 +202,14 @@ class ShellDestination {
     required this.icon,
     this.inactiveIcon,
     this.lockedVisible = false,
+    this.defaultViewId,
+    this.allowedViewIds,
     @Deprecated('Move view content to ShellViewRegistration.') this.builder,
     this.openViewId,
     this.commandId,
     this.panelBuilder,
+    this.inspectorBuilder,
+    this.statusItemsBuilder,
     this.onSelected,
   });
 }
@@ -353,6 +362,8 @@ ShellConfig defaultShellConfig() => ShellConfig(
       icon: presentation.activeIcon,
       inactiveIcon: presentation.inactiveIcon,
       lockedVisible: item == PageItem.page6,
+      defaultViewId: item.name,
+      allowedViewIds: item == PageItem.page6 ? {'page6', 'settings'} : {item.name},
     );
   }).toList(),
   views: defaultShellViews(),
@@ -362,10 +373,14 @@ List<ShellViewRegistration> defaultShellViews() => PageItem.values.map((item) {
   final presentation = _pageItemIcons(item);
   return ShellViewRegistration(
     id: item.name,
-    title: (context, _) => pageItemPresentation(context, item).title,
+    title: (context, instanceId) {
+      final title = pageItemPresentation(context, item).title;
+      final instanceNumber = int.tryParse(instanceId.split('-').last);
+      return instanceNumber == null || instanceNumber == 1 ? title : '$title $instanceNumber';
+    },
+    destinationId: item.name,
     icon: presentation.activeIcon,
     routePath: '/${item.name}',
-    reusePolicy: ShellViewReusePolicy.byRegistration,
     viewBuilder: (context, view) => _buildPageItem(context, view, item),
   );
 }).toList();
