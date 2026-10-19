@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:flutter_template/core/app_scope.dart';
 import 'package:flutter_template/core/settings.dart';
@@ -18,6 +19,18 @@ class Page6SettingsPage extends StatefulWidget {
 
 class _Page6SettingsPageState extends State<Page6SettingsPage> {
   int _selectedSection = 0;
+  final List<FocusNode> _sectionFocusNodes = List.generate(
+    6,
+    (index) => FocusNode(debugLabel: 'Settings section $index'),
+  );
+
+  @override
+  void dispose() {
+    for (final node in _sectionFocusNodes) {
+      node.dispose();
+    }
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -49,26 +62,63 @@ class _Page6SettingsPageState extends State<Page6SettingsPage> {
               );
             }
             final metrics = AppTheme.metrics(context, phone: false);
+            if (constraints.maxWidth < 800) {
+              final selectorHeight = (32 * MediaQuery.textScalerOf(context).scale(1)).clamp(32, 64).toDouble();
+              return Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+                    child: Row(
+                      children: [
+                        Text(context.l10n.settingsTitle, style: Theme.of(context).textTheme.labelMedium),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: SizedBox(
+                            height: selectorHeight,
+                            child: DropdownButton<int>(
+                              key: const ValueKey('settings-section-selector'),
+                              value: _selectedSection,
+                              isExpanded: true,
+                              isDense: true,
+                              items: [
+                                for (var index = 0; index < 6; index++)
+                                  DropdownMenuItem(value: index, child: Text(_sectionTitle(context, index))),
+                              ],
+                              onChanged: (index) {
+                                if (index != null) setState(() => _selectedSection = index);
+                              },
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(12),
+                      child: Align(
+                        alignment: Alignment.topLeft,
+                        child: ConstrainedBox(
+                          key: const ValueKey('settings-form'),
+                          constraints: BoxConstraints(maxWidth: metrics.settingsMaxWidth),
+                          child: _sectionContent(
+                            context,
+                            _selectedSection,
+                            controller.settings,
+                            controller,
+                            phone: false,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            }
             return Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                SizedBox(
-                  width: 176,
-                  child: NavigationRail(
-                    minWidth: 168,
-                    labelType: NavigationRailLabelType.all,
-                    selectedIndex: _selectedSection,
-                    onDestinationSelected: (index) => setState(() => _selectedSection = index),
-                    destinations: [
-                      for (var index = 0; index < 6; index++)
-                        NavigationRailDestination(
-                          icon: Icon(_sectionIcon(index)),
-                          selectedIcon: Icon(_sectionIcon(index)),
-                          label: Text(_sectionTitle(context, index)),
-                        ),
-                    ],
-                  ),
-                ),
+                _desktopSectionNavigation(context),
                 const VerticalDivider(width: 1),
                 Expanded(
                   child: SingleChildScrollView(
@@ -76,6 +126,7 @@ class _Page6SettingsPageState extends State<Page6SettingsPage> {
                     child: Align(
                       alignment: Alignment.topLeft,
                       child: ConstrainedBox(
+                        key: const ValueKey('settings-form'),
                         constraints: BoxConstraints(maxWidth: metrics.settingsMaxWidth),
                         child: _sectionContent(
                           context,
@@ -94,6 +145,104 @@ class _Page6SettingsPageState extends State<Page6SettingsPage> {
         ),
       ),
     );
+  }
+
+  Widget _desktopSectionNavigation(BuildContext context) {
+    final theme = Theme.of(context);
+    final scale = MediaQuery.textScalerOf(context).scale(1);
+    final baseRowHeight = theme.extension<AppShellTokens>()?.comfortable == true ? 36 : 32;
+    final rowHeight = (baseRowHeight * scale).clamp(32, 64).toDouble();
+    return SizedBox(
+      key: const ValueKey('settings-section-navigation'),
+      width: 184,
+      child: ListView(
+        padding: const EdgeInsets.all(8),
+        children: [
+          for (var index = 0; index < 6; index++) ...[
+            if (index > 0) const SizedBox(height: 2),
+            Tooltip(
+              message: _sectionTitle(context, index),
+              child: Focus(
+                focusNode: _sectionFocusNodes[index],
+                onKeyEvent: (_, event) => _handleSectionKey(index, event),
+                child: Semantics(
+                  button: true,
+                  selected: _selectedSection == index,
+                  label: _sectionTitle(context, index),
+                  child: SizedBox(
+                    key: ValueKey('settings-section-$index'),
+                    height: rowHeight,
+                    child: Material(
+                      color: _selectedSection == index
+                          ? theme.colorScheme.primary.withValues(alpha: 0.08)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(4),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(4),
+                        hoverColor: theme.colorScheme.onSurface.withValues(alpha: 0.04),
+                        focusColor: theme.colorScheme.primary.withValues(alpha: 0.16),
+                        onTap: () {
+                          _sectionFocusNodes[index].requestFocus();
+                          setState(() => _selectedSection = index);
+                        },
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 2,
+                              height: 18,
+                              decoration: BoxDecoration(
+                                color: _selectedSection == index ? theme.colorScheme.primary : Colors.transparent,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Icon(
+                              _sectionIcon(index),
+                              size: 16,
+                              color: _selectedSection == index
+                                  ? theme.colorScheme.primary
+                                  : theme.colorScheme.onSurfaceVariant,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _sectionTitle(context, index),
+                                maxLines: scale > 1.25 ? 2 : 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.labelSmall,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  KeyEventResult _handleSectionKey(int index, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    if (event.logicalKey == LogicalKeyboardKey.enter || event.logicalKey == LogicalKeyboardKey.space) {
+      setState(() => _selectedSection = index);
+      return KeyEventResult.handled;
+    }
+    final nextIndex = switch (event.logicalKey) {
+      LogicalKeyboardKey.arrowDown => index + 1,
+      LogicalKeyboardKey.arrowUp => index - 1,
+      _ => index,
+    };
+    if (nextIndex == index) return KeyEventResult.ignored;
+    final boundedIndex = nextIndex.clamp(0, _sectionFocusNodes.length - 1);
+    setState(() => _selectedSection = boundedIndex);
+    _sectionFocusNodes[boundedIndex].requestFocus();
+    return KeyEventResult.handled;
   }
 
   String _sectionTitle(BuildContext context, int index) => switch (index) {

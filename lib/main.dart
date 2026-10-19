@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_web_plugins/url_strategy.dart';
 
 import 'package:flutter_template/core/app_scope.dart';
 import 'package:flutter_template/core/app_services.dart';
@@ -12,6 +16,7 @@ import 'package:flutter_template/pages/home/home_page.dart';
 import 'package:flutter_template/pages/home/onboarding.dart';
 
 Future<void> main() async {
+  if (kIsWeb) usePathUrlStrategy();
   WidgetsFlutterBinding.ensureInitialized();
 
   // Disable noisy logs in release.
@@ -31,8 +36,42 @@ class SkeletonApp extends StatefulWidget {
   State<SkeletonApp> createState() => _SkeletonAppState();
 }
 
-class _SkeletonAppState extends State<SkeletonApp> {
+class _SkeletonAppState extends State<SkeletonApp> with WidgetsBindingObserver {
   final GlobalKey<NavigatorState> _mainNavigatorKey = GlobalKey<NavigatorState>();
+  RouteInformation? _routeInformation;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    if (kIsWeb) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        await SystemNavigator.selectMultiEntryHistory();
+        final uri = _routeInformation?.uri;
+        if (mounted && uri != null && (uri.pathSegments.isNotEmpty || uri.fragment.isNotEmpty)) {
+          await SystemNavigator.routeInformationUpdated(uri: uri, replace: true);
+        }
+      });
+    }
+    if (kIsWeb) {
+      final initialRoute = WidgetsBinding.instance.platformDispatcher.defaultRouteName;
+      _routeInformation = RouteInformation(uri: Uri.parse(initialRoute));
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  Future<bool> didPushRouteInformation(RouteInformation routeInformation) async {
+    if (!kIsWeb) return false;
+    setState(() => _routeInformation = routeInformation);
+    return true;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -46,6 +85,15 @@ class _SkeletonAppState extends State<SkeletonApp> {
             ? ThemeMode.system
             : (settings.useDarkmode ? ThemeMode.dark : ThemeMode.light);
         final locale = settings.localeCode == null ? null : Locale(settings.localeCode!);
+        Route<void> buildShellRoute(RouteSettings routeSettings) => MaterialPageRoute<void>(
+          settings: routeSettings,
+          builder: (_) => AnimatedBuilder(
+            animation: scope.settings,
+            builder: (context, _) => scope.settings.settings.didCompleteOnboarding
+                ? HomePage(mainNavigatorKey: _mainNavigatorKey, routeInformation: _routeInformation)
+                : OnboardingPage(mainNavigatorKey: _mainNavigatorKey),
+          ),
+        );
 
         return MaterialApp(
           debugShowCheckedModeBanner: false,
@@ -56,9 +104,8 @@ class _SkeletonAppState extends State<SkeletonApp> {
           darkTheme: AppTheme.dark(accentPreset: settings.accentPreset, comfortable: settings.density == 'comfortable'),
           themeMode: themeMode,
           locale: locale,
-          home: settings.didCompleteOnboarding
-              ? HomePage(mainNavigatorKey: _mainNavigatorKey)
-              : OnboardingPage(mainNavigatorKey: _mainNavigatorKey),
+          onGenerateRoute: buildShellRoute,
+          onGenerateInitialRoutes: (initialRoute) => [buildShellRoute(RouteSettings(name: initialRoute))],
         );
       },
     );

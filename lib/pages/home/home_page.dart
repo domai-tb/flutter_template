@@ -21,14 +21,15 @@ import 'package:flutter_template/pages/page6/page6_settings_page.dart';
 class HomePage extends StatefulWidget {
   final GlobalKey<NavigatorState> mainNavigatorKey;
   final ShellConfig? config;
+  final RouteInformation? routeInformation;
 
-  const HomePage({super.key, required this.mainNavigatorKey, this.config});
+  const HomePage({super.key, required this.mainNavigatorKey, this.config, this.routeInformation});
 
   @override
   State<HomePage> createState() => HomePageState();
 }
 
-class HomePageState extends State<HomePage> with WidgetsBindingObserver {
+class HomePageState extends State<HomePage> {
   final PageController pageController = PageController();
   final ScrollController _tabScrollController = ScrollController();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
@@ -228,22 +229,30 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
   void _updateBrowserRoute(String id) {
     if (!kIsWeb || _handlingPlatformRoute || _lastPushedRouteId == id) return;
     _lastPushedRouteId = id;
-    unawaited(SystemNavigator.routeInformationUpdated(uri: Uri(pathSegments: [id])));
+    unawaited(SystemNavigator.routeInformationUpdated(uri: Uri(path: '/$id')));
+  }
+
+  void _handleBrowserRoute(RouteInformation routeInformation) {
+    final uri = routeInformation.uri;
+    final pathSegments = uri.pathSegments.where((segment) => segment.isNotEmpty);
+    final id =
+        pathSegments.lastOrNull ??
+        Uri.parse('/${uri.fragment}').pathSegments.where((segment) => segment.isNotEmpty).lastOrNull;
+    final destinationId = _destinations.any((destination) => destination.id == id) ? id : _destinations.firstOrNull?.id;
+    if (destinationId == null) return;
+    _handlingPlatformRoute = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(selectedPage(destinationId).whenComplete(() => _handlingPlatformRoute = false));
+    });
   }
 
   @override
-  Future<bool> didPushRouteInformation(RouteInformation routeInformation) async {
-    final segments = routeInformation.uri.pathSegments;
-    final id = segments.isEmpty ? _destinations.firstOrNull?.id : segments.last;
-    if (id == null || !_destinations.any((destination) => destination.id == id)) return false;
-    _lastPushedRouteId = id;
-    _handlingPlatformRoute = true;
-    try {
-      await selectedPage(id);
-    } finally {
-      _handlingPlatformRoute = false;
+  void didUpdateWidget(covariant HomePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final routeInformation = widget.routeInformation;
+    if (routeInformation != null && routeInformation != oldWidget.routeInformation) {
+      _handleBrowserRoute(routeInformation);
     }
-    return true;
   }
 
   Widget _navigatorFor(ShellDestination destination) {
@@ -469,7 +478,6 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     final supplied = widget.config ?? defaultShellConfig();
     final legacyViewIds = {'route', 'placeholder'};
     final views = supplied.views.where((view) => !legacyViewIds.contains(view.id)).toList();
@@ -550,7 +558,13 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
     _settingsController.addListener(_handleSettingsChanged);
     final settings = _settingsController.settings;
     final visible = _destinations;
-    final initialRoute = kIsWeb ? Uri.base.pathSegments.lastOrNull : null;
+    final routeUri = widget.routeInformation?.uri;
+    final uri = routeUri != null && (routeUri.pathSegments.isNotEmpty || routeUri.fragment.isNotEmpty)
+        ? routeUri
+        : Uri.base;
+    final initialRoute = kIsWeb || routeUri != null
+        ? uri.pathSegments.lastOrNull ?? Uri.parse('/${uri.fragment}').pathSegments.lastOrNull
+        : null;
     final defaultDestination = visible.any((destination) => destination.id == initialRoute)
         ? initialRoute!
         : visible.firstOrNull?.id ?? _config.destinations.firstOrNull?.id ?? '';
@@ -558,6 +572,9 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
     final routedRoot = visible.any((destination) => destination.id == initialRoute)
         ? _rootRegistrationFor(initialRoute!)?.id
         : null;
+    if (routedRoot != null && !validTabs.any((tab) => tab.id == routedRoot)) {
+      validTabs.add(_rootPreference(initialRoute!));
+    }
     final migratedId = settings.selectedShellTabId == 'route'
         ? _migratedRouteSelection(settings, defaultDestination)
         : null;
@@ -590,7 +607,6 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
     if (_settingsWired) _settingsController.removeListener(_handleSettingsChanged);
     _navigation.removeListener(_handleNavigationChanged);
     for (final provider in _statusProviders.values) {
@@ -725,6 +741,9 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
     _announce(context.l10n.restoreLayout);
   }
 
+  Future<void> _showNotificationsPanel() =>
+      showShellNotifications(context, AppScope.of(context).services.shellNotifications, phone: _isPhoneLayout);
+
   List<_ShellCommand> _commands() {
     final commands = <_ShellCommand>[
       if (_config.destinations.any((item) => item.id == 'settings' || item.id == 'page6'))
@@ -847,9 +866,6 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
     if (selected != null) _openRegisteredView(selected);
   }
 
-  Future<void> _showNotificationsPanel() =>
-      showShellNotifications(context, AppScope.of(context).services.shellNotifications, phone: _isPhoneLayout);
-
   String _viewTitle(ShellViewRegistration registration) {
     if (registration.isRoot && registration.destinationId != null) {
       return _config.destinations
@@ -884,14 +900,23 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
   Widget _buildHeader(double width, AppShellMetrics metrics) {
     final theme = Theme.of(context);
     final compact = width < 800;
+    final actionSize = _isPhoneLayout
+        ? metrics.targetSize
+        : (Theme.of(context).extension<AppShellTokens>()?.comfortable == true ? 36.0 : 32.0);
+    final actionIconSize = _isPhoneLayout ? 24.0 : 18.0;
     final shortcut = defaultTargetPlatform == TargetPlatform.macOS ? '⌘K' : (kIsWeb ? 'Ctrl+Shift+K' : 'Ctrl+K');
     final notificationService = AppScope.of(context).services.shellNotifications;
+    Widget headerAction(String id, Widget child) => Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: SizedBox.square(key: ValueKey('header-action-$id'), dimension: actionSize, child: child),
+    );
 
     return IconButtonTheme(
       data: IconButtonThemeData(
         style: IconButton.styleFrom(
-          minimumSize: Size.square(metrics.targetSize),
-          maximumSize: Size.square(metrics.targetSize),
+          minimumSize: Size.square(actionSize),
+          maximumSize: Size.square(actionSize),
+          iconSize: actionIconSize,
           padding: EdgeInsets.zero,
           visualDensity: VisualDensity.compact,
         ),
@@ -919,77 +944,104 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 style: theme.textTheme.labelLarge,
               ),
             ),
-            if (_config.contexts.isNotEmpty) _buildContextPicker(width),
+            if (_config.contexts.isNotEmpty) _buildContextPicker(width, metrics.menuRowHeight),
             if (_modules.isNotEmpty)
-              PopupMenuButton<String>(
-                tooltip: context.l10n.selectModule,
-                onSelected: _selectModule,
-                itemBuilder: (context) => _modules
-                    .map((module) => PopupMenuItem(value: module.id, child: Text(module.title(context))))
-                    .toList(),
-                icon: const Icon(Icons.widgets_outlined),
-              ),
-            if (_tabs.length > 1 && width < 1200)
-              PopupMenuButton<String>(
-                tooltip: context.l10n.switchView,
-                onSelected: _navigation.select,
-                itemBuilder: (context) =>
-                    _tabs.map((tab) => PopupMenuItem(value: tab.id, child: Text(_tabTitle(tab)))).toList(),
-                icon: const Icon(Icons.tab),
-              ),
-            if (_activeTab != null &&
-                (!_isPhoneLayout || _viewFor(_activeTab!.registrationId)?.isRoot != true) &&
-                (_isPhoneLayout || width < 1200) &&
-                (_viewFor(_activeTab!.registrationId)?.closeable ?? true))
-              IconButton(
-                tooltip: context.l10n.closeTab,
-                onPressed: () => _closeTab(_activeTab!),
-                icon: const Icon(Icons.close),
-              ),
-            if (_activeInspectorBuilder != null)
-              IconButton(
-                tooltip: context.l10n.openInspector,
-                onPressed: _openInspector,
-                icon: const Icon(Icons.vertical_split),
-              ),
-            AnimatedBuilder(
-              animation: notificationService,
-              builder: (context, _) => IconButton(
-                tooltip: context.l10n.openNotifications,
-                onPressed: _showNotificationsPanel,
-                icon: Badge(
-                  isLabelVisible: notificationService.unreadCount > 0,
-                  label: Text(notificationService.unreadCount > 99 ? '99+' : '${notificationService.unreadCount}'),
-                  child: const Icon(Icons.notifications_none),
+              headerAction(
+                'module',
+                PopupMenuButton<String>(
+                  tooltip: context.l10n.selectModule,
+                  padding: EdgeInsets.zero,
+                  iconSize: actionIconSize,
+                  onSelected: _selectModule,
+                  itemBuilder: (context) => _modules
+                      .map(
+                        (module) => PopupMenuItem(
+                          height: metrics.menuRowHeight,
+                          value: module.id,
+                          child: Text(module.title(context)),
+                        ),
+                      )
+                      .toList(),
+                  icon: const Icon(Icons.widgets_outlined),
                 ),
               ),
+            if (_tabs.length > 1 && width < 1200)
+              headerAction(
+                'switch-view',
+                PopupMenuButton<String>(
+                  tooltip: context.l10n.switchView,
+                  padding: EdgeInsets.zero,
+                  iconSize: actionIconSize,
+                  onSelected: _navigation.select,
+                  itemBuilder: (context) => _tabs
+                      .map(
+                        (tab) =>
+                            PopupMenuItem(height: metrics.menuRowHeight, value: tab.id, child: Text(_tabTitle(tab))),
+                      )
+                      .toList(),
+                  icon: const Icon(Icons.tab),
+                ),
+              ),
+            if (_activeInspectorBuilder != null)
+              headerAction(
+                'inspector',
+                IconButton(
+                  tooltip: context.l10n.openInspector,
+                  onPressed: _openInspector,
+                  icon: const Icon(Icons.vertical_split),
+                ),
+              ),
+            headerAction(
+              'notifications',
+              ShellNotificationsAction(service: notificationService, phone: _isPhoneLayout),
             ),
-            IconButton(
-              tooltip: '${context.l10n.commandPalette} ($shortcut)',
-              onPressed: _showCommandPalette,
-              icon: const Icon(Icons.search),
+            headerAction(
+              'search',
+              IconButton(
+                tooltip: '${context.l10n.commandPalette} ($shortcut)',
+                onPressed: _showCommandPalette,
+                icon: const Icon(Icons.search),
+              ),
             ),
-            PopupMenuButton<String>(
-              tooltip: context.l10n.moreActions,
-              onSelected: (value) {
-                if (value == 'theme') _toggleAppearance();
-                if (value == 'layout') _restoreLayout();
-                if (value == 'split') _toggleSplit();
-                if (value == 'settings') unawaited(_openSettings());
-                if (value == 'tab') unawaited(_showViewPicker());
-              },
-              itemBuilder: (context) => [
-                if (_config.destinations.any((item) => item.id == 'settings' || item.id == 'page6'))
-                  PopupMenuItem(value: 'settings', child: Text(context.l10n.openSettings)),
-                PopupMenuItem(value: 'tab', child: Text(context.l10n.openViewTab)),
-                PopupMenuItem(value: 'theme', child: Text(context.l10n.toggleAppearance)),
-                if (_activeSplitBuilder != null)
+            headerAction(
+              'more',
+              PopupMenuButton<String>(
+                tooltip: context.l10n.moreActions,
+                padding: EdgeInsets.zero,
+                iconSize: actionIconSize,
+                onSelected: (value) {
+                  if (value == 'theme') _toggleAppearance();
+                  if (value == 'layout') _restoreLayout();
+                  if (value == 'split') _toggleSplit();
+                  if (value == 'settings') unawaited(_openSettings());
+                  if (value == 'tab') unawaited(_showViewPicker());
+                },
+                itemBuilder: (context) => [
+                  if (_config.destinations.any((item) => item.id == 'settings' || item.id == 'page6'))
+                    PopupMenuItem(
+                      height: metrics.menuRowHeight,
+                      value: 'settings',
+                      child: Text(context.l10n.openSettings),
+                    ),
+                  PopupMenuItem(height: metrics.menuRowHeight, value: 'tab', child: Text(context.l10n.openViewTab)),
                   PopupMenuItem(
-                    value: 'split',
-                    child: Text(_splitOpen ? context.l10n.closeSplitView : context.l10n.openSplitView),
+                    height: metrics.menuRowHeight,
+                    value: 'theme',
+                    child: Text(context.l10n.toggleAppearance),
                   ),
-                PopupMenuItem(value: 'layout', child: Text(context.l10n.restoreLayout)),
-              ],
+                  if (_activeSplitBuilder != null)
+                    PopupMenuItem(
+                      height: metrics.menuRowHeight,
+                      value: 'split',
+                      child: Text(_splitOpen ? context.l10n.closeSplitView : context.l10n.openSplitView),
+                    ),
+                  PopupMenuItem(
+                    height: metrics.menuRowHeight,
+                    value: 'layout',
+                    child: Text(context.l10n.restoreLayout),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(width: 8),
           ],
@@ -998,14 +1050,17 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildContextPicker(double width) {
+  Widget _buildContextPicker(double width, double menuRowHeight) {
     final selected = _selectedContext;
     if (selected == null) return const SizedBox.shrink();
     return PopupMenuButton<String>(
       tooltip: context.l10n.selectContext,
       onSelected: _selectContext,
       itemBuilder: (context) => _config.contexts
-          .map((configured) => PopupMenuItem(value: configured.id, child: Text(configured.title(context))))
+          .map(
+            (configured) =>
+                PopupMenuItem(height: menuRowHeight, value: configured.id, child: Text(configured.title(context))),
+          )
           .toList(),
       child: Semantics(
         button: true,
@@ -1030,6 +1085,32 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   Widget _buildTabStrip(AppShellMetrics metrics) {
+    final compact = Theme.of(context).extension<AppShellTokens>()?.comfortable != true;
+    final actionSize = compact ? 32.0 : 36.0;
+    Widget tabAction({
+      required Key key,
+      required String tooltip,
+      required IconData icon,
+      required VoidCallback? onPressed,
+    }) => Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: SizedBox.square(
+        dimension: actionSize,
+        child: IconButton(
+          key: key,
+          tooltip: tooltip,
+          onPressed: onPressed,
+          icon: Icon(icon),
+          style: IconButton.styleFrom(
+            minimumSize: Size.square(actionSize),
+            maximumSize: Size.square(actionSize),
+            padding: EdgeInsets.zero,
+            visualDensity: VisualDensity.compact,
+            iconSize: compact ? 16 : 18,
+          ),
+        ),
+      ),
+    );
     return SizedBox(
       height: metrics.tabHeight,
       child: Row(
@@ -1060,12 +1141,19 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
               },
             ),
           ),
-          IconButton(
+          tabAction(
+            key: const ValueKey('tab-overflow-action'),
             tooltip: context.l10n.openTabOverflow,
+            icon: Icons.more_horiz,
             onPressed: _tabs.isEmpty ? null : _showTabOverflow,
-            icon: const Icon(Icons.more_horiz),
           ),
-          IconButton(tooltip: context.l10n.openViewTab, onPressed: _showViewPicker, icon: const Icon(Icons.add)),
+          tabAction(
+            key: const ValueKey('tab-add-action'),
+            tooltip: context.l10n.openViewTab,
+            onPressed: _showViewPicker,
+            icon: Icons.add,
+          ),
+          const SizedBox(width: 8),
         ],
       ),
     );
@@ -1292,12 +1380,12 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
             .where((item) => item.isVisible?.call() ?? true)
             .toList()
           ..sort((left, right) => right.priority.compareTo(left.priority));
-    if (items.isEmpty) return const SizedBox.shrink();
-    final visibleCount = (width / 150).floor().clamp(1, items.length);
+    final visibleCount = items.isEmpty ? 0 : (width / 150).floor().clamp(1, items.length);
     final visible = items.take(visibleCount).toList();
     final overflow = items.skip(visibleCount).toList();
     final theme = Theme.of(context);
     return Container(
+      key: const ValueKey('shell-status-bar'),
       height: metrics.statusHeight,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
@@ -1501,7 +1589,7 @@ class HomePageState extends State<HomePage> with WidgetsBindingObserver {
                               ],
                             ),
                           ),
-                          if (wide && !_isPhoneLayout) _buildStatusBar(metrics, width),
+                          if (!_isPhoneLayout) _buildStatusBar(metrics, width),
                         ],
                       ),
                     ),

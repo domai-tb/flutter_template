@@ -8,7 +8,7 @@ Future<void> showShellNotifications(
   ShellNotificationService service, {
   required bool phone,
 }) async {
-  final panel = _NotificationPanel(service: service);
+  final panel = _NotificationPanel(service: service, phone: phone);
   if (phone) {
     await showModalBottomSheet<void>(
       context: context,
@@ -26,17 +26,59 @@ Future<void> showShellNotifications(
   }
 }
 
-class _NotificationPanel extends StatelessWidget {
+class ShellNotificationsAction extends StatelessWidget {
   final ShellNotificationService service;
+  final bool phone;
 
-  const _NotificationPanel({required this.service});
+  const ShellNotificationsAction({super.key, required this.service, required this.phone});
 
   @override
   Widget build(BuildContext context) {
-    final phone = MediaQuery.sizeOf(context).width < 600;
+    Widget button(VoidCallback? onPressed) => AnimatedBuilder(
+      animation: service,
+      builder: (context, _) => IconButton(
+        tooltip: context.l10n.openNotifications,
+        onPressed: onPressed,
+        icon: Badge(
+          isLabelVisible: service.unreadCount > 0,
+          label: Text(service.unreadCount > 99 ? '99+' : '${service.unreadCount}'),
+          child: const Icon(Icons.notifications_none),
+        ),
+      ),
+    );
+
+    if (phone) return button(() => showShellNotifications(context, service, phone: true));
+    return MenuAnchor(
+      crossAxisUnconstrained: false,
+      style: const MenuStyle(
+        minimumSize: WidgetStatePropertyAll(Size(360, 0)),
+        maximumSize: WidgetStatePropertyAll(Size(420, 440)),
+        padding: WidgetStatePropertyAll(EdgeInsets.zero),
+      ),
+      menuChildren: [
+        SizedBox(
+          key: const ValueKey('notifications-popover'),
+          width: 360,
+          height: 400,
+          child: _NotificationPanel(service: service, phone: false),
+        ),
+      ],
+      builder: (context, controller, _) => button(() => controller.isOpen ? controller.close() : controller.open()),
+    );
+  }
+}
+
+class _NotificationPanel extends StatelessWidget {
+  final ShellNotificationService service;
+  final bool phone;
+
+  const _NotificationPanel({required this.service, required this.phone});
+
+  @override
+  Widget build(BuildContext context) {
     return SizedBox(
-      width: phone ? double.infinity : 440,
-      height: phone ? double.infinity : 480,
+      width: phone ? double.infinity : 360,
+      height: phone ? double.infinity : 400,
       child: AnimatedBuilder(
         animation: service,
         builder: (context, _) => Column(

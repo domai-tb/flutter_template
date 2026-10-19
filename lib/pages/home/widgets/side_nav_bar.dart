@@ -19,6 +19,7 @@ class SideNavBar extends StatelessWidget {
         : tokens?.desktopCompact.railWidth ?? AppShellMetrics.desktopCompact.railWidth;
 
     return Container(
+      key: const ValueKey('activity-rail'),
       width: railWidth,
       decoration: BoxDecoration(
         color: tokens?.canvas ?? theme.colorScheme.surface,
@@ -28,34 +29,76 @@ class SideNavBar extends StatelessWidget {
         children: [
           const SizedBox(height: 12),
           for (final destination in destinations)
-            Tooltip(
-              message: destination.title(context),
-              child: Semantics(
-                button: true,
+            SizedBox(
+              width: railWidth,
+              height: 44,
+              child: _SideNavItem(
+                key: ValueKey('activity-rail-${destination.id}'),
+                destination: destination,
                 selected: currentId == destination.id,
-                label: destination.title(context),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 3),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-                    child: IconButton(
-                      tooltip: destination.title(context),
-                      onPressed: () => onSelected(destination.id),
-                      style: IconButton.styleFrom(
-                        foregroundColor: currentId == destination.id
-                            ? theme.colorScheme.primary
-                            : tokens?.textSecondary,
-                        backgroundColor: currentId == destination.id
-                            ? theme.colorScheme.primaryContainer
-                            : Colors.transparent,
-                      ),
-                      icon: Icon(destination.icon, size: 22),
-                    ),
-                  ),
-                ),
+                onSelected: () => onSelected(destination.id),
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _SideNavItem extends StatelessWidget {
+  final ShellDestination destination;
+  final bool selected;
+  final VoidCallback onSelected;
+
+  const _SideNavItem({super.key, required this.destination, required this.selected, required this.onSelected});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tokens = theme.extension<AppShellTokens>();
+    final foreground = selected ? theme.colorScheme.primary : tokens?.textSecondary;
+
+    return Tooltip(
+      message: destination.title(context),
+      child: Semantics(
+        button: true,
+        selected: selected,
+        label: destination.title(context),
+        child: SizedBox(
+          height: 44,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Positioned.fill(
+                left: 4,
+                right: 4,
+                child: Material(
+                  color: selected ? theme.colorScheme.primary.withValues(alpha: 0.08) : Colors.transparent,
+                  borderRadius: BorderRadius.circular(4),
+                  child: InkWell(
+                    onTap: onSelected,
+                    borderRadius: BorderRadius.circular(4),
+                    hoverColor: theme.colorScheme.onSurface.withValues(alpha: 0.04),
+                    focusColor: theme.colorScheme.primary.withValues(alpha: 0.16),
+                    child: const SizedBox.expand(),
+                  ),
+                ),
+              ),
+              IgnorePointer(child: Icon(destination.icon, size: 20, color: foreground)),
+              if (selected)
+                Positioned(
+                  left: 0,
+                  top: 14,
+                  bottom: 14,
+                  child: Container(
+                    key: ValueKey('activity-rail-indicator-${destination.id}'),
+                    width: 3,
+                    decoration: BoxDecoration(color: theme.colorScheme.primary, borderRadius: BorderRadius.circular(2)),
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }

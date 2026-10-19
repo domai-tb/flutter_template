@@ -11,6 +11,8 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
+  flutter_web_plugins:
+    sdk: flutter
   get_it: ^9.3.0
   intl: ^0.20.3
   shared_preferences: ^2.5.6

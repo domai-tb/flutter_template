@@ -45,7 +45,7 @@ class AppShellMetrics {
     controlHeight: 36,
     statusHeight: 26,
     targetSize: 36,
-    settingsMaxWidth: 640,
+    settingsMaxWidth: 560,
   );
 
   static const phoneTouch = AppShellMetrics(
@@ -207,7 +207,7 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         isDense: !comfortable,
-        contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: comfortable ? 10 : 6),
+        contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: comfortable ? 8 : 6),
         border: const OutlineInputBorder(),
         focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: tokens.focus, width: 2)),
       ),
