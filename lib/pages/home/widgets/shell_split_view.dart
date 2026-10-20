@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:flutter_template/core/themes.dart';
+import 'package:flutter_template/l10n/l10n_x.dart';
 import 'package:flutter_template/pages/home/page_navigator.dart';
 
 /// Hosts the primary page and the secondary panes requested by its tab.
@@ -27,7 +28,7 @@ class ShellSplitView extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        const handleWidth = 12.0;
+        final handleWidth = AppTheme.metrics(context, phone: false).splitHandleWidth;
         final availableWidth = constraints.maxWidth - handleWidth * (contents.length - 1);
         final minWidths = [240.0, for (final pane in panes) pane.minWidth];
         final canShowColumns = availableWidth >= minWidths.fold<double>(0, (sum, width) => sum + width);
@@ -55,7 +56,7 @@ class ShellSplitView extends StatelessWidget {
           );
         }
 
-        final weights = _normalizedWeights(workspace.weights, contents.length);
+        final weights = _weightsWithinMinimums(workspace.weights, minWidths, availableWidth);
         return Row(
           children: [
             for (var index = 0; index < contents.length; index++) ...[
@@ -68,6 +69,7 @@ class ShellSplitView extends StatelessWidget {
                   minWidths: minWidths,
                   handleWidth: handleWidth,
                   onResize: workspace.setWeights,
+                  onPersist: workspace.persistLayout,
                 ),
             ],
           ],
@@ -76,12 +78,39 @@ class ShellSplitView extends StatelessWidget {
     );
   }
 
-  List<double> _normalizedWeights(List<double> source, int count) {
-    if (source.length != count || source.any((weight) => !weight.isFinite || weight <= 0)) {
-      return List<double>.filled(count, 1 / count);
+  List<double> _weightsWithinMinimums(List<double> source, List<double> minWidths, double width) {
+    final count = minWidths.length;
+    final valid = source.length == count && source.every((weight) => weight.isFinite && weight > 0)
+        ? source
+        : List<double>.filled(count, 1);
+    final total = valid.fold<double>(0, (sum, weight) => sum + weight);
+    final weights = valid.map((weight) => weight / total).toList();
+    final fixed = <int>{};
+
+    for (var pass = 0; pass < count; pass++) {
+      final underMinimum = [
+        for (var index = 0; index < count; index++)
+          if (!fixed.contains(index) && weights[index] * width < minWidths[index]) index,
+      ];
+      if (underMinimum.isEmpty) break;
+      fixed.addAll(underMinimum);
+      for (final index in underMinimum) {
+        weights[index] = minWidths[index] / width;
+      }
+      final flexible = [
+        for (var index = 0; index < count; index++)
+          if (!fixed.contains(index)) index,
+      ];
+      if (flexible.isEmpty) break;
+      final availableWeight = 1 - fixed.fold<double>(0, (sum, index) => sum + weights[index]);
+      final flexibleWeight = flexible.fold<double>(0, (sum, index) => sum + weights[index]);
+      for (final index in flexible) {
+        weights[index] = flexibleWeight == 0
+            ? availableWeight / flexible.length
+            : weights[index] / flexibleWeight * availableWeight;
+      }
     }
-    final total = source.fold<double>(0, (sum, weight) => sum + weight);
-    return source.map((weight) => weight / total).toList(growable: false);
+    return weights;
   }
 }
 
@@ -92,6 +121,7 @@ class _SplitHandle extends StatelessWidget {
   final List<double> weights;
   final List<double> minWidths;
   final void Function(List<double>, {required bool persist}) onResize;
+  final VoidCallback onPersist;
 
   const _SplitHandle({
     required this.index,
@@ -100,13 +130,16 @@ class _SplitHandle extends StatelessWidget {
     required this.weights,
     required this.minWidths,
     required this.onResize,
+    required this.onPersist,
   });
 
   void _resize(double delta) {
     if (width <= 0) return;
     final next = List<double>.of(weights);
+    final pair = next[index] + next[index + 1];
     final lower = minWidths[index] / width;
-    final upper = 1 - minWidths[index + 1] / width;
+    final upper = pair - minWidths[index + 1] / width;
+    if (lower > upper) return;
     final left = (next[index] + delta / width).clamp(lower, upper);
     final moved = left - next[index];
     next[index] = left;
@@ -114,14 +147,14 @@ class _SplitHandle extends StatelessWidget {
     onResize(next, persist: false);
   }
 
-  void _persist() => onResize(weights, persist: true);
+  void _persist() => onPersist();
 
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<AppShellTokens>();
     return Semantics(
       button: true,
-      label: 'Resize workspace panes',
+      label: context.l10n.resizeSplitPane,
       value: '${(weights[index] * 100).round()}%',
       increasedValue: '${((weights[index] + 0.05).clamp(0.05, 0.95) * 100).round()}%',
       decreasedValue: '${((weights[index] - 0.05).clamp(0.05, 0.95) * 100).round()}%',

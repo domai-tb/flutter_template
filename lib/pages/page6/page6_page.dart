@@ -6,8 +6,8 @@ import 'package:flutter_template/core/app_scope.dart';
 import 'package:flutter_template/l10n/l10n_x.dart';
 import 'package:flutter_template/pages/home/widgets/page_navigation_animation.dart';
 import 'package:flutter_template/pages/page6/page6_about_page.dart';
-import 'package:flutter_template/pages/page6/page6_item_entity.dart';
-import 'package:flutter_template/pages/page6/page6_usecases.dart';
+import 'package:flutter_template/pages/page6/entities/item_entity.dart';
+import 'package:flutter_template/pages/page6/page6_usecase.dart';
 import 'package:flutter_template/widgets/scroll_to_top_button.dart';
 
 class Page6Page extends StatefulWidget {
@@ -28,7 +28,7 @@ class Page6Page extends StatefulWidget {
 
 class _Page6PageState extends State<Page6Page> with AutomaticKeepAliveClientMixin<Page6Page> {
   final ScrollController _scrollController = ScrollController();
-  late Page6Usecases _usecases;
+  late Page6UseCase _usecases;
   bool _wired = false;
   bool _loading = true;
   List<Page6ItemEntity> _items = const [];

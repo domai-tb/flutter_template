@@ -1,4 +1,4 @@
-import 'package:flutter_template/pages/page6/page6_item_entity.dart';
+import 'package:flutter_template/pages/page6/entities/item_entity.dart';
 
 class Page6DataSource {
   Future<List<Page6ItemEntity>> fetchItems() async {

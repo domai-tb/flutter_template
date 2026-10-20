@@ -1,4 +1,4 @@
-import 'package:flutter_template/pages/page1/page1_item_entity.dart';
+import 'package:flutter_template/pages/page1/entities/item_entity.dart';
 
 /// Placeholder data source.
 ///

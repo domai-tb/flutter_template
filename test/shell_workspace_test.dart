@@ -12,6 +12,7 @@ import 'package:flutter_template/core/themes.dart';
 import 'package:flutter_template/l10n/l10n.dart';
 import 'package:flutter_template/pages/home/home_page.dart';
 import 'package:flutter_template/pages/home/page_navigator.dart';
+import 'package:flutter_template/pages/home/default_shell_config.dart';
 import 'package:flutter_template/pages/home/shell_navigation_coordinator.dart';
 
 void main() {

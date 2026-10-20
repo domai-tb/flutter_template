@@ -1,5 +1,5 @@
 import 'package:flutter_template/pages/page3/page3_datasource.dart';
-import 'package:flutter_template/pages/page3/page3_item_entity.dart';
+import 'package:flutter_template/pages/page3/entities/item_entity.dart';
 
 class Page3Repository {
   final Page3DataSource dataSource;

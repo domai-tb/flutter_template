@@ -10,6 +10,7 @@ import 'package:flutter_template/core/themes.dart';
 import 'package:flutter_template/l10n/l10n.dart';
 import 'package:flutter_template/pages/home/home_page.dart';
 import 'package:flutter_template/pages/home/page_navigator.dart';
+import 'package:flutter_template/pages/home/default_shell_config.dart';
 import 'package:flutter_template/pages/home/shell_navigation_coordinator.dart';
 import 'package:flutter_template/pages/home/widgets/shell_status_bar.dart';
 
@@ -42,14 +43,23 @@ void main() {
     expect(find.text('Sample items: 0'), findsOneWidget);
     expect(find.byTooltip('Add sample item'), findsOneWidget);
 
-    final breadcrumbMenu = find.byKey(const ValueKey('breadcrumb-menu-sample-feature-root:sample-dashboard-1'));
-    await tester.tap(breadcrumbMenu);
-    await tester.pumpAndSettle();
+    Future<void> openBreadcrumbMenu() async {
+      final root = find.byKey(const ValueKey('breadcrumb-node-sample-feature-root:sample-dashboard-1'));
+      if (root.evaluate().isEmpty) {
+        await tester.tap(find.byKey(const ValueKey('breadcrumb-overflow')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Sample workspace').last);
+        await tester.pumpAndSettle();
+      }
+      await tester.tap(root);
+      await tester.pumpAndSettle();
+    }
+
+    await openBreadcrumbMenu();
     await tester.tap(find.text('Activity').last);
     await tester.pumpAndSettle();
     expect(find.text('Dashboard count: 0 · Page: activity'), findsOneWidget);
-    await tester.tap(breadcrumbMenu);
-    await tester.pumpAndSettle();
+    await openBreadcrumbMenu();
     await tester.tap(find.text('Summary').last);
     await tester.pumpAndSettle();
     expect(find.text('Dashboard count: 0 · Page: summary'), findsOneWidget);

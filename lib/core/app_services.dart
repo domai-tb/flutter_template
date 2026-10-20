@@ -1,23 +1,23 @@
 import 'package:flutter_template/core/shell_notifications.dart';
 import 'package:flutter_template/core/shell_auth.dart';
-import 'package:flutter_template/pages/page1/page1_usecases.dart';
-import 'package:flutter_template/pages/page2/page2_usecases.dart';
-import 'package:flutter_template/pages/page3/page3_usecases.dart';
-import 'package:flutter_template/pages/page4/page4_usecases.dart';
-import 'package:flutter_template/pages/page5/page5_usecases.dart';
-import 'package:flutter_template/pages/page6/page6_usecases.dart';
+import 'package:flutter_template/pages/page1/page1_usecase.dart';
+import 'package:flutter_template/pages/page2/page2_usecase.dart';
+import 'package:flutter_template/pages/page3/page3_usecase.dart';
+import 'package:flutter_template/pages/page4/page4_usecase.dart';
+import 'package:flutter_template/pages/page5/page5_usecase.dart';
+import 'package:flutter_template/pages/page6/page6_usecase.dart';
 
 /// Aggregates feature use-cases for convenient access via `AppScope`.
 ///
 /// Wiring happens in `lib/core/injection.dart` (GetIt), so pages can stay free of
 /// plugin imports.
 class AppServices {
-  final Page1Usecases page1;
-  final Page2Usecases page2;
-  final Page3Usecases page3;
-  final Page4Usecases page4;
-  final Page5Usecases page5;
-  final Page6Usecases page6;
+  final Page1UseCase page1;
+  final Page2UseCase page2;
+  final Page3UseCase page3;
+  final Page4UseCase page4;
+  final Page5UseCase page5;
+  final Page6UseCase page6;
   final ShellNotificationService shellNotifications;
   final ShellAuthProvider? authProvider;
 

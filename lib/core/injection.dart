@@ -6,22 +6,22 @@ import 'package:flutter_template/core/shell_auth.dart';
 import 'package:flutter_template/core/shell_notifications.dart';
 import 'package:flutter_template/pages/page1/page1_datasource.dart';
 import 'package:flutter_template/pages/page1/page1_repository.dart';
-import 'package:flutter_template/pages/page1/page1_usecases.dart';
+import 'package:flutter_template/pages/page1/page1_usecase.dart';
 import 'package:flutter_template/pages/page2/page2_datasource.dart';
 import 'package:flutter_template/pages/page2/page2_repository.dart';
-import 'package:flutter_template/pages/page2/page2_usecases.dart';
+import 'package:flutter_template/pages/page2/page2_usecase.dart';
 import 'package:flutter_template/pages/page3/page3_datasource.dart';
 import 'package:flutter_template/pages/page3/page3_repository.dart';
-import 'package:flutter_template/pages/page3/page3_usecases.dart';
+import 'package:flutter_template/pages/page3/page3_usecase.dart';
 import 'package:flutter_template/pages/page4/page4_datasource.dart';
 import 'package:flutter_template/pages/page4/page4_repository.dart';
-import 'package:flutter_template/pages/page4/page4_usecases.dart';
+import 'package:flutter_template/pages/page4/page4_usecase.dart';
 import 'package:flutter_template/pages/page5/page5_datasource.dart';
 import 'package:flutter_template/pages/page5/page5_repository.dart';
-import 'package:flutter_template/pages/page5/page5_usecases.dart';
+import 'package:flutter_template/pages/page5/page5_usecase.dart';
 import 'package:flutter_template/pages/page6/page6_datasource.dart';
 import 'package:flutter_template/pages/page6/page6_repository.dart';
-import 'package:flutter_template/pages/page6/page6_usecases.dart';
+import 'package:flutter_template/pages/page6/page6_usecase.dart';
 
 /// Global service locator (GetIt).
 ///
@@ -45,32 +45,32 @@ Future<void> init({ShellAuthProvider? authProvider}) async {
   // Page 1
   sl.registerLazySingleton<Page1DataSource>(Page1DataSource.new);
   sl.registerLazySingleton<Page1Repository>(() => Page1Repository(dataSource: sl()));
-  sl.registerLazySingleton<Page1Usecases>(() => Page1Usecases(repository: sl()));
+  sl.registerLazySingleton<Page1UseCase>(() => Page1UseCase(repository: sl()));
 
   // Page 2
   sl.registerLazySingleton<Page2DataSource>(Page2DataSource.new);
   sl.registerLazySingleton<Page2Repository>(() => Page2Repository(dataSource: sl()));
-  sl.registerLazySingleton<Page2Usecases>(() => Page2Usecases(repository: sl()));
+  sl.registerLazySingleton<Page2UseCase>(() => Page2UseCase(repository: sl()));
 
   // Page 3
   sl.registerLazySingleton<Page3DataSource>(Page3DataSource.new);
   sl.registerLazySingleton<Page3Repository>(() => Page3Repository(dataSource: sl()));
-  sl.registerLazySingleton<Page3Usecases>(() => Page3Usecases(repository: sl()));
+  sl.registerLazySingleton<Page3UseCase>(() => Page3UseCase(repository: sl()));
 
   // Page 4
   sl.registerLazySingleton<Page4DataSource>(Page4DataSource.new);
   sl.registerLazySingleton<Page4Repository>(() => Page4Repository(dataSource: sl()));
-  sl.registerLazySingleton<Page4Usecases>(() => Page4Usecases(repository: sl()));
+  sl.registerLazySingleton<Page4UseCase>(() => Page4UseCase(repository: sl()));
 
   // Page 5
   sl.registerLazySingleton<Page5DataSource>(Page5DataSource.new);
   sl.registerLazySingleton<Page5Repository>(() => Page5Repository(dataSource: sl()));
-  sl.registerLazySingleton<Page5Usecases>(() => Page5Usecases(repository: sl()));
+  sl.registerLazySingleton<Page5UseCase>(() => Page5UseCase(repository: sl()));
 
   // Page 6
   sl.registerLazySingleton<Page6DataSource>(Page6DataSource.new);
   sl.registerLazySingleton<Page6Repository>(() => Page6Repository(dataSource: sl()));
-  sl.registerLazySingleton<Page6Usecases>(() => Page6Usecases(repository: sl()));
+  sl.registerLazySingleton<Page6UseCase>(() => Page6UseCase(repository: sl()));
 
   // Aggregate wiring
   sl.registerLazySingleton<AppServices>(

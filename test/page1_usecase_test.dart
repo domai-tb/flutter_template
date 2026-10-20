@@ -2,19 +2,19 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:flutter_template/pages/page1/page1_datasource.dart';
 import 'package:flutter_template/pages/page1/page1_repository.dart';
-import 'package:flutter_template/pages/page1/page1_usecases.dart';
+import 'package:flutter_template/pages/page1/page1_usecase.dart';
 
 void main() {
-  test('Page1Usecases returns placeholder items', () async {
-    final usecases = Page1Usecases(repository: Page1Repository(dataSource: Page1DataSource()));
+  test('Page1UseCase returns placeholder items', () async {
+    final usecases = Page1UseCase(repository: Page1Repository(dataSource: Page1DataSource()));
 
     final items = await usecases.getItems();
     expect(items, isNotEmpty);
     expect(items.length, 20);
   });
 
-  test('Page1Usecases supports query filtering', () async {
-    final usecases = Page1Usecases(repository: Page1Repository(dataSource: Page1DataSource()));
+  test('Page1UseCase supports query filtering', () async {
+    final usecases = Page1UseCase(repository: Page1Repository(dataSource: Page1DataSource()));
 
     final all = await usecases.getItems();
     final firstTitleWord = all.first.title.split(' ').last; // "1"
@@ -25,7 +25,7 @@ void main() {
   });
 
   test('Page1 placeholders are stable across fetches', () async {
-    final usecases = Page1Usecases(repository: Page1Repository(dataSource: Page1DataSource()));
+    final usecases = Page1UseCase(repository: Page1Repository(dataSource: Page1DataSource()));
 
     final first = await usecases.getItems();
     final second = await usecases.getItems();

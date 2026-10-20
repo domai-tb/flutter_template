@@ -13,6 +13,7 @@ import 'package:flutter_template/core/themes.dart';
 import 'package:flutter_template/l10n/l10n.dart';
 import 'package:flutter_template/pages/home/home_page.dart';
 import 'package:flutter_template/pages/home/page_navigator.dart';
+import 'package:flutter_template/pages/home/default_shell_config.dart';
 import 'package:flutter_template/pages/home/widgets/bottom_nav_bar.dart';
 import 'package:flutter_template/pages/home/widgets/shell_status_bar.dart';
 import 'package:flutter_template/pages/page6/page6_settings_page.dart';

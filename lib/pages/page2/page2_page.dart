@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_template/core/app_scope.dart';
 import 'package:flutter_template/l10n/l10n_x.dart';
 import 'package:flutter_template/pages/home/widgets/page_navigation_animation.dart';
-import 'package:flutter_template/pages/page2/page2_item_entity.dart';
-import 'package:flutter_template/pages/page2/page2_usecases.dart';
+import 'package:flutter_template/pages/page2/entities/item_entity.dart';
+import 'package:flutter_template/pages/page2/page2_usecase.dart';
 import 'package:flutter_template/widgets/scroll_to_top_button.dart';
 
 class Page2Page extends StatefulWidget {
@@ -27,7 +27,7 @@ class Page2Page extends StatefulWidget {
 
 class _Page2PageState extends State<Page2Page> with AutomaticKeepAliveClientMixin<Page2Page> {
   final ScrollController _scrollController = ScrollController();
-  late Page2Usecases _usecases;
+  late Page2UseCase _usecases;
   bool _wired = false;
   bool _loading = true;
   List<Page2ItemEntity> _items = const [];
@@ -88,7 +88,10 @@ class _Page2PageState extends State<Page2Page> with AutomaticKeepAliveClientMixi
                         onRefresh: _load,
                         child: ListView.builder(
                           controller: _scrollController,
-                          padding: EdgeInsets.only(bottom: defaultTargetPlatform == TargetPlatform.iOS ? 110 : 90, top: 10),
+                          padding: EdgeInsets.only(
+                            bottom: defaultTargetPlatform == TargetPlatform.iOS ? 110 : 90,
+                            top: 10,
+                          ),
                           itemCount: _loading ? 6 : _items.length,
                           itemBuilder: (context, index) {
                             if (_loading) {

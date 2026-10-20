@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_template/core/app_scope.dart';
 import 'package:flutter_template/l10n/l10n_x.dart';
 import 'package:flutter_template/pages/home/widgets/page_navigation_animation.dart';
-import 'package:flutter_template/pages/page4/page4_item_entity.dart';
-import 'package:flutter_template/pages/page4/page4_usecases.dart';
+import 'package:flutter_template/pages/page4/entities/item_entity.dart';
+import 'package:flutter_template/pages/page4/page4_usecase.dart';
 import 'package:flutter_template/widgets/scroll_to_top_button.dart';
 
 class Page4Page extends StatefulWidget {
@@ -27,7 +27,7 @@ class Page4Page extends StatefulWidget {
 
 class _Page4PageState extends State<Page4Page> with AutomaticKeepAliveClientMixin<Page4Page> {
   final ScrollController _scrollController = ScrollController();
-  late Page4Usecases _usecases;
+  late Page4UseCase _usecases;
   bool _wired = false;
   bool _loading = true;
   List<Page4ItemEntity> _items = const [];
@@ -88,7 +88,10 @@ class _Page4PageState extends State<Page4Page> with AutomaticKeepAliveClientMixi
                         onRefresh: _load,
                         child: ListView.builder(
                           controller: _scrollController,
-                          padding: EdgeInsets.only(bottom: defaultTargetPlatform == TargetPlatform.iOS ? 110 : 90, top: 10),
+                          padding: EdgeInsets.only(
+                            bottom: defaultTargetPlatform == TargetPlatform.iOS ? 110 : 90,
+                            top: 10,
+                          ),
                           itemCount: _loading ? 4 : _items.length,
                           itemBuilder: (context, index) {
                             if (_loading) {
@@ -126,10 +129,7 @@ class _Page4PageState extends State<Page4Page> with AutomaticKeepAliveClientMixi
                                       ),
                                     ),
                                     const SizedBox(width: 10),
-                                    Text(
-                                      '\$${item.price.toStringAsFixed(2)}',
-                                      style: theme.textTheme.labelSmall,
-                                    ),
+                                    Text('\$${item.price.toStringAsFixed(2)}', style: theme.textTheme.labelSmall),
                                   ],
                                 ),
                               ),

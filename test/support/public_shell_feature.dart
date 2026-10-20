@@ -74,7 +74,7 @@ class _SampleDashboardState extends State<_SampleDashboard> {
         ),
     ];
     view.breadcrumbs.setPath([
-      ShellNavigationNode(id: _rootId, label: 'Sample feature', children: pages),
+      ShellNavigationNode(id: _rootId, label: 'Sample workspace', children: pages),
       pages.firstWhere((node) => node.id == 'sample-feature-$_page:${view.instanceId}'),
     ]);
     view.status.setItem(ShellStatusItem(id: 'sample-items', label: 'Sample items: $_count'));

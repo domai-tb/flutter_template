@@ -1,0 +1,46 @@
+name: Flutter CI
+
+on:
+  push:
+    branches: [skeleton]
+  pull_request:
+    branches: [skeleton]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version-file: .fvmrc
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Check changed Dart formatting
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          files="$(git diff --name-only --diff-filter=ACMRT "$BASE_SHA" "$GITHUB_SHA" -- '*.dart')"
+          if [[ -n "$files" ]]; then
+            dart format --output=none --set-exit-if-changed $files
+          fi
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Run unit and widget tests (excluding golden tests)
+        shell: bash
+        run: |
+          for test_file in test/*_test.dart; do
+            if [[ "$test_file" != "test/shell_golden_test.dart" ]]; then
+              flutter test "$test_file"
+            fi
+          done

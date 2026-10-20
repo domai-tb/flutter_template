@@ -12,6 +12,7 @@ import 'package:flutter_template/core/settings.dart';
 import 'package:flutter_template/core/themes.dart';
 import 'package:flutter_template/l10n/l10n_x.dart';
 import 'package:flutter_template/pages/home/page_navigator.dart';
+import 'package:flutter_template/pages/home/default_shell_config.dart';
 import 'package:flutter_template/pages/home/shell_navigation_coordinator.dart';
 import 'package:flutter_template/pages/home/widgets/bottom_nav_bar.dart';
 import 'package:flutter_template/pages/home/widgets/page_navigation_animation.dart';
@@ -22,7 +23,6 @@ import 'package:flutter_template/pages/home/widgets/shell_split_view.dart';
 import 'package:flutter_template/pages/home/widgets/side_nav_bar.dart';
 import 'package:flutter_template/pages/home/shell_login_page.dart';
 import 'package:flutter_template/pages/home/shell_profile_page.dart';
-import 'package:flutter_template/pages/page6/page6_settings_page.dart';
 
 class HomePage extends StatefulWidget {
   final GlobalKey<NavigatorState> mainNavigatorKey;
@@ -838,7 +838,7 @@ class HomePageState extends State<HomePage> {
           ],
         ),
       ),
-      const Expanded(child: Page6SettingsPage()),
+      Expanded(child: buildDefaultSettingsPage()),
     ],
   );
 

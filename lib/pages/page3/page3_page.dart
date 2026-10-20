@@ -5,19 +5,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_template/core/app_scope.dart';
 import 'package:flutter_template/l10n/l10n_x.dart';
 import 'package:flutter_template/pages/home/widgets/page_navigation_animation.dart';
-import 'package:flutter_template/pages/page3/page3_item_entity.dart';
-import 'package:flutter_template/pages/page3/page3_usecases.dart';
+import 'package:flutter_template/pages/page3/entities/item_entity.dart';
+import 'package:flutter_template/pages/page3/page3_usecase.dart';
 import 'package:flutter_template/widgets/scroll_to_top_button.dart';
 
 class Page3Page extends StatefulWidget {
   final GlobalKey<AnimatedEntryState> pageEntryAnimationKey;
   final GlobalKey<AnimatedExitState> pageExitAnimationKey;
 
-  const Page3Page({
-    super.key,
-    required this.pageEntryAnimationKey,
-    required this.pageExitAnimationKey,
-  });
+  const Page3Page({super.key, required this.pageEntryAnimationKey, required this.pageExitAnimationKey});
 
   @override
   State<Page3Page> createState() => _Page3PageState();
@@ -25,7 +21,7 @@ class Page3Page extends StatefulWidget {
 
 class _Page3PageState extends State<Page3Page> with AutomaticKeepAliveClientMixin<Page3Page> {
   final ScrollController _scrollController = ScrollController();
-  late Page3Usecases _usecases;
+  late Page3UseCase _usecases;
   bool _wired = false;
   bool _loading = true;
   List<Page3ItemEntity> _items = const [];
@@ -86,7 +82,10 @@ class _Page3PageState extends State<Page3Page> with AutomaticKeepAliveClientMixi
                         onRefresh: _load,
                         child: ListView.builder(
                           controller: _scrollController,
-                          padding: EdgeInsets.only(bottom: defaultTargetPlatform == TargetPlatform.iOS ? 110 : 90, top: 10),
+                          padding: EdgeInsets.only(
+                            bottom: defaultTargetPlatform == TargetPlatform.iOS ? 110 : 90,
+                            top: 10,
+                          ),
                           itemCount: _loading ? 3 : _items.length,
                           itemBuilder: (context, index) {
                             if (_loading) {
