@@ -2,35 +2,36 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'package:flutter_template/core/app_scope.dart';
-import 'package:flutter_template/core/shell_auth.dart';
 import 'package:flutter_template/core/themes.dart';
 import 'package:flutter_template/l10n/l10n_x.dart';
+import 'package:flutter_template/pages/profile/profile_datasource.dart';
+import 'package:flutter_template/pages/profile/profile_usecase.dart';
 
 /// Displays the profile view inside the mobile account route.
-class ShellProfilePage extends StatelessWidget {
+class ProfilePage extends StatelessWidget {
   final String appTitle;
   final VoidCallback onSignIn;
 
-  const ShellProfilePage({super.key, required this.appTitle, required this.onSignIn});
+  const ProfilePage({super.key, required this.appTitle, required this.onSignIn});
 
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: Text(context.l10n.profile)),
-    body: ShellProfileView(appTitle: appTitle, onSignIn: onSignIn, showHeader: false),
+    body: ProfileView(appTitle: appTitle, onSignIn: onSignIn, showHeader: false),
   );
 }
 
 /// Renders compact guest and authenticated account details in a shell workspace.
-class ShellProfileView extends StatelessWidget {
+class ProfileView extends StatelessWidget {
   final String appTitle;
   final VoidCallback onSignIn;
   final bool showHeader;
 
-  const ShellProfileView({super.key, required this.appTitle, required this.onSignIn, this.showHeader = true});
+  const ProfileView({super.key, required this.appTitle, required this.onSignIn, this.showHeader = true});
 
   @override
   Widget build(BuildContext context) {
-    final provider = AppScope.of(context).services.authProvider;
+    final profile = AppScope.of(context).services.profile;
     final metrics = AppTheme.metrics(
       context,
       phone: defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS,
@@ -59,15 +60,15 @@ class ShellProfileView extends StatelessWidget {
         if (showHeader)
           Divider(height: tokens?.borderWidth ?? 1, color: tokens?.border ?? Theme.of(context).dividerColor),
         Expanded(
-          child: provider == null
+          child: profile == null
               ? _GuestContent(onSignIn: onSignIn)
               : ValueListenableBuilder<ShellAuthState>(
-                  valueListenable: provider.state,
+                  valueListenable: profile.state,
                   builder: (context, state, _) => switch (state.status) {
                     ShellAuthStatus.restoring || ShellAuthStatus.authenticating => const _LoadingContent(),
                     ShellAuthStatus.authenticated when state.user != null => _AuthenticatedContent(
                       user: state.user!,
-                      provider: provider,
+                      profile: profile,
                     ),
                     ShellAuthStatus.expired => _GuestContent(onSignIn: onSignIn, message: state.message),
                     ShellAuthStatus.signedOut || ShellAuthStatus.authenticated => _GuestContent(onSignIn: onSignIn),
@@ -147,9 +148,9 @@ class _GuestContent extends StatelessWidget {
 
 class _AuthenticatedContent extends StatelessWidget {
   final ShellAuthUser user;
-  final ShellAuthProvider provider;
+  final ProfileUseCase profile;
 
-  const _AuthenticatedContent({required this.user, required this.provider});
+  const _AuthenticatedContent({required this.user, required this.profile});
 
   @override
   Widget build(BuildContext context) {
@@ -199,7 +200,7 @@ class _AuthenticatedContent extends StatelessWidget {
           spacing: AppShellSpacing.sm,
           runSpacing: AppShellSpacing.sm,
           children: [
-            if (provider.editProfileAction case final action?)
+            if (profile.editProfileAction case final action?)
               OutlinedButton.icon(
                 onPressed: () => _runAction(context, action),
                 icon: Icon(action.icon),
@@ -208,7 +209,7 @@ class _AuthenticatedContent extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: () async {
                 try {
-                  await provider.signOut();
+                  await profile.signOut();
                 } catch (_) {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(context.l10n.signOutFailed)));

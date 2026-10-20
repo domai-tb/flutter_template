@@ -1,19 +1,14 @@
 import 'package:flutter/widgets.dart';
 
 import 'package:flutter_template/core/app_services.dart';
-import 'package:flutter_template/core/settings.dart';
+import 'package:flutter_template/pages/settings/settings_controller.dart';
 
 /// Lightweight app-wide scope that avoids external state-management packages.
 class AppScope extends InheritedWidget {
   final SettingsController settings;
   final AppServices services;
 
-  const AppScope({
-    super.key,
-    required this.settings,
-    required this.services,
-    required super.child,
-  });
+  const AppScope({super.key, required this.settings, required this.services, required super.child});
 
   static AppScope of(BuildContext context) {
     final scope = context.dependOnInheritedWidgetOfExactType<AppScope>();

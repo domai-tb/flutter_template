@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/widgets.dart';
 import 'package:flutter/foundation.dart';
 
-import 'package:flutter_template/core/settings.dart';
+import 'package:flutter_template/pages/settings/settings_entity.dart';
 import 'package:flutter_template/pages/home/page_navigator.dart';
 
 class ShellSectionWorkspace {

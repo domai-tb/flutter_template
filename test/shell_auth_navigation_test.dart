@@ -7,7 +7,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_template/core/app_scope.dart';
 import 'package:flutter_template/core/app_services.dart';
 import 'package:flutter_template/core/injection.dart' as ic;
-import 'package:flutter_template/core/settings.dart';
 import 'package:flutter_template/core/shell_auth.dart';
 import 'package:flutter_template/core/themes.dart';
 import 'package:flutter_template/l10n/l10n.dart';
@@ -16,7 +15,9 @@ import 'package:flutter_template/pages/home/page_navigator.dart';
 import 'package:flutter_template/pages/home/default_shell_config.dart';
 import 'package:flutter_template/pages/home/widgets/bottom_nav_bar.dart';
 import 'package:flutter_template/pages/home/widgets/shell_status_bar.dart';
-import 'package:flutter_template/pages/page6/page6_settings_page.dart';
+import 'package:flutter_template/pages/settings/settings_controller.dart';
+import 'package:flutter_template/pages/settings/settings_entity.dart';
+import 'package:flutter_template/pages/settings/settings_page.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -177,7 +178,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(settingsItem);
     await tester.pumpAndSettle();
-    expect(find.byType(Page6SettingsPage), findsOneWidget);
+    expect(find.byType(SettingsPage), findsOneWidget);
     expect(_workspace('settings').tabs, hasLength(1));
     expect(_workspace('settings').tabs.single.registrationId, 'settings');
     expect(ic.sl<SettingsController>().settings.hiddenNavBarItems, contains('settings'));
@@ -250,7 +251,7 @@ void main() {
     await tester.pumpAndSettle();
     final home = tester.state<HomePageState>(find.byType(HomePage));
     expect(home.currentDestinationId, 'settings');
-    expect(find.byType(Page6SettingsPage), findsOneWidget);
+    expect(find.byType(SettingsPage), findsOneWidget);
     expect(_workspace('settings').tabs.single.registrationId, 'settings');
     expect(_workspace('page6').tabs.any((tab) => tab.registrationId == 'settings'), isFalse);
   });

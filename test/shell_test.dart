@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -6,16 +7,19 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_template/core/app_scope.dart';
 import 'package:flutter_template/core/app_services.dart';
 import 'package:flutter_template/core/injection.dart' as ic;
-import 'package:flutter_template/core/settings.dart';
 import 'package:flutter_template/core/shell_notifications.dart';
 import 'package:flutter_template/core/themes.dart';
 import 'package:flutter_template/l10n/l10n.dart';
+import 'package:flutter_template/main.dart' show SkeletonApp;
 import 'package:flutter_template/pages/home/home_page.dart';
+import 'package:flutter_template/pages/home/onboarding.dart';
 import 'package:flutter_template/pages/home/shell_navigation_coordinator.dart';
 import 'package:flutter_template/pages/home/widgets/bottom_nav_bar.dart';
 import 'package:flutter_template/pages/home/page_navigator.dart';
 import 'package:flutter_template/pages/home/widgets/shell_status_bar.dart';
-import 'package:flutter_template/pages/page6/page6_settings_page.dart';
+import 'package:flutter_template/pages/settings/settings_controller.dart';
+import 'package:flutter_template/pages/settings/settings_entity.dart';
+import 'package:flutter_template/pages/settings/settings_page.dart';
 import 'package:flutter_template/widgets/app_segmented_triple_control.dart';
 
 void main() {
@@ -536,6 +540,7 @@ void main() {
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
   testWidgets('desktop Settings uses horizontal compact sections and a narrow selector', (tester) async {
+    final semantics = tester.ensureSemantics();
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -583,6 +588,114 @@ void main() {
     expect(find.byKey(const ValueKey('settings-section-selector')), findsOneWidget);
     expect(find.byKey(const ValueKey('settings-section-navigation')), findsNothing);
     expect(tester.takeException(), isNull);
+    semantics.dispose();
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
+
+  testWidgets('onboarding preferences keeps semantics valid while previewing settings', (tester) async {
+    final semantics = tester.ensureSemantics();
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final settings = ic.sl<SettingsController>();
+    settings.update(settings.settings.copyWith(didCompleteOnboarding: false));
+    await tester.pumpWidget(AppScope(settings: settings, services: ic.sl<AppServices>(), child: const SkeletonApp()));
+    await tester.pumpAndSettle();
+    expect(find.byType(OnboardingPage), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.text('Next'));
+    await tester.pumpAndSettle();
+    expect(find.byType(ReorderableListView), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.drag(find.byIcon(Icons.drag_handle).first, const Offset(0, 90));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.byType(AppSegmentedTripleControl).first);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.byType(Switch).first);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.text('Finish'));
+    await tester.pumpAndSettle();
+    expect(find.byType(HomePage), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('activity-rail-settings')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('settings-section-2')));
+    await tester.pumpAndSettle();
+    final settingsForm = find.byKey(const ValueKey('settings-form'));
+    expect(find.descendant(of: settingsForm, matching: find.byType(ReorderableListView)), findsOneWidget);
+    await tester.drag(
+      find.descendant(of: settingsForm, matching: find.byIcon(Icons.drag_handle)).first,
+      const Offset(0, 90),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.descendant(of: settingsForm, matching: find.byType(Switch)).first);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    semantics.dispose();
+  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
+
+  testWidgets('restored workspaces keep semantics attached on Linux', (tester) async {
+    final semantics = tester.ensureSemantics();
+    tester.view.physicalSize = const Size(800, 600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final settings = ic.sl<SettingsController>();
+    final tabs = [
+      for (final sectionId in ['page1', 'page2', 'page3', 'page4', 'page5', 'page6', 'profile', 'settings'])
+        ShellTabPreference(
+          id: '$sectionId-tab',
+          sectionId: sectionId,
+          registrationId: sectionId,
+          instanceId: '$sectionId-1',
+        ),
+    ];
+    final workspaces = [
+      for (final tab in tabs) ShellWorkspacePreference(sectionId: tab.sectionId!, tabs: [tab], activeTabId: tab.id),
+    ];
+    settings.update(
+      settings.settings.copyWith(
+        didCompleteOnboarding: true,
+        selectedActivityId: 'page1',
+        selectedShellTabId: tabs.first.id,
+        shellTabs: tabs,
+        shellWorkspaces: workspaces,
+      ),
+    );
+    await tester.pumpWidget(AppScope(settings: settings, services: ic.sl<AppServices>(), child: const SkeletonApp()));
+    await tester.pumpAndSettle();
+    expect(find.byType(HomePage), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.byKey(const ValueKey('activity-rail-settings')));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: Offset.zero);
+    for (final message in ['Page 1', 'Page 2', 'Settings', 'Appearance', 'Navigation', 'Keyboard']) {
+      final tooltips = find.byTooltip(message);
+      if (tooltips.evaluate().isEmpty) continue;
+      final tooltip = tooltips.first;
+      await mouse.moveTo(tester.getCenter(tooltip));
+      await tester.pump(const Duration(seconds: 1));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull, reason: 'tooltip "$message" should not detach semantics nodes');
+    }
+    await mouse.removePointer();
+    await tester.pumpWidget(const SizedBox.shrink());
+    semantics.dispose();
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
   testWidgets('phone Settings keeps sections in one scrolling column', (tester) async {
@@ -1121,7 +1234,7 @@ Widget _settingsApp({double textScale = 1}) {
           home: Builder(
             builder: (context) => MediaQuery(
               data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(textScale)),
-              child: const Page6SettingsPage(),
+              child: const SettingsPage(),
             ),
           ),
         );

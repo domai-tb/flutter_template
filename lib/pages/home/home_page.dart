@@ -7,7 +7,7 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 
 import 'package:flutter_template/core/app_scope.dart';
-import 'package:flutter_template/core/settings.dart';
+import 'package:flutter_template/pages/settings/settings_entity.dart';
 import 'package:flutter_template/core/themes.dart';
 import 'package:flutter_template/l10n/l10n_x.dart';
 import 'package:flutter_template/pages/home/page_navigator.dart';
@@ -22,8 +22,9 @@ import 'package:flutter_template/pages/home/widgets/shell_split_view.dart';
 import 'package:flutter_template/pages/home/widgets/shell_desktop_tab.dart';
 import 'package:flutter_template/pages/home/widgets/shell_dialogs.dart';
 import 'package:flutter_template/pages/home/widgets/side_nav_bar.dart';
-import 'package:flutter_template/pages/home/shell_login_page.dart';
-import 'package:flutter_template/pages/home/shell_profile_page.dart';
+import 'package:flutter_template/pages/profile/login_page.dart';
+import 'package:flutter_template/pages/profile/profile_page.dart';
+import 'package:flutter_template/pages/settings/settings_controller.dart';
 
 class HomePage extends StatefulWidget {
   final GlobalKey<NavigatorState> mainNavigatorKey;
@@ -148,9 +149,13 @@ class HomePageState extends State<HomePage> {
       );
     }
     if (settingsTabs.isNotEmpty) {
-      final activeSettingsTab = settingsTabs.where((tab) => tab.id == settings.selectedShellTabId).firstOrNull;
-      final tab = activeSettingsTab ?? settingsTabs.first;
-      workspaces['settings'] = ShellWorkspacePreference(sectionId: 'settings', tabs: [tab], activeTabId: tab.id);
+      final activeTabId =
+          settingsTabs.where((tab) => tab.id == settings.selectedShellTabId).firstOrNull?.id ?? settingsTabs.first.id;
+      workspaces['settings'] = ShellWorkspacePreference(
+        sectionId: 'settings',
+        tabs: settingsTabs,
+        activeTabId: activeTabId,
+      );
     }
     return workspaces.values.toList();
   }
@@ -654,7 +659,9 @@ class HomePageState extends State<HomePage> {
           destinationId: id,
           icon: registration?.icon ?? icon,
           routePath: registration?.routePath,
-          reusePolicy: ShellViewReusePolicy.byRegistration,
+          reusePolicy: id == 'settings'
+              ? registration?.reusePolicy ?? ShellViewReusePolicy.never
+              : ShellViewReusePolicy.byRegistration,
           closeable: registration?.closeable ?? true,
           rightSidebarBuilder: registration?.rightSidebarBuilder,
           inspectorBuilder: registration?.inspectorBuilder,
@@ -844,7 +851,7 @@ class HomePageState extends State<HomePage> {
   );
 
   Widget _buildProfileView(BuildContext context) =>
-      ShellProfileView(appTitle: _config.title(context), onSignIn: _openLogin, showHeader: false);
+      ProfileView(appTitle: _config.title(context), onSignIn: _openLogin, showHeader: false);
 
   void _returnToPreviousSection() {
     final fallback = _navigation.sections.where((destination) => !destination.isUtility).firstOrNull?.id;
@@ -856,7 +863,7 @@ class HomePageState extends State<HomePage> {
       Navigator.of(
         context,
         rootNavigator: true,
-      ).push<void>(MaterialPageRoute(builder: (_) => ShellLoginPage(appTitle: _config.title(context)))),
+      ).push<void>(MaterialPageRoute(builder: (_) => LoginPage(appTitle: _config.title(context)))),
     );
   }
 
@@ -1197,15 +1204,15 @@ class HomePageState extends State<HomePage> {
             Expanded(
               child: Padding(
                 padding: EdgeInsets.only(left: width < 800 ? 8 : 0),
-                child: Text(
-                  _activeTab == null
-                      ? (_destinations.where((item) => item.id == selectedActivityId).firstOrNull?.title(context) ??
-                            _config.title(context))
-                      : _tabTitle(_activeTab!),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelLarge,
-                ),
+                child: _activeTab == null
+                    ? Text(
+                        _destinations.where((item) => item.id == selectedActivityId).firstOrNull?.title(context) ??
+                            _config.title(context),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.labelLarge,
+                      )
+                    : const SizedBox.shrink(),
               ),
             ),
             if (_config.contexts.isNotEmpty) _buildContextPicker(width, metrics.menuRowHeight),
@@ -1957,112 +1964,117 @@ class HomePageState extends State<HomePage> {
           },
           child: Focus(
             autofocus: true,
-            child: AnnotatedRegion<SystemUiOverlayStyle>(
-              value: overlayStyle,
-              child: PopScope(
-                canPop: false,
-                onPopInvokedWithResult: (didPop, _) {
-                  if (didPop) return;
-                  unawaited(_maybePopCurrentPage());
-                },
-                child: Theme(
-                  data: shellTheme,
-                  child: ShellWorkspace(
-                    navigation: _navigation,
-                    child: Scaffold(
-                      key: _scaffoldKey,
-                      resizeToAvoidBottomInset: true,
-                      endDrawer: Drawer(
-                        child: Padding(
-                          padding: const EdgeInsets.all(8),
-                          child: _shellSurface(_buildRightSidebar(drawer: true)),
+            // Keep overlay semantics within the shell instead of merging into shortcut focus nodes.
+            child: Semantics(
+              container: true,
+              explicitChildNodes: true,
+              child: AnnotatedRegion<SystemUiOverlayStyle>(
+                value: overlayStyle,
+                child: PopScope(
+                  canPop: false,
+                  onPopInvokedWithResult: (didPop, _) {
+                    if (didPop) return;
+                    unawaited(_maybePopCurrentPage());
+                  },
+                  child: Theme(
+                    data: shellTheme,
+                    child: ShellWorkspace(
+                      navigation: _navigation,
+                      child: Scaffold(
+                        key: _scaffoldKey,
+                        resizeToAvoidBottomInset: true,
+                        endDrawer: Drawer(
+                          child: Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: _shellSurface(_buildRightSidebar(drawer: true)),
+                          ),
                         ),
-                      ),
-                      onEndDrawerChanged: (isOpen) {
-                        _rightSidebarDrawerOpen = isOpen;
-                        if (!isOpen && _rightSidebarOpen) _setRightSidebarOpen(false);
-                      },
-                      body: SafeArea(
-                        bottom: false,
-                        child: Column(
-                          children: [
-                            _buildHeader(width, metrics, phone: phoneLayout),
-                            Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.all(8),
-                                child: Row(
-                                  children: [
-                                    if (!phoneLayout)
-                                      Padding(
-                                        padding: const EdgeInsets.only(right: 8),
-                                        child: SideNavBar(
-                                          currentId: currentDestinationId,
-                                          destinations: visible,
-                                          onSelected: (id) => unawaited(selectedPage(id)),
+                        onEndDrawerChanged: (isOpen) {
+                          _rightSidebarDrawerOpen = isOpen;
+                          if (!isOpen && _rightSidebarOpen) _setRightSidebarOpen(false);
+                        },
+                        body: SafeArea(
+                          bottom: false,
+                          child: Column(
+                            children: [
+                              _buildHeader(width, metrics, phone: phoneLayout),
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(8),
+                                  child: Row(
+                                    children: [
+                                      if (!phoneLayout)
+                                        Padding(
+                                          padding: const EdgeInsets.only(right: 8),
+                                          child: SideNavBar(
+                                            currentId: currentDestinationId,
+                                            destinations: visible,
+                                            onSelected: (id) => unawaited(selectedPage(id)),
+                                          ),
                                         ),
-                                      ),
-                                    Expanded(
-                                      child: Row(
-                                        children: [
-                                          Expanded(
-                                            child: _shellSurface(
-                                              Column(
-                                                children: [
-                                                  if (!phoneLayout) _buildTabStrip(metrics),
-                                                  Expanded(
-                                                    child: Row(
-                                                      children: [
-                                                        if (showActivityPanel) _buildActivityPanel(activeActivity!),
-                                                        Expanded(
-                                                          child: Padding(
-                                                            padding: const EdgeInsets.all(8),
-                                                            child: LayoutBuilder(
-                                                              builder: (context, constraints) =>
-                                                                  _buildSplit(body, constraints.maxWidth, wide: wide),
+                                      Expanded(
+                                        child: Row(
+                                          children: [
+                                            Expanded(
+                                              child: _shellSurface(
+                                                Column(
+                                                  children: [
+                                                    if (!phoneLayout) _buildTabStrip(metrics),
+                                                    Expanded(
+                                                      child: Row(
+                                                        children: [
+                                                          if (showActivityPanel) _buildActivityPanel(activeActivity!),
+                                                          Expanded(
+                                                            child: Padding(
+                                                              padding: const EdgeInsets.all(8),
+                                                              child: LayoutBuilder(
+                                                                builder: (context, constraints) =>
+                                                                    _buildSplit(body, constraints.maxWidth, wide: wide),
+                                                              ),
                                                             ),
                                                           ),
-                                                        ),
-                                                      ],
+                                                        ],
+                                                      ),
                                                     ),
-                                                  ),
-                                                ],
+                                                  ],
+                                                ),
                                               ),
                                             ),
-                                          ),
-                                          if (showRightSidebar) ...[
-                                            _resizeRightSidebarHandle(rightSidebarWidth),
-                                            const SizedBox(width: 4),
-                                            SizedBox(
-                                              width: rightSidebarWidth,
-                                              child: _shellSurface(_buildRightSidebar(drawer: false)),
-                                            ),
+                                            if (showRightSidebar) ...[
+                                              _resizeRightSidebarHandle(rightSidebarWidth),
+                                              const SizedBox(width: 4),
+                                              SizedBox(
+                                                width: rightSidebarWidth,
+                                                child: _shellSurface(_buildRightSidebar(drawer: false)),
+                                              ),
+                                            ],
                                           ],
-                                        ],
+                                        ),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            if (!phoneLayout) _buildStatusBar(metrics),
-                          ],
-                        ),
-                      ),
-                      bottomNavigationBar: phoneLayout
-                          ? SafeArea(
-                              top: false,
-                              child: Padding(
-                                padding: const EdgeInsets.all(8),
-                                child: _shellSurface(
-                                  BottomNavBar(
-                                    currentId: currentDestinationId,
-                                    destinations: visible,
-                                    onSelected: (id) => unawaited(selectedPage(id)),
+                                    ],
                                   ),
                                 ),
                               ),
-                            )
-                          : null,
+                              if (!phoneLayout) _buildStatusBar(metrics),
+                            ],
+                          ),
+                        ),
+                        bottomNavigationBar: phoneLayout
+                            ? SafeArea(
+                                top: false,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(8),
+                                  child: _shellSurface(
+                                    BottomNavBar(
+                                      currentId: currentDestinationId,
+                                      destinations: visible,
+                                      onSelected: (id) => unawaited(selectedPage(id)),
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : null,
+                      ),
                     ),
                   ),
                 ),

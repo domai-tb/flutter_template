@@ -1,8 +1,6 @@
 import 'package:get_it/get_it.dart';
 
 import 'package:flutter_template/core/app_services.dart';
-import 'package:flutter_template/core/settings.dart';
-import 'package:flutter_template/core/shell_auth.dart';
 import 'package:flutter_template/core/shell_notifications.dart';
 import 'package:flutter_template/pages/page1/page1_datasource.dart';
 import 'package:flutter_template/pages/page1/page1_repository.dart';
@@ -22,6 +20,13 @@ import 'package:flutter_template/pages/page5/page5_usecase.dart';
 import 'package:flutter_template/pages/page6/page6_datasource.dart';
 import 'package:flutter_template/pages/page6/page6_repository.dart';
 import 'package:flutter_template/pages/page6/page6_usecase.dart';
+import 'package:flutter_template/pages/profile/profile_datasource.dart';
+import 'package:flutter_template/pages/profile/profile_repository.dart';
+import 'package:flutter_template/pages/profile/profile_usecase.dart';
+import 'package:flutter_template/pages/settings/settings_controller.dart';
+import 'package:flutter_template/pages/settings/settings_datasource.dart';
+import 'package:flutter_template/pages/settings/settings_repository.dart';
+import 'package:flutter_template/pages/settings/settings_usecase.dart';
 
 /// Global service locator (GetIt).
 ///
@@ -30,13 +35,17 @@ import 'package:flutter_template/pages/page6/page6_usecase.dart';
 final sl = GetIt.instance;
 
 Future<void> init({ShellAuthProvider? authProvider}) async {
-  // Core
-  sl.registerSingleton<SettingsController>(await SettingsController.load());
+  sl.registerSingleton<SettingsDataSource>(await SharedPreferencesSettingsDataSource.create());
+  sl.registerLazySingleton<SettingsRepository>(() => SettingsRepository(dataSource: sl()));
+  sl.registerLazySingleton<SettingsUseCase>(() => SettingsUseCase(repository: sl()));
+  sl.registerSingleton<SettingsController>(await SettingsController.load(sl()));
   sl.registerSingleton<ShellNotificationService>(ShellNotificationService());
   if (authProvider != null) {
-    sl.registerSingleton<ShellAuthProvider>(authProvider);
+    sl.registerSingleton<ProfileDataSource>(authProvider);
+    sl.registerLazySingleton<ProfileRepository>(() => ProfileRepository(dataSource: sl()));
+    sl.registerLazySingleton<ProfileUseCase>(() => ProfileUseCase(repository: sl()));
     try {
-      await authProvider.restoreSession();
+      await sl<ProfileUseCase>().restoreSession();
     } catch (_) {
       // An unavailable identity service must not prevent the app from opening in guest mode.
     }
@@ -81,8 +90,9 @@ Future<void> init({ShellAuthProvider? authProvider}) async {
       page4: sl(),
       page5: sl(),
       page6: sl(),
+      settings: sl(),
       shellNotifications: sl(),
-      authProvider: sl.isRegistered<ShellAuthProvider>() ? sl<ShellAuthProvider>() : null,
+      profile: sl.isRegistered<ProfileUseCase>() ? sl<ProfileUseCase>() : null,
     ),
   );
 }

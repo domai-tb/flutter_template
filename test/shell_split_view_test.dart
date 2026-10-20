@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:flutter_template/core/settings.dart';
+import 'package:flutter_template/pages/settings/settings_entity.dart';
 import 'package:flutter_template/core/themes.dart';
 import 'package:flutter_template/l10n/l10n.dart';
 import 'package:flutter_template/pages/home/page_navigator.dart';

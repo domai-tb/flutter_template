@@ -7,7 +7,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_template/core/app_scope.dart';
 import 'package:flutter_template/core/app_services.dart';
 import 'package:flutter_template/core/injection.dart' as ic;
-import 'package:flutter_template/core/settings.dart';
+import 'package:flutter_template/pages/settings/settings_controller.dart';
+import 'package:flutter_template/pages/settings/settings_entity.dart';
+import 'package:flutter_template/pages/settings/settings_usecase.dart';
 import 'package:flutter_template/core/themes.dart';
 import 'package:flutter_template/l10n/l10n.dart';
 import 'package:flutter_template/pages/home/home_page.dart';
@@ -98,7 +100,7 @@ void main() {
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
-    final restoredSettings = await SettingsController.load();
+    final restoredSettings = await SettingsController.load(ic.sl<SettingsUseCase>());
     addTearDown(restoredSettings.dispose);
     await tester.pumpWidget(_app(config, settings: restoredSettings));
     await tester.pumpAndSettle();

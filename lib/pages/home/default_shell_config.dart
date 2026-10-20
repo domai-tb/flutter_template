@@ -8,9 +8,9 @@ import 'package:flutter_template/pages/page3/page3_page.dart';
 import 'package:flutter_template/pages/page4/page4_page.dart';
 import 'package:flutter_template/pages/page5/page5_page.dart';
 import 'package:flutter_template/pages/page6/page6_page.dart';
-import 'package:flutter_template/pages/page6/page6_settings_page.dart';
+import 'package:flutter_template/pages/settings/settings_page.dart';
 
-Widget buildDefaultSettingsPage() => const Page6SettingsPage();
+Widget buildDefaultSettingsPage() => const SettingsPage();
 
 ShellConfig defaultShellConfig() => ShellConfig(
   title: (context) => context.l10n.appTitle,

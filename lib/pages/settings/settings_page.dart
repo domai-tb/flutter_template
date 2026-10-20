@@ -3,24 +3,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:flutter_template/core/app_scope.dart';
-import 'package:flutter_template/core/settings.dart';
 import 'package:flutter_template/core/themes.dart';
 import 'package:flutter_template/l10n/l10n_x.dart';
 import 'package:flutter_template/pages/home/page_navigator.dart';
 import 'package:flutter_template/pages/home/widgets/nav_bar_preferences_editor.dart';
+import 'package:flutter_template/pages/settings/settings_controller.dart';
+import 'package:flutter_template/pages/settings/settings_entity.dart';
 import 'package:flutter_template/widgets/app_segmented_triple_control.dart';
 
-class Page6SettingsPage extends StatefulWidget {
-  const Page6SettingsPage({super.key});
+class SettingsPage extends StatefulWidget {
+  const SettingsPage({super.key});
 
   @override
-  State<Page6SettingsPage> createState() => _Page6SettingsPageState();
+  State<SettingsPage> createState() => _SettingsPageState();
 }
 
-class _Page6SettingsPageState extends State<Page6SettingsPage> {
+class _SettingsPageState extends State<SettingsPage> {
   int _selectedSection = 0;
   final List<FocusNode> _sectionFocusNodes = List.generate(
-    6,
+    7,
     (index) => FocusNode(debugLabel: 'Settings section $index'),
   );
 
@@ -46,7 +47,7 @@ class _Page6SettingsPageState extends State<Page6SettingsPage> {
               return ListView(
                 padding: const EdgeInsets.all(12),
                 children: [
-                  for (var index = 0; index < 6; index++)
+                  for (var index = 0; index < 7; index++)
                     ExpansionTile(
                       key: ValueKey('settings-section-$index'),
                       initiallyExpanded: index == 0,
@@ -81,11 +82,11 @@ class _Page6SettingsPageState extends State<Page6SettingsPage> {
                               isExpanded: true,
                               isDense: true,
                               items: [
-                                for (var index = 0; index < 6; index++)
+                                for (var index = 0; index < 7; index++)
                                   DropdownMenuItem(value: index, child: Text(_sectionTitle(context, index))),
                               ],
                               onChanged: (index) {
-                                if (index != null) setState(() => _selectedSection = index);
+                                if (index != null) _selectSection(index);
                               },
                             ),
                           ),
@@ -158,7 +159,7 @@ class _Page6SettingsPageState extends State<Page6SettingsPage> {
       child: ListView(
         padding: const EdgeInsets.all(8),
         children: [
-          for (var index = 0; index < 6; index++) ...[
+          for (var index = 0; index < 7; index++) ...[
             if (index > 0) const SizedBox(height: 2),
             Tooltip(
               message: _sectionTitle(context, index),
@@ -183,7 +184,7 @@ class _Page6SettingsPageState extends State<Page6SettingsPage> {
                         focusColor: theme.colorScheme.primary.withValues(alpha: 0.16),
                         onTap: () {
                           _sectionFocusNodes[index].requestFocus();
-                          setState(() => _selectedSection = index);
+                          _selectSection(index);
                         },
                         child: Row(
                           children: [
@@ -227,10 +228,15 @@ class _Page6SettingsPageState extends State<Page6SettingsPage> {
     );
   }
 
+  void _selectSection(int index) {
+    if (_selectedSection == index) return;
+    setState(() => _selectedSection = index);
+  }
+
   KeyEventResult _handleSectionKey(int index, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
     if (event.logicalKey == LogicalKeyboardKey.enter || event.logicalKey == LogicalKeyboardKey.space) {
-      setState(() => _selectedSection = index);
+      _selectSection(index);
       return KeyEventResult.handled;
     }
     final nextIndex = switch (event.logicalKey) {
@@ -240,7 +246,7 @@ class _Page6SettingsPageState extends State<Page6SettingsPage> {
     };
     if (nextIndex == index) return KeyEventResult.ignored;
     final boundedIndex = nextIndex.clamp(0, _sectionFocusNodes.length - 1);
-    setState(() => _selectedSection = boundedIndex);
+    _selectSection(boundedIndex);
     _sectionFocusNodes[boundedIndex].requestFocus();
     return KeyEventResult.handled;
   }
@@ -249,8 +255,9 @@ class _Page6SettingsPageState extends State<Page6SettingsPage> {
     0 => context.l10n.settingsAppearance,
     1 => context.l10n.settingsLayout,
     2 => context.l10n.settingsNavigation,
-    3 => context.l10n.settingsKeyboard,
-    4 => context.l10n.settingsNotifications,
+    3 => context.l10n.languageLabel,
+    4 => context.l10n.settingsKeyboard,
+    5 => context.l10n.settingsNotifications,
     _ => context.l10n.settingsAbout,
   };
 
@@ -258,8 +265,9 @@ class _Page6SettingsPageState extends State<Page6SettingsPage> {
     0 => Icons.palette_outlined,
     1 => Icons.view_quilt_outlined,
     2 => Icons.navigation_outlined,
-    3 => Icons.keyboard_outlined,
-    4 => Icons.notifications_none,
+    3 => Icons.language,
+    4 => Icons.keyboard_outlined,
+    5 => Icons.notifications_none,
     _ => Icons.info_outline,
   };
 
@@ -273,8 +281,9 @@ class _Page6SettingsPageState extends State<Page6SettingsPage> {
     0 => _appearance(context, settings, controller, phone: phone),
     1 => _layout(context, settings, controller, phone: phone),
     2 => _navigation(context, settings, controller),
-    3 => _keyboard(context),
-    4 => _notifications(context),
+    3 => _language(context, settings, controller),
+    4 => _keyboard(context),
+    5 => _notifications(context),
     _ => _about(context, controller),
   };
 
@@ -365,33 +374,33 @@ class _Page6SettingsPageState extends State<Page6SettingsPage> {
   }
 
   Widget _navigation(BuildContext context, Settings settings, SettingsController controller) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        NavBarPreferencesEditor(
-          orderedItems: orderedPageItemsFromSettings(settings.navBarItemOrder),
-          hiddenItems: hiddenPageItemsFromSettings(settings.hiddenNavBarItems),
-          onOrderChanged: (items) => controller.update(settings.copyWith(navBarItemOrder: pageItemIds(items))),
-          onHiddenItemsChanged: (items) => controller.update(settings.copyWith(hiddenNavBarItems: pageItemIds(items))),
-        ),
-        const SizedBox(height: 20),
-        _sectionHeading(context, context.l10n.languageLabel),
-        DropdownButtonFormField<String>(
-          initialValue: settings.localeCode ?? 'system',
-          isExpanded: true,
-          decoration: const InputDecoration(),
-          items: [
-            DropdownMenuItem(value: 'system', child: Text(context.l10n.languageSystem)),
-            DropdownMenuItem(value: 'en', child: Text(context.l10n.languageEnglish)),
-            DropdownMenuItem(value: 'de', child: Text(context.l10n.languageGerman)),
-          ],
-          onChanged: (value) {
-            if (value != null) controller.update(settings.copyWith(localeCode: value == 'system' ? null : value));
-          },
-        ),
-      ],
+    return NavBarPreferencesEditor(
+      orderedItems: orderedPageItemsFromSettings(settings.navBarItemOrder),
+      hiddenItems: hiddenPageItemsFromSettings(settings.hiddenNavBarItems),
+      onOrderChanged: (items) => controller.update(settings.copyWith(navBarItemOrder: pageItemIds(items))),
+      onHiddenItemsChanged: (items) => controller.update(settings.copyWith(hiddenNavBarItems: pageItemIds(items))),
     );
   }
+
+  Widget _language(BuildContext context, Settings settings, SettingsController controller) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      _sectionHeading(context, context.l10n.languageLabel),
+      DropdownButtonFormField<String>(
+        initialValue: settings.localeCode ?? 'system',
+        isExpanded: true,
+        decoration: const InputDecoration(),
+        items: [
+          DropdownMenuItem(value: 'system', child: Text(context.l10n.languageSystem)),
+          DropdownMenuItem(value: 'en', child: Text(context.l10n.languageEnglish)),
+          DropdownMenuItem(value: 'de', child: Text(context.l10n.languageGerman)),
+        ],
+        onChanged: (value) {
+          if (value != null) controller.update(settings.copyWith(localeCode: value == 'system' ? null : value));
+        },
+      ),
+    ],
+  );
 
   Widget _keyboard(BuildContext context) {
     final paletteShortcut = defaultTargetPlatform == TargetPlatform.macOS

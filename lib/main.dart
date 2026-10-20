@@ -8,12 +8,12 @@ import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:flutter_template/core/app_scope.dart';
 import 'package:flutter_template/core/app_services.dart';
 import 'package:flutter_template/core/injection.dart' as ic;
-import 'package:flutter_template/core/settings.dart';
 import 'package:flutter_template/core/themes.dart';
 import 'package:flutter_template/l10n/l10n.dart';
 import 'package:flutter_template/l10n/l10n_x.dart';
 import 'package:flutter_template/pages/home/home_page.dart';
 import 'package:flutter_template/pages/home/onboarding.dart';
+import 'package:flutter_template/pages/settings/settings_controller.dart';
 
 Future<void> main() async {
   if (kIsWeb) usePathUrlStrategy();

@@ -1,19 +1,20 @@
 import 'package:flutter/material.dart';
 
 import 'package:flutter_template/core/app_scope.dart';
-import 'package:flutter_template/core/shell_auth.dart';
 import 'package:flutter_template/l10n/l10n_x.dart';
+import 'package:flutter_template/pages/profile/profile_datasource.dart';
+import 'package:flutter_template/pages/profile/profile_usecase.dart';
 
-class ShellLoginPage extends StatefulWidget {
+class LoginPage extends StatefulWidget {
   final String appTitle;
 
-  const ShellLoginPage({super.key, required this.appTitle});
+  const LoginPage({super.key, required this.appTitle});
 
   @override
-  State<ShellLoginPage> createState() => _ShellLoginPageState();
+  State<LoginPage> createState() => _LoginPageState();
 }
 
-class _ShellLoginPageState extends State<ShellLoginPage> {
+class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -29,7 +30,7 @@ class _ShellLoginPageState extends State<ShellLoginPage> {
     super.dispose();
   }
 
-  Future<void> _signIn(ShellAuthProvider provider) async {
+  Future<void> _signIn(ProfileUseCase profile) async {
     if (!_formKey.currentState!.validate()) return;
     setState(() {
       _busy = true;
@@ -37,9 +38,9 @@ class _ShellLoginPageState extends State<ShellLoginPage> {
       _message = null;
     });
     try {
-      final result = await provider.signIn(email: _emailController.text.trim(), password: _passwordController.text);
+      final result = await profile.signIn(email: _emailController.text.trim(), password: _passwordController.text);
       if (!mounted) return;
-      if (result.succeeded && provider.state.value.status == ShellAuthStatus.authenticated) {
+      if (result.succeeded && profile.state.value.status == ShellAuthStatus.authenticated) {
         Navigator.of(context).maybePop();
         return;
       }
@@ -51,7 +52,7 @@ class _ShellLoginPageState extends State<ShellLoginPage> {
     }
   }
 
-  Future<void> _runAction(ShellAuthAction action, ShellAuthProvider provider) async {
+  Future<void> _runAction(ShellAuthAction action, ProfileUseCase profile) async {
     setState(() {
       _busy = true;
       _error = null;
@@ -60,7 +61,7 @@ class _ShellLoginPageState extends State<ShellLoginPage> {
     try {
       final result = await action.run();
       if (!mounted) return;
-      if (result.succeeded && provider.state.value.status == ShellAuthStatus.authenticated) {
+      if (result.succeeded && profile.state.value.status == ShellAuthStatus.authenticated) {
         Navigator.of(context).maybePop();
       } else {
         setState(() {
@@ -77,7 +78,7 @@ class _ShellLoginPageState extends State<ShellLoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    final provider = AppScope.of(context).services.authProvider;
+    final profile = AppScope.of(context).services.profile;
     return Scaffold(
       appBar: AppBar(title: Text(context.l10n.signIn), centerTitle: false),
       body: SafeArea(
@@ -90,11 +91,11 @@ class _ShellLoginPageState extends State<ShellLoginPage> {
                 child: Card(
                   child: Padding(
                     padding: const EdgeInsets.all(24),
-                    child: provider == null
+                    child: profile == null
                         ? _unavailable(context)
                         : ValueListenableBuilder<ShellAuthState>(
-                            valueListenable: provider.state,
-                            builder: (context, state, _) => _form(context, provider, state),
+                            valueListenable: profile.state,
+                            builder: (context, state, _) => _form(context, profile, state),
                           ),
                   ),
                 ),
@@ -119,10 +120,10 @@ class _ShellLoginPageState extends State<ShellLoginPage> {
     ],
   );
 
-  Widget _form(BuildContext context, ShellAuthProvider provider, ShellAuthState state) {
+  Widget _form(BuildContext context, ProfileUseCase profile, ShellAuthState state) {
     final loading =
         _busy || state.status == ShellAuthStatus.restoring || state.status == ShellAuthStatus.authenticating;
-    final identityActions = provider.identityProviderActions;
+    final identityActions = profile.identityProviderActions;
     return AutofillGroup(
       child: Form(
         key: _formKey,
@@ -148,7 +149,7 @@ class _ShellLoginPageState extends State<ShellLoginPage> {
               obscureText: _obscurePassword,
               textInputAction: TextInputAction.done,
               autofillHints: const [AutofillHints.password],
-              onFieldSubmitted: loading ? null : (_) => _signIn(provider),
+              onFieldSubmitted: loading ? null : (_) => _signIn(profile),
               decoration: InputDecoration(
                 labelText: context.l10n.password,
                 suffixIcon: IconButton(
@@ -170,25 +171,25 @@ class _ShellLoginPageState extends State<ShellLoginPage> {
             if (_message != null) ...[const SizedBox(height: 12), Text(_message!, textAlign: TextAlign.center)],
             const SizedBox(height: 20),
             FilledButton.icon(
-              onPressed: loading ? null : () => _signIn(provider),
+              onPressed: loading ? null : () => _signIn(profile),
               icon: loading
                   ? const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2))
                   : const Icon(Icons.login),
               label: Text(context.l10n.signIn),
             ),
-            if (provider.forgotPasswordAction case final action?)
+            if (profile.forgotPasswordAction case final action?)
               TextButton(
-                onPressed: loading ? null : () => _runAction(action, provider),
+                onPressed: loading ? null : () => _runAction(action, profile),
                 child: Text(context.l10n.forgotPassword),
               ),
-            if (provider.createAccountAction case final action?)
+            if (profile.createAccountAction case final action?)
               TextButton(
-                onPressed: loading ? null : () => _runAction(action, provider),
+                onPressed: loading ? null : () => _runAction(action, profile),
                 child: Text(context.l10n.createAccount),
               ),
             for (final action in identityActions)
               OutlinedButton.icon(
-                onPressed: loading ? null : () => _runAction(action, provider),
+                onPressed: loading ? null : () => _runAction(action, profile),
                 icon: Icon(action.icon),
                 label: Text(action.label),
               ),

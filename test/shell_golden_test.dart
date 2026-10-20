@@ -8,12 +8,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_template/core/app_scope.dart';
 import 'package:flutter_template/core/app_services.dart';
 import 'package:flutter_template/core/injection.dart' as ic;
-import 'package:flutter_template/core/settings.dart';
 import 'package:flutter_template/core/themes.dart';
 import 'package:flutter_template/l10n/l10n.dart';
 import 'package:flutter_template/pages/home/home_page.dart';
 import 'package:flutter_template/pages/home/page_navigator.dart';
-import 'package:flutter_template/pages/page6/page6_settings_page.dart';
+import 'package:flutter_template/pages/settings/settings_controller.dart';
+import 'package:flutter_template/pages/settings/settings_entity.dart';
+import 'package:flutter_template/pages/settings/settings_page.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -61,7 +62,7 @@ void main() {
       );
       await tester.pumpWidget(_settingsApp());
       await tester.pumpAndSettle();
-      await expectLater(find.byType(Page6SettingsPage), matchesGoldenFile('goldens/settings_${brightness.name}.png'));
+      await expectLater(find.byType(SettingsPage), matchesGoldenFile('goldens/settings_${brightness.name}.png'));
     }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
   }
 
@@ -99,7 +100,7 @@ void _setSize(WidgetTester tester, Size size) {
 
 Widget _shellApp() => _app(HomePage(mainNavigatorKey: GlobalKey<NavigatorState>(), config: _shellConfig()));
 
-Widget _settingsApp() => _app(const Page6SettingsPage());
+Widget _settingsApp() => _app(const SettingsPage());
 
 Widget _app(Widget home) {
   final settings = ic.sl<SettingsController>();

@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 
-import 'package:flutter_template/core/shell_auth.dart';
 import 'package:flutter_template/l10n/l10n_x.dart';
+import 'package:flutter_template/pages/profile/profile_datasource.dart';
+import 'package:flutter_template/pages/profile/profile_usecase.dart';
 
 enum ShellAccountMenuAction { signIn, profile, signOut }
 
 class ShellAccountButton extends StatelessWidget {
-  final ShellAuthProvider? provider;
+  final ProfileUseCase? provider;
   final VoidCallback onSignIn;
   final VoidCallback onProfile;
   final VoidCallback onSignOut;
