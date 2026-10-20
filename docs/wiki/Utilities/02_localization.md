@@ -32,6 +32,6 @@ Text(context.l10n.page1Title)
 ## Adding A New String
 
 1. Add the key to all supported locales in `assets/l10n/`.
-2. Re-run localization generation (for example `flutter gen-l10n` or `flutter run` which triggers generation).
+2. Re-run localization generation with `fvm flutter gen-l10n`.
 3. Use the new key via `context.l10n.<key>`.
 

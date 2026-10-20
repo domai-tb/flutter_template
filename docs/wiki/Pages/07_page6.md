@@ -15,6 +15,8 @@ The shell also registers Settings as a dedicated utility destination. Its settin
 Files:
 
 - `lib/pages/page6/page6_page.dart`
+- `lib/pages/page6/page6_usecase.dart`
+- `lib/pages/page6/entities/item_entity.dart`
 - `lib/pages/page6/page6_settings_page.dart`
 - `lib/pages/page6/page6_about_page.dart`
 

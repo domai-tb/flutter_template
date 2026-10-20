@@ -2,7 +2,7 @@
 
 ## Project Structure
 
-Targets are Android, iOS, macOS, Windows, Linux, and web. `lib/core/` holds shared code; `lib/pages/page1` through `page6` are feature placeholders; `lib/widgets/` and `lib/utils/` hold reusable UI. ARBs are in `assets/l10n/`, generated localizations in `lib/l10n/`, tests in `test/`, and platform files in matching top-level directories.
+Targets are Android, iOS, macOS, Windows, Linux, and web. `lib/core/` holds shared services and app configuration; `lib/pages/home/` holds the shell; `lib/pages/page1` through `page6` are feature placeholders; `lib/widgets/` holds reusable UI. ARBs are in `assets/l10n/`, generated localizations in `lib/l10n/`, tests in `test/`, and platform files in matching top-level directories.
 
 ## Toolchain and Commands
 
@@ -12,13 +12,15 @@ Targets are Android, iOS, macOS, Windows, Linux, and web. `lib/core/` holds shar
 - `fvm dart format --line-length=120 lib test` — format Dart source and tests.
 - `fvm flutter gen-l10n` — regenerate localization code after editing ARB files.
 - `fvm flutter analyze` — run configured Dart and Flutter analysis.
-- `fvm flutter test` — run unit and widget tests; use `fvm flutter test test/page1_usecases_test.dart` for one file.
+- `fvm flutter test` — run unit and widget tests; use `fvm flutter test test/page1_usecase_test.dart` for one file.
 - `fvm flutter run -d chrome` — launch the app in a browser.
 - `fvm flutter build web` / `fvm flutter build apk` — build web or Android release output. Desktop targets use `fvm flutter build linux`, `fvm flutter build macos`, or `fvm flutter build windows` on a supported host.
 
 ## Architecture and Feature Changes
 
-Flow is Page → UseCase → Repository → DataSource. Current `pageN_*` names are placeholders: replace `pageN` with the feature's snake_case name (for example, `garden_page.dart`). Follow the feature file pattern: `<feature>_page.dart`, `<feature>_datasource.dart`, `<feature>_repository.dart`, and `<feature>_usecases.dart`; use cases may be omitted for small features. Register dependencies in `lib/core/injection.dart`, expose use cases via `AppServices`, and update navigation in `lib/pages/home/page_navigator.dart`. Initialize GetIt before `runApp()`; UI reads services and settings through `AppScope.of(context)`. `SettingsController` persists JSON via `shared_preferences`.
+Pages call use cases, which call repositories and datasources. Datasources and repositories belong to the Data layer, use cases and entities to the Domain layer, and pages plus presentation controllers to the Presentation layer. Keep feature files flat: `<feature>_page.dart`, `<feature>_datasource.dart`, `<feature>_repository.dart`, and singular `<feature>_usecase.dart`. Add `entities/` or `widgets/` only when useful; keep single-file layers in the feature root and create layer-specific folders only when they contain multiple related files. Replace `pageN` with the feature's snake_case name (for example, `garden_page.dart`). Treat 500 lines as a review guideline: extract cohesive responsibilities as files grow, not just to satisfy a count.
+
+Register dependencies in `lib/core/injection.dart`, expose feature use cases via `AppServices`, and initialize GetIt before `runApp()`. The shell contracts in `lib/pages/home/page_navigator.dart` do not import placeholder pages; default example registrations live in `default_shell_config.dart`. UI reads services and settings through `AppScope.of(context)`. `SettingsController` persists JSON via `shared_preferences`.
 
 ## Style and Localization
 
@@ -26,7 +28,7 @@ Follow `analysis_options.yaml`: package imports, trailing commas, single quotes;
 
 ## Tests
 
-Tests use `flutter_test`, end in `_test.dart`, and cover feature logic or widget behavior. GitHub Actions only publishes the wiki from `docs/wiki/` on relevant pushes to `skeleton`; it does not run app tests or builds.
+Tests use `flutter_test`, end in `_test.dart`, and cover feature logic or widget behavior. `.github/workflows/flutter.yml` resolves dependencies with the version in `.fvmrc`, checks formatting and analysis, and runs unit/widget tests. `.github/workflows/docs.yml` publishes the wiki from `docs/wiki/` on relevant pushes to `skeleton`.
 
 ## Commits and Pull Requests
 

@@ -28,10 +28,10 @@ The shell uses bottom destination navigation on phones and side navigation with 
 fvm dart format --line-length=120 lib test
 fvm flutter gen-l10n
 fvm flutter analyze
-fvm flutter test test/shell_test.dart test/shell_workspace_test.dart test/shell_public_extension_test.dart test/shell_auth_navigation_test.dart
+fvm flutter test test/shell_test.dart test/shell_workspace_test.dart test/shell_split_view_test.dart test/shell_public_extension_test.dart test/shell_auth_navigation_test.dart
 ```
 
-Run `fvm flutter gen-l10n` after changing an ARB file in `assets/l10n/`. During the UI redesign, golden image generation and comparison are not required verification. Use focused functional tests for navigation, tabs, persistence, shortcuts, notifications, and pointer behavior. Capture runtime screenshots at the viewport sizes in the UI/UX specification for visual inspection; they are diagnostic images, not golden baselines.
+Run `fvm flutter gen-l10n` after changing an ARB file in `assets/l10n/`. During the UI redesign, golden image generation and comparison are not required verification. The CI workflow skips `shell_golden_test.dart`; use focused functional tests for navigation, tabs, persistence, shortcuts, notifications, pointer behavior, and split-pane geometry.
 
 ## Extend the shell
 

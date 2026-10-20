@@ -9,7 +9,8 @@ Demonstrates:
 Files:
 
 - `lib/pages/page2/page2_page.dart`
-- `lib/pages/page2/page2_usecases.dart`
+- `lib/pages/page2/page2_usecase.dart`
+- `lib/pages/page2/entities/item_entity.dart`
 - `lib/pages/page2/page2_repository.dart`
 - `lib/pages/page2/page2_datasource.dart`
 
