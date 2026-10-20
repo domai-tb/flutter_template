@@ -17,13 +17,17 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     List<double>? persistedWeights;
+    bool? persistedOpen;
     final workspace =
         ShellWorkspaceController(
           initialSplitOpen: true,
           hasSplitPreference: true,
           initialWeights: const [1, 1, 1],
           onLayoutChanged: ({required isOpen, required weights, required persist}) {
-            if (persist) persistedWeights = List.of(weights);
+            if (persist) {
+              persistedOpen = isOpen;
+              persistedWeights = List.of(weights);
+            }
           },
         )..requestPanes([
           ShellWorkspacePane(
@@ -63,21 +67,48 @@ void main() {
     await tester.pumpAndSettle();
 
     final rightWidth = tester.getSize(find.byKey(const ValueKey('right-panel-content'))).width;
-    await tester.drag(find.byKey(const ValueKey('shell-split-handle-0')), const Offset(500, 0));
+    final initialPrimaryWidth = tester.getSize(find.byKey(const ValueKey('primary-content'))).width;
+    await tester.drag(find.byKey(const ValueKey('shell-split-handle-0')), const Offset(50, 0));
     await tester.pumpAndSettle();
 
-    expect(tester.getSize(find.byKey(const ValueKey('primary-content'))).width, greaterThanOrEqualTo(239));
-    expect(tester.getSize(find.byKey(const ValueKey('left-panel-content'))).width, greaterThanOrEqualTo(299));
+    final primaryAfterDrag = tester.getSize(find.byKey(const ValueKey('primary-content'))).width;
+    expect(primaryAfterDrag, greaterThan(initialPrimaryWidth));
     expect(tester.getSize(find.byKey(const ValueKey('right-panel-content'))).width, closeTo(rightWidth, 1));
     expect(workspace.weights.reduce((left, right) => left + right), closeTo(1, 0.0001));
 
     Focus.of(tester.element(find.byKey(const ValueKey('shell-split-handle-0')))).requestFocus();
-    await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
     await tester.pumpAndSettle();
 
+    expect(tester.getSize(find.byKey(const ValueKey('primary-content'))).width, greaterThan(primaryAfterDrag));
     expect(persistedWeights, workspace.weights);
-    workspace.restoreLayout(isOpen: true, hasPreference: true, weights: persistedWeights!);
-    expect(workspace.weights, persistedWeights);
+    expect(persistedOpen, isTrue);
+
+    final primaryBeforeSecondHandle = tester.getSize(find.byKey(const ValueKey('primary-content'))).width;
+    final secondHandle = find.byKey(const ValueKey('shell-split-handle-1'));
+    await tester.drag(secondHandle, const Offset(500, 0));
+    await tester.pumpAndSettle();
+    expect(tester.getSize(find.byKey(const ValueKey('primary-content'))).width, closeTo(primaryBeforeSecondHandle, 1));
+    expect(tester.getSize(find.byKey(const ValueKey('right-panel-content'))).width, greaterThanOrEqualTo(299));
+
+    await tester.drag(secondHandle, const Offset(-1000, 0));
+    await tester.pumpAndSettle();
+    expect(tester.getSize(find.byKey(const ValueKey('primary-content'))).width, closeTo(primaryBeforeSecondHandle, 1));
+    expect(tester.getSize(find.byKey(const ValueKey('left-panel-content'))).width, greaterThanOrEqualTo(299));
+    expect(tester.getSize(find.byKey(const ValueKey('right-panel-content'))).width, greaterThanOrEqualTo(299));
+    expect(workspace.weights.every((weight) => weight > 0), isTrue);
+    expect(workspace.weights.reduce((left, right) => left + right), closeTo(1, 0.0001));
+
+    final restoredWorkspace = ShellWorkspaceController(initialSplitOpen: false, hasSplitPreference: true)
+      ..requestPanes([
+        ShellWorkspacePane(id: 'left-panel', title: 'Left panel', builder: (_, _) => const SizedBox.shrink()),
+        ShellWorkspacePane(id: 'right-panel', title: 'Right panel', builder: (_, _) => const SizedBox.shrink()),
+      ])
+      ..restoreLayout(isOpen: persistedOpen!, hasPreference: true, weights: persistedWeights!);
+    addTearDown(restoredWorkspace.dispose);
+    expect(restoredWorkspace.isSplitOpen, isTrue);
+    expect(restoredWorkspace.weights, persistedWeights);
     expect(tester.takeException(), isNull);
   });
 }

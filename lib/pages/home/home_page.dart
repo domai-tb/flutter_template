@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, listEquals, TargetPlatform;
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/semantics.dart';
@@ -20,6 +19,8 @@ import 'package:flutter_template/pages/home/widgets/shell_notification_center.da
 import 'package:flutter_template/pages/home/widgets/shell_status_bar.dart';
 import 'package:flutter_template/pages/home/widgets/shell_inspector_sections.dart';
 import 'package:flutter_template/pages/home/widgets/shell_split_view.dart';
+import 'package:flutter_template/pages/home/widgets/shell_desktop_tab.dart';
+import 'package:flutter_template/pages/home/widgets/shell_dialogs.dart';
 import 'package:flutter_template/pages/home/widgets/side_nav_bar.dart';
 import 'package:flutter_template/pages/home/shell_login_page.dart';
 import 'package:flutter_template/pages/home/shell_profile_page.dart';
@@ -969,35 +970,35 @@ class HomePageState extends State<HomePage> {
   Future<void> _showNotificationsPanel() =>
       showShellNotifications(context, AppScope.of(context).services.shellNotifications, phone: _isPhoneLayout);
 
-  List<_ShellCommand> _commands() {
-    final commands = <_ShellCommand>[
+  List<ShellPaletteCommand> _commands() {
+    final commands = <ShellPaletteCommand>[
       if (_config.destinations.any((item) => item.id == 'settings' || item.id == 'page6'))
-        _ShellCommand(id: 'settings', title: context.l10n.openSettings, shortcut: '', run: _openSettings),
-      _ShellCommand(
+        ShellPaletteCommand(id: 'settings', title: context.l10n.openSettings, shortcut: '', run: _openSettings),
+      ShellPaletteCommand(
         id: 'right-sidebar',
         title: _rightSidebarOpen ? context.l10n.closeRightSidebar : context.l10n.openRightSidebar,
         shortcut: '',
         run: _openRightSidebar,
       ),
       if (_hasSplitContent)
-        _ShellCommand(
+        ShellPaletteCommand(
           id: 'split',
           title: _splitOpen ? context.l10n.closeSplitView : context.l10n.openSplitView,
           shortcut: '',
           run: _toggleSplit,
         ),
-      _ShellCommand(
+      ShellPaletteCommand(
         id: 'notifications',
         title: context.l10n.openNotifications,
         shortcut: '',
         run: _showNotificationsPanel,
       ),
-      _ShellCommand(id: 'layout', title: context.l10n.restoreLayout, shortcut: '', run: _restoreLayout),
-      _ShellCommand(id: 'theme', title: context.l10n.toggleAppearance, shortcut: '', run: _toggleAppearance),
-      _ShellCommand(id: 'new-tab', title: context.l10n.newTab, shortcut: '', run: _openNewTab),
-      _ShellCommand(id: 'open-view-picker', title: context.l10n.openViewTab, shortcut: '', run: _showViewPicker),
+      ShellPaletteCommand(id: 'layout', title: context.l10n.restoreLayout, shortcut: '', run: _restoreLayout),
+      ShellPaletteCommand(id: 'theme', title: context.l10n.toggleAppearance, shortcut: '', run: _toggleAppearance),
+      ShellPaletteCommand(id: 'new-tab', title: context.l10n.newTab, shortcut: '', run: _openNewTab),
+      ShellPaletteCommand(id: 'open-view-picker', title: context.l10n.openViewTab, shortcut: '', run: _showViewPicker),
       for (final command in _config.commands)
-        _ShellCommand(
+        ShellPaletteCommand(
           id: command.id,
           title: command.title(context),
           shortcut: '',
@@ -1006,7 +1007,7 @@ class HomePageState extends State<HomePage> {
     ];
     for (final view in _navigation.viewsForSection(selectedActivityId)) {
       commands.add(
-        _ShellCommand(
+        ShellPaletteCommand(
           id: 'open-view-${view.id}',
           title: context.l10n.openView(view.title(context, view.id)),
           shortcut: '',
@@ -1016,7 +1017,7 @@ class HomePageState extends State<HomePage> {
     }
     for (final tab in _tabs) {
       commands.add(
-        _ShellCommand(
+        ShellPaletteCommand(
           id: 'tab-${tab.id}',
           title: '${context.l10n.switchView}: ${_tabTitle(tab)}',
           shortcut: '',
@@ -1026,7 +1027,7 @@ class HomePageState extends State<HomePage> {
     }
     for (final destination in _destinations) {
       commands.add(
-        _ShellCommand(
+        ShellPaletteCommand(
           id: 'navigate-${destination.id}',
           title: context.l10n.navigateTo(destination.title(context)),
           shortcut: '',
@@ -1036,7 +1037,7 @@ class HomePageState extends State<HomePage> {
     }
     for (final configured in _config.contexts) {
       commands.add(
-        _ShellCommand(
+        ShellPaletteCommand(
           id: 'context-${configured.id}',
           title: context.l10n.switchContext(configured.title(context)),
           shortcut: '',
@@ -1046,7 +1047,7 @@ class HomePageState extends State<HomePage> {
     }
     for (final module in _modules) {
       commands.add(
-        _ShellCommand(
+        ShellPaletteCommand(
           id: 'module-${module.id}',
           title: context.l10n.switchModule(module.title(context)),
           shortcut: '',
@@ -1060,7 +1061,7 @@ class HomePageState extends State<HomePage> {
   Future<void> _showCommandPalette() async {
     await showDialog<void>(
       context: context,
-      builder: (_) => _CommandPaletteDialog(commands: _commands()),
+      builder: (_) => ShellCommandPaletteDialog(commands: _commands()),
     );
   }
 
@@ -1094,7 +1095,7 @@ class HomePageState extends State<HomePage> {
     if (views.isEmpty) return;
     final selected = await showDialog<ShellViewRegistration>(
       context: context,
-      builder: (_) => _ViewPickerDialog(views: views, title: _viewTitle),
+      builder: (_) => ShellViewPickerDialog(views: views, title: _viewTitle),
     );
     if (selected != null) _navigation.openTab(selectedActivityId, selected.id);
   }
@@ -1111,7 +1112,7 @@ class HomePageState extends State<HomePage> {
   Future<void> _showOpenTabsSearch() async {
     final selected = await showDialog<ShellTabPreference>(
       context: context,
-      builder: (_) => _OpenTabsSearchDialog(
+      builder: (_) => ShellOpenTabsSearchDialog(
         tabs: _allTabs,
         title: _tabTitle,
         sectionTitle: (tab) => _navigation.sectionFor(tab.sectionId ?? tab.destinationId ?? '')?.title(context) ?? '',
@@ -1374,7 +1375,7 @@ class HomePageState extends State<HomePage> {
                 return ReorderableDragStartListener(
                   key: _tabKeys.putIfAbsent(tab.id, GlobalKey.new),
                   index: index,
-                  child: _DesktopTab(
+                  child: ShellDesktopTab(
                     title: _tabTitle(tab),
                     icon: _tabIcon(tab),
                     selected: tab.id == _selectedTabId,
@@ -1475,7 +1476,7 @@ class HomePageState extends State<HomePage> {
   Future<void> _showTabOverflow() async {
     final id = await showDialog<String>(
       context: context,
-      builder: (_) => _TabOverflowDialog(tabs: _tabs, title: _tabTitle),
+      builder: (_) => ShellTabOverflowDialog(tabs: _tabs, title: _tabTitle),
     );
     if (id != null) _navigation.selectTab(selectedActivityId, id);
   }
@@ -2153,425 +2154,5 @@ class _ShellTabRuntime {
     for (final controller in controllers) {
       controller.dispose();
     }
-  }
-}
-
-class _ShellCommand {
-  final String id;
-  final String title;
-  final String shortcut;
-  final FutureOr<void> Function() run;
-
-  const _ShellCommand({required this.id, required this.title, required this.shortcut, required this.run});
-}
-
-class _CommandPaletteDialog extends StatefulWidget {
-  final List<_ShellCommand> commands;
-
-  const _CommandPaletteDialog({required this.commands});
-
-  @override
-  State<_CommandPaletteDialog> createState() => _CommandPaletteDialogState();
-}
-
-class _CommandPaletteDialogState extends State<_CommandPaletteDialog> {
-  final TextEditingController _controller = TextEditingController();
-  int _selectedIndex = 0;
-
-  List<_ShellCommand> get _filtered =>
-      widget.commands.where((command) => command.title.toLowerCase().contains(_controller.text.toLowerCase())).toList();
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _runSelected(int index) {
-    final filtered = _filtered;
-    if (index < 0 || index >= filtered.length) return;
-    final command = filtered[index];
-    Navigator.of(context).pop();
-    unawaited(Future<void>.sync(command.run));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final filtered = _filtered;
-    _selectedIndex = filtered.isEmpty ? 0 : _selectedIndex.clamp(0, filtered.length - 1);
-    final listHeight = (MediaQuery.sizeOf(context).height - 128).clamp(160.0, 400.0);
-
-    return Dialog(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: 560,
-          maxHeight: (MediaQuery.sizeOf(context).height - 32).clamp(240.0, 560.0),
-        ),
-        child: Focus(
-          autofocus: true,
-          onKeyEvent: (_, event) {
-            if (event is! KeyDownEvent) return KeyEventResult.ignored;
-            if (event.logicalKey == LogicalKeyboardKey.arrowDown && filtered.isNotEmpty) {
-              setState(() => _selectedIndex = (_selectedIndex + 1) % filtered.length);
-              return KeyEventResult.handled;
-            }
-            if (event.logicalKey == LogicalKeyboardKey.arrowUp && filtered.isNotEmpty) {
-              setState(() => _selectedIndex = (_selectedIndex - 1 + filtered.length) % filtered.length);
-              return KeyEventResult.handled;
-            }
-            if (event.logicalKey == LogicalKeyboardKey.enter && filtered.isNotEmpty) {
-              _runSelected(_selectedIndex);
-              return KeyEventResult.handled;
-            }
-            if (event.logicalKey == LogicalKeyboardKey.escape) {
-              Navigator.of(context).pop();
-              return KeyEventResult.handled;
-            }
-            return KeyEventResult.ignored;
-          },
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  autofocus: true,
-                  controller: _controller,
-                  decoration: InputDecoration(
-                    hintText: context.l10n.commandPaletteHint,
-                    prefixIcon: const Icon(Icons.search),
-                  ),
-                  onChanged: (_) => setState(() => _selectedIndex = 0),
-                  onSubmitted: (_) => _runSelected(_selectedIndex),
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  height: listHeight,
-                  child: ListView.builder(
-                    itemCount: filtered.length,
-                    itemBuilder: (context, index) => ListTile(
-                      key: ValueKey(filtered[index].id),
-                      selected: _selectedIndex == index,
-                      leading: const Icon(Icons.arrow_forward),
-                      title: Text(filtered[index].title),
-                      trailing: filtered[index].shortcut.isEmpty ? null : Text(filtered[index].shortcut),
-                      onTap: () => _runSelected(index),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _DesktopTab extends StatefulWidget {
-  final String title;
-  final IconData? icon;
-  final bool selected;
-  final bool closable;
-  final VoidCallback onSelect;
-  final VoidCallback onClose;
-  final ValueChanged<Offset> onContextMenu;
-
-  const _DesktopTab({
-    required this.title,
-    required this.icon,
-    required this.selected,
-    required this.closable,
-    required this.onSelect,
-    required this.onClose,
-    required this.onContextMenu,
-  });
-
-  @override
-  State<_DesktopTab> createState() => _DesktopTabState();
-}
-
-class _DesktopTabState extends State<_DesktopTab> {
-  bool _hovered = false;
-  bool _focused = false;
-
-  void _showContextMenu() {
-    final box = context.findRenderObject() as RenderBox?;
-    widget.onContextMenu(box?.localToGlobal(Offset(0, box.size.height)) ?? Offset.zero);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final showClose = widget.closable && (widget.selected || _hovered || _focused);
-    return Semantics(
-      button: true,
-      selected: widget.selected,
-      label: widget.title,
-      child: Tooltip(
-        message: widget.title,
-        child: Focus(
-          onFocusChange: (value) => setState(() => _focused = value),
-          onKeyEvent: (_, event) {
-            if (event is KeyDownEvent &&
-                (event.logicalKey == LogicalKeyboardKey.contextMenu ||
-                    (event.logicalKey == LogicalKeyboardKey.f10 && HardwareKeyboard.instance.isShiftPressed))) {
-              _showContextMenu();
-              return KeyEventResult.handled;
-            }
-            return KeyEventResult.ignored;
-          },
-          child: MouseRegion(
-            onEnter: (_) => setState(() => _hovered = true),
-            onExit: (_) => setState(() => _hovered = false),
-            child: Listener(
-              onPointerDown: (event) {
-                if (event.kind == PointerDeviceKind.mouse &&
-                    event.buttons & kMiddleMouseButton != 0 &&
-                    widget.closable) {
-                  widget.onClose();
-                }
-              },
-              child: GestureDetector(
-                onSecondaryTapDown: (details) => widget.onContextMenu(details.globalPosition),
-                child: Material(
-                  color: widget.selected
-                      ? theme.colorScheme.surface
-                      : _hovered
-                      ? theme.colorScheme.surfaceContainerHighest
-                      : Colors.transparent,
-                  child: InkWell(
-                    onTap: widget.onSelect,
-                    child: Container(
-                      constraints: const BoxConstraints(minWidth: 88, maxWidth: 190),
-                      height: 34,
-                      padding: const EdgeInsets.only(left: 9, right: 4),
-                      decoration: BoxDecoration(
-                        border: Border(
-                          bottom: BorderSide(
-                            color: widget.selected ? theme.colorScheme.primary : Colors.transparent,
-                            width: 2,
-                          ),
-                          right: BorderSide(color: theme.dividerColor.withValues(alpha: 0.5)),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (widget.icon != null) ...[
-                            Icon(widget.icon, size: 14, color: theme.colorScheme.onSurfaceVariant),
-                            const SizedBox(width: 6),
-                          ],
-                          Flexible(
-                            child: Text(
-                              widget.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: widget.selected
-                                    ? theme.colorScheme.onSurface
-                                    : theme.colorScheme.onSurfaceVariant,
-                                fontWeight: widget.selected ? FontWeight.w600 : FontWeight.w400,
-                              ),
-                            ),
-                          ),
-                          if (showClose)
-                            IconButton(
-                              tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
-                              onPressed: widget.onClose,
-                              icon: const Icon(Icons.close, size: 14),
-                              style: IconButton.styleFrom(
-                                minimumSize: const Size.square(26),
-                                maximumSize: const Size.square(26),
-                                padding: EdgeInsets.zero,
-                                visualDensity: VisualDensity.compact,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _OpenTabsSearchDialog extends StatefulWidget {
-  final List<ShellTabPreference> tabs;
-  final String Function(ShellTabPreference) title;
-  final String Function(ShellTabPreference) sectionTitle;
-
-  const _OpenTabsSearchDialog({required this.tabs, required this.title, required this.sectionTitle});
-
-  @override
-  State<_OpenTabsSearchDialog> createState() => _OpenTabsSearchDialogState();
-}
-
-class _OpenTabsSearchDialogState extends State<_OpenTabsSearchDialog> {
-  String _query = '';
-
-  @override
-  Widget build(BuildContext context) {
-    final query = _query.trim().toLowerCase();
-    final matches = widget.tabs.where((tab) {
-      final searchable =
-          '${widget.title(tab)} ${widget.sectionTitle(tab)} ${tab.registrationId} ${tab.instanceId ?? ''}';
-      return searchable.toLowerCase().contains(query);
-    }).toList();
-
-    return AlertDialog(
-      title: Text(context.l10n.searchOpenTabs),
-      content: SizedBox(
-        width: 520,
-        height: 420,
-        child: Column(
-          children: [
-            TextField(
-              autofocus: true,
-              onChanged: (value) => setState(() => _query = value),
-              decoration: InputDecoration(prefixIcon: const Icon(Icons.search), hintText: context.l10n.searchOpenTabs),
-            ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: matches.isEmpty
-                  ? Center(child: Text(context.l10n.noOpenTabsMatch))
-                  : ListView.builder(
-                      itemCount: matches.length,
-                      itemBuilder: (context, index) {
-                        final tab = matches[index];
-                        return ListTile(
-                          key: ValueKey('open-tab-search-${tab.id}'),
-                          leading: const Icon(Icons.tab_outlined),
-                          title: Text(widget.title(tab), maxLines: 1, overflow: TextOverflow.ellipsis),
-                          subtitle: Text(widget.sectionTitle(tab), maxLines: 1, overflow: TextOverflow.ellipsis),
-                          onTap: () => Navigator.of(context).pop(tab),
-                        );
-                      },
-                    ),
-            ),
-          ],
-        ),
-      ),
-      actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(context.l10n.cancel))],
-    );
-  }
-}
-
-class _ViewPickerDialog extends StatefulWidget {
-  final List<ShellViewRegistration> views;
-  final String Function(ShellViewRegistration) title;
-
-  const _ViewPickerDialog({required this.views, required this.title});
-
-  @override
-  State<_ViewPickerDialog> createState() => _ViewPickerDialogState();
-}
-
-class _ViewPickerDialogState extends State<_ViewPickerDialog> {
-  final TextEditingController _search = TextEditingController();
-
-  @override
-  void dispose() {
-    _search.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final results = widget.views
-        .where((view) => widget.title(view).toLowerCase().contains(_search.text.toLowerCase()))
-        .toList();
-    return AlertDialog(
-      title: Text(context.l10n.viewPickerTitle),
-      content: SizedBox(
-        width: 420,
-        height: 360,
-        child: Column(
-          children: [
-            TextField(
-              autofocus: true,
-              controller: _search,
-              decoration: InputDecoration(hintText: context.l10n.viewPickerHint, prefixIcon: const Icon(Icons.search)),
-              onChanged: (_) => setState(() {}),
-            ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: ListView.builder(
-                itemCount: results.length,
-                itemBuilder: (context, index) {
-                  final view = results[index];
-                  return ListTile(
-                    dense: true,
-                    leading: Icon(view.icon ?? Icons.insert_drive_file_outlined),
-                    title: Text(widget.title(view)),
-                    onTap: () => Navigator.of(context).pop(view),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _TabOverflowDialog extends StatefulWidget {
-  final List<ShellTabPreference> tabs;
-  final String Function(ShellTabPreference) title;
-
-  const _TabOverflowDialog({required this.tabs, required this.title});
-
-  @override
-  State<_TabOverflowDialog> createState() => _TabOverflowDialogState();
-}
-
-class _TabOverflowDialogState extends State<_TabOverflowDialog> {
-  final TextEditingController _search = TextEditingController();
-
-  @override
-  void dispose() {
-    _search.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final results = widget.tabs
-        .where((tab) => widget.title(tab).toLowerCase().contains(_search.text.toLowerCase()))
-        .toList();
-    return AlertDialog(
-      title: Text(context.l10n.tabOverflowTitle),
-      content: SizedBox(
-        width: 420,
-        height: 360,
-        child: Column(
-          children: [
-            TextField(
-              autofocus: true,
-              controller: _search,
-              decoration: InputDecoration(hintText: context.l10n.searchLabel, prefixIcon: const Icon(Icons.search)),
-              onChanged: (_) => setState(() {}),
-            ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: ListView.builder(
-                itemCount: results.length,
-                itemBuilder: (context, index) => ListTile(
-                  dense: true,
-                  title: Text(widget.title(results[index])),
-                  onTap: () => Navigator.of(context).pop(results[index].id),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
