@@ -2,9 +2,11 @@ name: Flutter CI
 
 on:
   push:
-    branches: [skeleton]
+    branches: 
+      - "skeleton"
   pull_request:
-    branches: [skeleton]
+    branches:
+      - "skeleton"
 
 jobs:
   verify:
