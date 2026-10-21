@@ -591,6 +591,24 @@ void main() {
     semantics.dispose();
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
+  testWidgets('page changes use a live semantics region', (tester) async {
+    final semantics = tester.ensureSemantics();
+    tester.view.physicalSize = const Size(412, 915);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(_app(null));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('bottom-navigation-item-page2')));
+    await tester.pumpAndSettle();
+
+    final announcement = tester.getSemantics(find.byKey(const ValueKey('shell-announcement'))).getSemanticsData();
+    expect(announcement.label, 'Page 2');
+    expect(announcement.flagsCollection.isLiveRegion, isTrue);
+    semantics.dispose();
+  }, variant: TargetPlatformVariant.only(TargetPlatform.android));
+
   testWidgets('onboarding preferences keeps semantics valid while previewing settings', (tester) async {
     final semantics = tester.ensureSemantics();
     tester.view.physicalSize = const Size(1440, 900);

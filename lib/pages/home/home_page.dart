@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, listEquals, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 
 import 'package:flutter_template/core/app_scope.dart';
@@ -64,6 +63,7 @@ class HomePageState extends State<HomePage> {
   String? _returnSectionId;
   String? _lastPushedRouteId;
   String? _lastLifecycleActiveId;
+  String? _announcement;
 
   bool get _isPhoneLayout =>
       defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS;
@@ -876,7 +876,8 @@ class HomePageState extends State<HomePage> {
   }
 
   void _announce(String message) {
-    unawaited(SemanticsService.sendAnnouncement(View.of(context), message, Directionality.of(context)));
+    if (!mounted || _announcement == message) return;
+    setState(() => _announcement = message);
   }
 
   void _toggleRightSidebar() {
@@ -1966,8 +1967,11 @@ class HomePageState extends State<HomePage> {
             autofocus: true,
             // Keep overlay semantics within the shell instead of merging into shortcut focus nodes.
             child: Semantics(
+              key: const ValueKey('shell-announcement'),
               container: true,
               explicitChildNodes: true,
+              label: _announcement,
+              liveRegion: true,
               child: AnnotatedRegion<SystemUiOverlayStyle>(
                 value: overlayStyle,
                 child: PopScope(
