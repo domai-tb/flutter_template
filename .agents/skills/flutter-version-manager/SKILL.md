@@ -1,5 +1,5 @@
 ---
-name: fvm
+name: flutter-version-manager
 description: Use Flutter Version Manager (FVM) to configure, inspect, and run Flutter/Dart projects with reproducible per-project Flutter SDK versions.
 ---
 
