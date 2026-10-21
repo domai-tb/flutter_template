@@ -15,6 +15,13 @@ class PublicShellFeature {
         defaultViewId: 'sample-dashboard',
         allowedViewIds: const {'sample-dashboard', 'sample-document'},
       ),
+      ShellDestination(
+        id: 'sample-related',
+        title: (_) => 'Related',
+        icon: Icons.link_outlined,
+        defaultViewId: 'sample-related-view',
+        allowedViewIds: const {'sample-related-view'},
+      ),
     ],
     views: [
       ...config.views,
@@ -31,6 +38,12 @@ class PublicShellFeature {
         destinationId: 'sample-feature',
         reusePolicy: ShellViewReusePolicy.byInstance,
         viewBuilder: (_, view) => _SampleDocument(view: view),
+      ),
+      ShellViewRegistration(
+        id: 'sample-related-view',
+        title: (_, _) => 'Related view',
+        destinationId: 'sample-related',
+        viewBuilder: (_, _) => const Center(child: Text('Related feature content')),
       ),
     ],
   );
@@ -131,7 +144,8 @@ class _SampleDashboardState extends State<_SampleDashboard> {
             ),
             TextButton(
               key: const ValueKey('sample-cross-section'),
-              onPressed: () => unawaited(widget.view.navigation.openView('page2', sectionId: 'page2')),
+              onPressed: () =>
+                  unawaited(widget.view.navigation.openView('sample-related-view', sectionId: 'sample-related')),
               child: const Text('Open another section'),
             ),
           ],

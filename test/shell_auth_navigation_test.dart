@@ -12,7 +12,6 @@ import 'package:flutter_template/core/themes.dart';
 import 'package:flutter_template/l10n/l10n.dart';
 import 'package:flutter_template/pages/home/home_page.dart';
 import 'package:flutter_template/pages/home/page_navigator.dart';
-import 'package:flutter_template/pages/home/default_shell_config.dart';
 import 'package:flutter_template/pages/home/widgets/bottom_nav_bar.dart';
 import 'package:flutter_template/pages/home/widgets/shell_status_bar.dart';
 import 'package:flutter_template/pages/settings/settings_controller.dart';
@@ -144,7 +143,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(auth.state.value.status, ShellAuthStatus.signedOut);
     expect(find.text('Guest · Not signed in'), findsOneWidget);
-    await home.selectedPage('page1');
+    await home.selectedPage('section-0');
     await tester.pumpAndSettle();
     expect(find.text('AL'), findsNothing);
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
@@ -229,7 +228,7 @@ void main() {
     expect(_workspace('settings').tabs.single.registrationId, 'settings');
   }, variant: TargetPlatformVariant.only(TargetPlatform.android));
 
-  testWidgets('legacy Page 6 Settings preference migrates into the dedicated workspace', (tester) async {
+  testWidgets('legacy Settings preference migrates into the dedicated workspace', (tester) async {
     await ic.init();
     final controller = ic.sl<SettingsController>();
     controller.update(
@@ -247,13 +246,22 @@ void main() {
         selectedActivityId: 'page6',
       ),
     );
-    await tester.pumpWidget(_app(config: defaultShellConfig()));
+    await tester.pumpWidget(_app(config: _config()));
     await tester.pumpAndSettle();
     final home = tester.state<HomePageState>(find.byType(HomePage));
     expect(home.currentDestinationId, 'settings');
     expect(find.byType(SettingsPage), findsOneWidget);
     expect(_workspace('settings').tabs.single.registrationId, 'settings');
-    expect(_workspace('page6').tabs.any((tab) => tab.registrationId == 'settings'), isFalse);
+    expect(
+      ic
+          .sl<SettingsController>()
+          .settings
+          .shellWorkspaces
+          .where((workspace) => workspace.sectionId != 'settings')
+          .expand((workspace) => workspace.tabs)
+          .where((tab) => tab.registrationId == 'settings'),
+      isEmpty,
+    );
   });
 }
 

@@ -10,7 +10,6 @@ import 'package:flutter_template/core/themes.dart';
 import 'package:flutter_template/l10n/l10n.dart';
 import 'package:flutter_template/pages/home/home_page.dart';
 import 'package:flutter_template/pages/home/page_navigator.dart';
-import 'package:flutter_template/pages/home/default_shell_config.dart';
 import 'package:flutter_template/pages/home/shell_navigation_coordinator.dart';
 import 'package:flutter_template/pages/home/widgets/shell_status_bar.dart';
 
@@ -29,7 +28,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    final config = PublicShellFeature.registerWith(defaultShellConfig());
+    final config = PublicShellFeature.registerWith(ShellConfig(title: (_) => 'Host shell', destinations: const []));
     await tester.pumpWidget(_app(config));
     await tester.pumpAndSettle();
     final home = tester.state<HomePageState>(find.byType(HomePage));
@@ -96,7 +95,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('sample-cross-section')));
     await tester.pumpAndSettle();
-    expect(home.currentDestinationId, 'page2');
+    expect(home.currentDestinationId, 'sample-related');
     await home.selectedPage('sample-feature');
     await tester.pumpAndSettle();
     expect(find.text('Dashboard count: 1 · Page: summary'), findsOneWidget);

@@ -19,6 +19,8 @@ import 'package:flutter_template/pages/settings/settings_page.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  const runShellGoldens = bool.fromEnvironment('RUN_SHELL_GOLDENS');
+
   setUpAll(_loadGoldenFonts);
 
   setUp(() async {
@@ -30,65 +32,95 @@ void main() {
     await ic.sl.reset();
   });
 
-  testWidgets('wide shell golden', (tester) async {
-    _setSize(tester, const Size(1440, 900));
-    await tester.pumpWidget(_shellApp());
-    await tester.pumpAndSettle();
-    await expectLater(find.byType(Scaffold).first, matchesGoldenFile('goldens/shell_wide.png'));
-  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
+  testWidgets(
+    'wide shell golden',
+    (tester) async {
+      _setSize(tester, const Size(1440, 900));
+      await tester.pumpWidget(_shellApp());
+      await tester.pumpAndSettle();
+      await expectLater(find.byType(Scaffold).first, matchesGoldenFile('goldens/shell_wide.png'));
+    },
+    skip: !runShellGoldens,
+    variant: TargetPlatformVariant.only(TargetPlatform.linux),
+  );
 
-  testWidgets('medium shell golden', (tester) async {
-    _setSize(tester, const Size(960, 900));
-    await tester.pumpWidget(_shellApp());
-    await tester.pumpAndSettle();
-    await expectLater(find.byType(Scaffold).first, matchesGoldenFile('goldens/shell_medium.png'));
-  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
+  testWidgets(
+    'medium shell golden',
+    (tester) async {
+      _setSize(tester, const Size(960, 900));
+      await tester.pumpWidget(_shellApp());
+      await tester.pumpAndSettle();
+      await expectLater(find.byType(Scaffold).first, matchesGoldenFile('goldens/shell_medium.png'));
+    },
+    skip: !runShellGoldens,
+    variant: TargetPlatformVariant.only(TargetPlatform.linux),
+  );
 
-  testWidgets('phone shell golden', (tester) async {
-    _setSize(tester, const Size(390, 844));
-    await tester.pumpWidget(_shellApp());
-    await tester.pumpAndSettle();
-    await expectLater(find.byType(Scaffold).first, matchesGoldenFile('goldens/shell_phone.png'));
-  }, variant: TargetPlatformVariant.only(TargetPlatform.android));
+  testWidgets(
+    'phone shell golden',
+    (tester) async {
+      _setSize(tester, const Size(390, 844));
+      await tester.pumpWidget(_shellApp());
+      await tester.pumpAndSettle();
+      await expectLater(find.byType(Scaffold).first, matchesGoldenFile('goldens/shell_phone.png'));
+    },
+    skip: !runShellGoldens,
+    variant: TargetPlatformVariant.only(TargetPlatform.android),
+  );
 
   for (final brightness in Brightness.values) {
-    testWidgets('Settings ${brightness.name} golden', (tester) async {
-      _setSize(tester, const Size(1440, 900));
-      ic.sl<SettingsController>().update(
-        ic.sl<SettingsController>().settings.copyWith(
-          useSystemDarkmode: false,
-          useDarkmode: brightness == Brightness.dark,
-        ),
-      );
-      await tester.pumpWidget(_settingsApp());
-      await tester.pumpAndSettle();
-      await expectLater(find.byType(SettingsPage), matchesGoldenFile('goldens/settings_${brightness.name}.png'));
-    }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
+    testWidgets(
+      'Settings ${brightness.name} golden',
+      (tester) async {
+        _setSize(tester, const Size(1440, 900));
+        ic.sl<SettingsController>().update(
+          ic.sl<SettingsController>().settings.copyWith(
+            useSystemDarkmode: false,
+            useDarkmode: brightness == Brightness.dark,
+          ),
+        );
+        await tester.pumpWidget(_settingsApp());
+        await tester.pumpAndSettle();
+        await expectLater(find.byType(SettingsPage), matchesGoldenFile('goldens/settings_${brightness.name}.png'));
+      },
+      skip: !runShellGoldens,
+      variant: TargetPlatformVariant.only(TargetPlatform.linux),
+    );
   }
 
-  testWidgets('tab overflow golden', (tester) async {
-    _setSize(tester, const Size(1440, 900));
-    final settings = ic.sl<SettingsController>();
-    final tabs = [
-      const ShellTabPreference(id: 'home', registrationId: 'home', destinationId: 'home'),
-      for (var index = 1; index <= 20; index++)
-        ShellTabPreference(id: 'preview-$index', registrationId: 'preview', destinationId: 'home'),
-    ];
-    settings.update(settings.settings.copyWith(shellTabs: tabs, selectedShellTabId: 'preview-20'));
-    await tester.pumpWidget(_shellApp());
-    await tester.pumpAndSettle();
-    expect(find.text('Preview 20'), findsNWidgets(2));
-    await expectLater(find.byType(Scaffold).first, matchesGoldenFile('goldens/tab_overflow.png'));
-  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
+  testWidgets(
+    'tab overflow golden',
+    (tester) async {
+      _setSize(tester, const Size(1440, 900));
+      final settings = ic.sl<SettingsController>();
+      final tabs = [
+        const ShellTabPreference(id: 'home', registrationId: 'home', destinationId: 'home'),
+        for (var index = 1; index <= 20; index++)
+          ShellTabPreference(id: 'preview-$index', registrationId: 'preview', destinationId: 'home'),
+      ];
+      settings.update(settings.settings.copyWith(shellTabs: tabs, selectedShellTabId: 'preview-20'));
+      await tester.pumpWidget(_shellApp());
+      await tester.pumpAndSettle();
+      expect(find.text('Preview 20'), findsNWidgets(2));
+      await expectLater(find.byType(Scaffold).first, matchesGoldenFile('goldens/tab_overflow.png'));
+    },
+    skip: !runShellGoldens,
+    variant: TargetPlatformVariant.only(TargetPlatform.linux),
+  );
 
-  testWidgets('inspector overlay golden', (tester) async {
-    _setSize(tester, const Size(960, 900));
-    await tester.pumpWidget(_shellApp());
-    await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Open inspector'));
-    await tester.pumpAndSettle();
-    await expectLater(find.byType(Scaffold).first, matchesGoldenFile('goldens/inspector_overlay.png'));
-  }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
+  testWidgets(
+    'inspector overlay golden',
+    (tester) async {
+      _setSize(tester, const Size(960, 900));
+      await tester.pumpWidget(_shellApp());
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('header-action-right-sidebar')));
+      await tester.pumpAndSettle();
+      await expectLater(find.byType(Scaffold).first, matchesGoldenFile('goldens/inspector_overlay.png'));
+    },
+    skip: !runShellGoldens,
+    variant: TargetPlatformVariant.only(TargetPlatform.linux),
+  );
 }
 
 void _setSize(WidgetTester tester, Size size) {

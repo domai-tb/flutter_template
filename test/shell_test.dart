@@ -22,6 +22,8 @@ import 'package:flutter_template/pages/settings/settings_entity.dart';
 import 'package:flutter_template/pages/settings/settings_page.dart';
 import 'package:flutter_template/widgets/app_segmented_triple_control.dart';
 
+import 'support/shell_test_config.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -41,8 +43,8 @@ void main() {
       'useSystemTextScaling': false,
       'didCompleteOnboarding': true,
       'localeCode': 'de',
-      'navBarItemOrder': ['page3', 'page1'],
-      'hiddenNavBarItems': ['page2', 'page6'],
+      'navBarItemOrder': ['feature-c', 'feature-a'],
+      'hiddenNavBarItems': ['feature-b', 'feature-future'],
       'localFeatureFlag': true,
       'accentPreset': 'unknown',
       'density': 'unknown',
@@ -56,8 +58,8 @@ void main() {
     expect(settings.useSystemTextScaling, isFalse);
     expect(settings.didCompleteOnboarding, isTrue);
     expect(settings.localeCode, 'de');
-    expect(settings.navBarItemOrder, ['page3', 'page1']);
-    expect(settings.hiddenNavBarItems, ['page2', 'page6']);
+    expect(settings.navBarItemOrder, ['feature-c', 'feature-a']);
+    expect(settings.hiddenNavBarItems, ['feature-b', 'feature-future']);
     expect(settings.accentPreset, 'steel');
     expect(settings.density, 'compact');
     expect(settings.inspectorWidth, 256);
@@ -115,22 +117,29 @@ void main() {
     final settings = ic.sl<SettingsController>();
     settings.update(
       settings.settings.copyWith(
-        shellTabs: const [ShellTabPreference(id: 'page1', registrationId: 'page1', destinationId: 'page1')],
-        selectedShellTabId: 'page1',
+        shellTabs: const [
+          ShellTabPreference(
+            id: 'feature-a-tab',
+            sectionId: 'feature-a',
+            registrationId: 'feature-a-view',
+            destinationId: 'feature-a',
+          ),
+        ],
+        selectedShellTabId: 'feature-a-tab',
       ),
     );
 
-    await tester.pumpWidget(_app(null, routeInformation: RouteInformation(uri: Uri.parse('/page2'))));
+    await tester.pumpWidget(_app(shellTestConfig(), routeInformation: RouteInformation(uri: Uri.parse('/feature-b'))));
     await tester.pumpAndSettle();
 
-    expect(tester.state<HomePageState>(find.byType(HomePage)).currentDestinationId, 'page2');
-    expect(settings.settings.selectedActivityId, 'page2');
-    final page1Workspace = settings.settings.shellWorkspaces.firstWhere((workspace) => workspace.sectionId == 'page1');
-    final page2Workspace = settings.settings.shellWorkspaces.firstWhere((workspace) => workspace.sectionId == 'page2');
-    expect(page1Workspace.tabs.map((tab) => tab.registrationId), ['page1']);
-    expect(page2Workspace.tabs.single.registrationId, 'page2');
-    expect(page2Workspace.activeTabId, settings.settings.selectedShellTabId);
-    expect(settings.settings.shellTabs.map((tab) => tab.registrationId), ['page1', 'page2']);
+    expect(tester.state<HomePageState>(find.byType(HomePage)).currentDestinationId, 'feature-b');
+    expect(settings.settings.selectedActivityId, 'feature-b');
+    final workspaceA = settings.settings.shellWorkspaces.firstWhere((workspace) => workspace.sectionId == 'feature-a');
+    final workspaceB = settings.settings.shellWorkspaces.firstWhere((workspace) => workspace.sectionId == 'feature-b');
+    expect(workspaceA.tabs.map((tab) => tab.registrationId), ['feature-a-view']);
+    expect(workspaceB.tabs.single.registrationId, 'feature-b-view');
+    expect(workspaceB.activeTabId, settings.settings.selectedShellTabId);
+    expect(settings.settings.shellTabs.map((tab) => tab.registrationId), ['feature-a-view', 'feature-b-view']);
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
   testWidgets('desktop footer stays visible and pinned with empty status providers', (tester) async {
@@ -268,18 +277,19 @@ void main() {
     expect(find.text('Network navigation-1'), findsOneWidget);
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
-  testWidgets('default page breadcrumbs do not repeat the section and tab titles', (tester) async {
+  testWidgets('breadcrumb footer shows page navigation and the workspace title once', (tester) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(1440, 900);
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    await tester.pumpWidget(_app(null));
+    await tester.pumpWidget(_app(_breadcrumbConfig()));
     await tester.pumpAndSettle();
 
     final footer = find.byKey(const ValueKey('shell-status-bar'));
-    expect(find.descendant(of: footer, matching: find.text('Page 1')), findsOneWidget);
-    expect(find.descendant(of: footer, matching: find.text('Overview')), findsOneWidget);
+    expect(find.descendant(of: footer, matching: find.text('Configuration navigation-1')), findsOneWidget);
+    expect(find.descendant(of: footer, matching: find.text('Network navigation-1')), findsOneWidget);
+    expect(find.descendant(of: footer, matching: find.text('Workspace navigation-1')), findsOneWidget);
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
   testWidgets('breadcrumb tooltips survive navigation changing a segment identity', (tester) async {
@@ -508,10 +518,10 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    await tester.pumpWidget(_app(null));
+    await tester.pumpWidget(_app(shellTestConfig()));
     await tester.pumpAndSettle();
     final home = tester.state<HomePageState>(find.byType(HomePage));
-    const ids = ['page1', 'page2', 'page3', 'page4', 'page5', 'page6'];
+    const ids = ['feature-a', 'feature-b'];
     expect(tester.getSize(find.byKey(const ValueKey('activity-rail'))).width, 48);
     final rows = [for (final id in ids) find.byKey(ValueKey('activity-rail-$id'))];
     final rowRects = rows.map(tester.getRect).toList();
@@ -521,22 +531,16 @@ void main() {
       expect(rect.height, 44);
     }
     expect(iconRects.map((rect) => rect.center.dx).toSet().length, 1);
-    expect(tester.getSize(find.byKey(const ValueKey('activity-rail-indicator-page1'))), const Size(3, 16));
+    expect(tester.getSize(find.byKey(const ValueKey('activity-rail-indicator-feature-a'))), const Size(3, 16));
 
     await tester.sendEventToBinding(PointerHoverEvent(position: rowRects[1].center));
     await tester.pump();
-    expect(home.currentDestinationId, 'page1');
+    expect(home.currentDestinationId, 'feature-a');
 
     await tester.tap(find.descendant(of: rows[1], matching: find.byType(InkWell)));
     await tester.pumpAndSettle();
-    expect(home.currentDestinationId, 'page2');
-    expect(find.byKey(const ValueKey('activity-rail-indicator-page2')), findsOneWidget);
-    final selectedModuleId = ic.sl<SettingsController>().settings.selectedModuleId;
-    await tester.tap(rows[5]);
-    await tester.pumpAndSettle();
-    expect(home.currentDestinationId, 'page6');
-    expect(ic.sl<SettingsController>().settings.selectedModuleId, selectedModuleId);
-    expect(find.byKey(const ValueKey('activity-rail-indicator-page6')), findsOneWidget);
+    expect(home.currentDestinationId, 'feature-b');
+    expect(find.byKey(const ValueKey('activity-rail-indicator-feature-b')), findsOneWidget);
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
   testWidgets('desktop Settings uses horizontal compact sections and a narrow selector', (tester) async {
@@ -598,13 +602,13 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    await tester.pumpWidget(_app(null));
+    await tester.pumpWidget(_app(shellTestConfig()));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('bottom-navigation-item-page2')));
+    await tester.tap(find.byKey(const ValueKey('bottom-navigation-item-feature-b')));
     await tester.pumpAndSettle();
 
     final announcement = tester.getSemantics(find.byKey(const ValueKey('shell-announcement'))).getSemanticsData();
-    expect(announcement.label, 'Page 2');
+    expect(announcement.label, 'Feature B');
     expect(announcement.flagsCollection.isLiveRegion, isTrue);
     semantics.dispose();
   }, variant: TargetPlatformVariant.only(TargetPlatform.android));
@@ -672,13 +676,19 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     final settings = ic.sl<SettingsController>();
+    final registrations = {
+      'feature-a': 'feature-a-view',
+      'feature-b': 'feature-b-view',
+      'profile': 'profile',
+      'settings': 'settings',
+    };
     final tabs = [
-      for (final sectionId in ['page1', 'page2', 'page3', 'page4', 'page5', 'page6', 'profile', 'settings'])
+      for (final entry in registrations.entries)
         ShellTabPreference(
-          id: '$sectionId-tab',
-          sectionId: sectionId,
-          registrationId: sectionId,
-          instanceId: '$sectionId-1',
+          id: '${entry.key}-tab',
+          sectionId: entry.key,
+          registrationId: entry.value,
+          instanceId: '${entry.key}-1',
         ),
     ];
     final workspaces = [
@@ -687,13 +697,13 @@ void main() {
     settings.update(
       settings.settings.copyWith(
         didCompleteOnboarding: true,
-        selectedActivityId: 'page1',
+        selectedActivityId: 'feature-a',
         selectedShellTabId: tabs.first.id,
         shellTabs: tabs,
         shellWorkspaces: workspaces,
       ),
     );
-    await tester.pumpWidget(AppScope(settings: settings, services: ic.sl<AppServices>(), child: const SkeletonApp()));
+    await tester.pumpWidget(_app(shellTestConfig()));
     await tester.pumpAndSettle();
     expect(find.byType(HomePage), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -702,7 +712,7 @@ void main() {
     expect(tester.takeException(), isNull);
     final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
     await mouse.addPointer(location: Offset.zero);
-    for (final message in ['Page 1', 'Page 2', 'Settings', 'Appearance', 'Navigation', 'Keyboard']) {
+    for (final message in ['Feature A', 'Feature B', 'Settings', 'Appearance', 'Navigation', 'Keyboard']) {
       final tooltips = find.byTooltip(message);
       if (tooltips.evaluate().isEmpty) continue;
       final tooltip = tooltips.first;
@@ -725,7 +735,12 @@ void main() {
     await tester.pumpWidget(_settingsApp());
     await tester.pumpAndSettle();
 
-    expect(find.byType(ExpansionTile), findsNWidgets(6));
+    final sectionTiles = find.byType(ExpansionTile);
+    expect(sectionTiles, findsWidgets);
+    expect(
+      find.descendant(of: find.byType(ListView), matching: sectionTiles),
+      findsNWidgets(sectionTiles.evaluate().length),
+    );
     expect(find.byKey(const ValueKey('settings-section-navigation')), findsNothing);
     expect(tester.takeException(), isNull);
   }, variant: TargetPlatformVariant.only(TargetPlatform.android));

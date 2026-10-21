@@ -14,7 +14,6 @@ import 'package:flutter_template/core/themes.dart';
 import 'package:flutter_template/l10n/l10n.dart';
 import 'package:flutter_template/pages/home/home_page.dart';
 import 'package:flutter_template/pages/home/page_navigator.dart';
-import 'package:flutter_template/pages/home/default_shell_config.dart';
 import 'package:flutter_template/pages/home/shell_navigation_coordinator.dart';
 
 void main() {
@@ -268,52 +267,40 @@ void main() {
     expect(_workspace(settings, 'activity-b').tabs.single.instanceId, 'saved');
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
-  testWidgets('all default sections open content and keep the generic inspector available', (tester) async {
-    await _pumpShell(tester, config: defaultShellConfig());
+  testWidgets('registered sections open default content and keep the generic right sidebar available', (tester) async {
+    await _pumpShell(tester, config: _config(withDefaultViews: true));
     final home = tester.state<HomePageState>(find.byType(HomePage));
     final settings = ic.sl<SettingsController>();
 
-    for (final item in PageItem.values) {
-      await home.selectedPage(item.name);
+    for (final sectionId in ['activity-a', 'activity-b']) {
+      await home.selectedPage(sectionId);
       await tester.pumpAndSettle();
-      expect(_workspace(settings, item.name).tabs, isNotEmpty, reason: '${item.name} should have its default view');
-      final workspace = _workspace(settings, item.name);
-      expect(workspace.tabs.singleWhere((tab) => tab.id == workspace.activeTabId).registrationId, item.name);
+      final workspace = _workspace(settings, sectionId);
+      expect(workspace.tabs, isNotEmpty, reason: '$sectionId should have its default view');
+      expect(workspace.tabs.singleWhere((tab) => tab.id == workspace.activeTabId).registrationId, 'editor');
       expect(
         find.byKey(ValueKey('workspace-tab-${workspace.activeTabId}')),
         findsOneWidget,
-        reason: '${item.name} should mount its configured content',
-      );
-      expect(
-        find.text(pageItemPresentation(tester.element(find.byType(HomePage)), item).title),
-        findsAtLeastNWidgets(1),
+        reason: '$sectionId should mount its configured content',
       );
     }
 
-    final active = settings.settings.selectedActivityId!;
-    await home.selectedPage(active);
+    await home.selectedPage('activity-a');
     await tester.pumpAndSettle();
-    expect(_workspace(settings, active).tabs, isNotEmpty);
     expect(find.byTooltip('Open right sidebar'), findsOneWidget);
     await tester.tap(find.byTooltip('Open right sidebar'));
     await tester.pumpAndSettle();
-    expect(find.text('Workspace'), findsOneWidget);
+    expect(find.text('Inspector editor-1'), findsOneWidget);
 
-    await home.selectedPage('page1');
+    home.openView('editor', sectionId: 'activity-a');
+    home.openView('editor', sectionId: 'activity-a');
+    home.openView('help', sectionId: 'activity-b');
     await tester.pumpAndSettle();
-    final page1 = _workspace(settings, 'page1');
-    expect(find.byKey(ValueKey('workspace-tab-${page1.activeTabId}')), findsOneWidget);
-
-    home.openView('page1', sectionId: 'page1');
-    home.openView('page1', sectionId: 'page1');
-    home.openView('page2', sectionId: 'page2');
-    await tester.pumpAndSettle();
-    final page1Tabs = _workspace(settings, 'page1').tabs;
-    final page2Tabs = _workspace(settings, 'page2').tabs;
-    expect(page1Tabs, hasLength(3));
-    expect(page1Tabs.map((tab) => tab.id).toSet(), hasLength(3));
-    expect(page2Tabs, hasLength(2));
-    expect(page2Tabs.map((tab) => tab.id).toSet(), hasLength(2));
+    final activityATabs = _workspace(settings, 'activity-a').tabs;
+    final activityBTabs = _workspace(settings, 'activity-b').tabs;
+    expect(activityATabs, hasLength(3));
+    expect(activityATabs.map((tab) => tab.id).toSet(), hasLength(3));
+    expect(activityBTabs.map((tab) => tab.registrationId), containsAll(['editor', 'help']));
   }, variant: TargetPlatformVariant.only(TargetPlatform.linux));
 
   testWidgets('commands, contextual right sidebar, status, and middle click follow the active section tab', (
@@ -377,11 +364,24 @@ void main() {
 ShellConfig _config({
   void Function(String instanceId)? onAction,
   Map<String, _WorkspaceStatusProvider>? providers,
+  bool withDefaultViews = false,
 }) => ShellConfig(
   title: (_) => 'Workspace test',
-  destinations: const [
-    ShellDestination(id: 'activity-a', title: _activityTitleA, icon: Icons.home, allowedViewIds: {'editor', 'help'}),
-    ShellDestination(id: 'activity-b', title: _activityTitleB, icon: Icons.folder, allowedViewIds: {'editor', 'help'}),
+  destinations: [
+    ShellDestination(
+      id: 'activity-a',
+      title: _activityTitleA,
+      icon: Icons.home,
+      defaultViewId: withDefaultViews ? 'editor' : null,
+      allowedViewIds: {'editor', 'help'},
+    ),
+    ShellDestination(
+      id: 'activity-b',
+      title: _activityTitleB,
+      icon: Icons.folder,
+      defaultViewId: withDefaultViews ? 'editor' : null,
+      allowedViewIds: {'editor', 'help'},
+    ),
   ],
   views: [
     ShellViewRegistration(
